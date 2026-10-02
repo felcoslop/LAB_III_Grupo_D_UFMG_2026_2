@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel ToF Sumô</title>
+<style>
+:root{
+  --bg:#0b1014; --panel:#121a20; --panel2:#18222a; --line:#24323c; --txt:#dce6ec; --mut:#8195a3;
+  --acc:#35d49a; --warn:#ffcf40; --err:#ff5d5d; --info:#6fb6ff;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:16px;margin:0 10px 0 0;font-weight:650}
+.pill{font:12px var(--mono);padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--mut);white-space:nowrap}
+.pill.on{color:var(--acc);border-color:var(--acc)} .pill.demo{color:var(--warn);border-color:var(--warn)} .pill.bad{color:var(--err);border-color:var(--err)}
+button,select,input{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+button{cursor:pointer} button:hover{border-color:var(--mut)} button.pri{background:#15402f;border-color:var(--acc)} button.danger{border-color:#6a2a2a}
+button:disabled{opacity:.4;cursor:default}
+input[type=number]{width:90px;font-family:var(--mono)}
+kbd{font:11px var(--mono);background:#0d1418;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--warn)}
+main{padding:14px 16px;max-width:1600px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.grid3{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,1fr);gap:14px}
+@media (max-width:1100px){.grid2,.grid3{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);margin:0 0 8px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card h2 .sp{flex:1}
+.view{position:relative;aspect-ratio:1/1;width:100%;background:#070b0e;border-radius:10px;overflow:hidden}
+.view canvas{width:100%;height:100%;display:block}
+.lbl3d{position:absolute;pointer-events:none;font:12px var(--mono);padding:1px 6px;border-radius:5px;background:rgba(0,0,0,.65);white-space:nowrap;transform:translate(-50%,-120%)}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.mut{color:var(--mut)}
+.big{font:700 24px var(--mono)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{color:var(--mut);font-weight:500;font-size:12px}
+td.n{font-family:var(--mono);text-align:right}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+#action{border:1px solid var(--warn);background:#2a2410;color:#ffe9a8;border-radius:10px;padding:10px 12px;min-height:44px}
+#action.idle{border-color:var(--line);background:var(--panel2);color:var(--mut)}
+#term{height:220px;overflow:auto;background:#070b0e;border:1px solid var(--line);border-radius:8px;padding:8px;font:12.5px/1.45 var(--mono);white-space:pre-wrap;word-break:break-word}
+#term .i{color:var(--mut)} #term .a{color:var(--warn);font-weight:700} #term .e{color:var(--err)} #term .u{color:var(--info)}
+#cmd{flex:1;min-width:160px;font-family:var(--mono)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px}
+.kv b{font-family:var(--mono);font-weight:600}
+.note{font-size:12px;color:var(--mut);margin-top:6px}
+.tag{font:11px var(--mono);padding:1px 6px;border-radius:5px;border:1px solid var(--line)}
+#bordaAviso{border-radius:10px;padding:10px 12px;font-weight:700;font-size:18px;text-align:center;margin-bottom:8px;border:1px solid var(--line);background:var(--panel2);color:var(--mut)}
+#bordaAviso.alerta{background:#3a0f12;border-color:var(--err);color:#ffc2c2;animation:pisca .5s steps(2) infinite}
+@keyframes pisca{50%{background:#5a1318}}
+.barra{height:8px;background:#0d1418;border-radius:4px;position:relative;min-width:90px}
+.barra i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:#8195a3}
+.barra b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--warn)}
+#nosupport{display:none;background:#2b1515;border-bottom:1px solid #6a2a2a;padding:8px 16px;color:#f3c0c0}
+</style>
+</head>
+<body>
+<div id="nosupport">Sem Web Serial neste navegador: use a conexão <b>WiFi</b> (rede SUMO-ROBO, endereço 192.168.4.1) ou abra no Chrome/Edge do computador para USB.</div>
+<header>
+  <h1>Painel ToF · Sumô</h1>
+  <span id="status" class="pill">desconectado</span>
+  <span id="pGeo" class="pill">geometria: BANCADA</span>
+  <span id="pSaude" class="pill">ToF -/-</span>
+  <span id="pEstado" class="pill">estado: -</span>
+  <span id="pBorda" class="pill">borda -</span>
+  <span id="pRede" class="pill" title="taxa de pacotes, tempo de ida e volta e perdas">rede -</span>
+  <span style="flex:1"></span>
+  <input id="endWifi" value="192.168.4.1" style="width:130px;font-family:var(--mono)" title="endereço do ESP32">
+  <button id="bWifi" class="pri">Conectar WiFi</button>
+  <button id="bConn">USB</button>
+  <button id="bDemo">Modo demo</button>
+  <button id="bDisc" class="danger" disabled>Desconectar</button>
+</header>
+
+<main>
+<div class="grid2">
+  <div class="card">
+    <h2>Radar 2D · vista de cima <span class="sp"></span>
+      <button id="bOp" style="display:none;text-transform:none;letter-spacing:0;padding:3px 8px">Tirar oponente</button>
+      <label id="lMexe" class="mut" style="display:none;text-transform:none;letter-spacing:0" title="o robô simulado gira e avança seguindo a seta (rumo)"><input type="checkbox" id="mexe" checked> robô se mexe</label>
+      <label class="mut" style="text-transform:none;letter-spacing:0">zoom <input id="zoom" type="range" min="150" max="900" value="560" style="vertical-align:middle;width:110px"></label>
+    </h2>
+    <div class="view" id="v2d"><canvas id="c2d"></canvas></div>
+    <div class="note">Arco colorido = leitura de cada sensor (o ToF dá a distância, mas não em que ponto do cone de 25° está o objeto).
+      <b style="color:#ff9a3c">Mancha laranja</b> = mapa de probabilidade do rastreador: onde o <b>centro</b> do oponente pode estar, juntando o que cada sensor vê e o que ele <b>não</b> vê (só existe 1 oponente, quadrado de 15,2 cm).
+      <b style="color:#ff5d5d">Quadrado vermelho</b> = oponente na posição que o robô usa (tracejado = provável, sem sensor confirmando agora).</div>
+  </div>
+  <div class="card">
+    <h2>Ambiente 3D <span class="sp"></span>
+      <button id="cTopo">Topo</button><button id="cPersp">Perspectiva</button><button id="cLado">Lateral</button>
+    </h2>
+    <div class="view" id="v3d"><canvas id="c3d"></canvas></div>
+    <div class="note">Arraste para girar, roda do mouse para zoom, botão direito para mover. Cones em escala real (25°, altura das lentes). A calota em cada cone é a superfície na distância medida. No chão, o mapa de probabilidade; a caixa vermelha é o oponente (15,2 x 15,2 cm) na posição estimada.</div>
+  </div>
+</div>
+
+<div class="grid3">
+  <div class="card">
+    <h2>Oponente</h2>
+    <div class="big" id="tMain">SEM ALVO</div>
+    <div class="mut" id="tSub">-</div>
+    <div class="kv" style="margin-top:10px">
+      <span class="mut">Estimativa do robô</span><b id="kEst">-</b>
+      <span class="mut">Incerteza / confiança</span><b id="kInc">-</b>
+      <span class="mut">Região possível</span><b id="kReg">-</b>
+      <span class="mut">Sensores que veem</span><b id="kQuem">-</b>
+      <span class="mut">Rumo (seta)</span><b id="kRumo">-</b>
+      <span class="mut">Decisão</span><b id="kAcao">-</b>
+      <span class="mut">Estado</span><b id="kEstado">-</b>
+    </div>
+    <div class="row">
+      <span class="mut">lado do oponente (mm)</span><input id="objW" type="number" value="152" min="10" max="400">
+    </div>
+    <div class="note">Regra RoboCore 1 kg: 15,2 x 15,2 cm. Este campo só muda o tamanho do quadrado no <b>modo demo</b> e a faixa "região possível"; o robô usa OPONENTE_LADO_MM do config.h.</div>
+  </div>
+
+  <div class="card">
+    <h2>Sensores e precisão <span class="sp"></span><span class="mut" style="text-transform:none;letter-spacing:0">últimas <span id="nJan">40</span> leituras</span></h2>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>Sensor</th><th>Status</th><th class="n">Bruto</th><th class="n">Corrigido</th><th class="n">Média</th><th class="n">Ruído ±</th><th class="n">Erro</th><th>Cal</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table></div>
+    <div class="row">
+      <span class="mut">distância real do alvo (mm):</span><input id="real" type="number" placeholder="ex.: 50">
+      <button id="bZeraJan">Zerar médias</button>
+    </div>
+    <div class="note">Coloque o alvo a uma distância conhecida da <b>face do chip</b> e digite o valor: a coluna Erro mostra média menos real. Ruído é o desvio padrão.</div>
+  </div>
+
+  <div class="card">
+    <h2>Calibração</h2>
+    <div id="action" class="idle">Nenhuma ação pendente.</div>
+    <div class="row">
+      <button id="bEnter" class="pri">Confirmar / medir <kbd>Enter</kbd></button>
+      <button id="bAbort" class="danger">Cancelar <kbd>Esc</kbd></button>
+    </div>
+    <div class="row">
+      <span class="mut">calibrar:</span><span id="calBtns"></span>
+    </div>
+    <div class="row">
+      <button data-cmd="calver">Ver calibração</button>
+      <button data-cmd="lista">Lista</button>
+      <button data-cmd="scan">Scan I2C</button>
+      <button data-cmd="init">Religar sensores</button>
+    </div>
+    <div class="row">
+      <button data-cmd="go" class="pri">go (5 s)</button><button data-cmd="stop" class="danger">stop</button>
+    </div>
+    <div class="note">Calibrar = 2 pontos (50 mm e 300 mm, da face do chip). Fica gravado no ESP32 e vale mesmo depois de desligar.</div>
+  </div>
+</div>
+
+<div class="grid2">
+<div class="card">
+  <h2>Sensores de borda (TCRT5000) <span class="sp"></span>
+    <label class="mut" style="text-transform:none;letter-spacing:0"><input type="checkbox" id="som"> som ao detectar</label></h2>
+  <div id="bordaAviso">sem borda</div>
+  <div style="overflow-x:auto"><table>
+    <thead><tr><th>Sensor</th><th class="n">mV</th><th>preto ◀ ▶ branco</th><th class="n">Limiar</th><th class="n">Preto</th><th class="n">Branco</th><th>Estado</th></tr></thead>
+    <tbody id="tbBorda"></tbody>
+  </table></div>
+  <div class="row">
+    <button data-cmd="calborda" class="pri">Diagnosticar e calibrar</button>
+    <button data-cmd="bordazera">Apagar calibração</button>
+    <button data-cmd="borda">Leitura no terminal</button>
+  </div>
+  <div class="note"><b>Marcando borda no preto?</b> Clique em <b>Diagnosticar e calibrar</b>: ele mede no ar, no preto e no branco e diz a causa (reflexo da protoboard branca, módulo invertido, preto que reflete infravermelho ou fio). O trimpot azul não muda nada: ele só ajusta a saída D0, e o código lê a A0.<br>
+  Barra: onde está a leitura entre o preto e o branco calibrados; o traço amarelo é o limiar. BORDA só acende depois de branco contínuo por alguns milissegundos (arranhão não conta). Com o robô em luta, borda na frente faz RECUO e borda atrás faz AVANÇO.</div>
+</div>
+<div class="card">
+  <h2>Terminal</h2>
+  <div id="term"></div>
+  <div class="row">
+    <input id="cmd" placeholder="comando (help, lista, cal FC, medir FC 100, calver...) + Enter" autocomplete="off">
+    <button id="bSend">Enviar</button><button id="bClear">Limpar</button>
+    <label class="mut"><input type="checkbox" id="auto" checked> rolar</label>
+  </div>
+</div>
+</div>
+</main>
+
+<script>/*THREE_JS*/</script>
+<script>/*ORBIT_JS*/</script>
+<script>
+"use strict";
+// ============================== ESTADO ==============================
+const CORES = ["#b98cff", "#4fa3ff", "#35d49a", "#ff9f43", "#ff6fae", "#6fe3ff", "#ffd36f", "#c3ff6f"];
+const FOV = 25, MEIO = FOV / 2;
+const PCB_L = 24.6, PCB_H = 12, PCB_E = 1.6;
+const S = {
+  geo: [ {n:"LE",x:-1,y:30,a:90},{n:"FE",x:73,y:27,a:20},{n:"FC",x:87,y:-1,a:0},{n:"FD",x:73,y:-27,a:-20},{n:"LD",x:-2,y:-30,a:-90} ],
+  corpo: {f:82.5, t:82.5, e:27.35, d:27.35, h:10.2, lente:23, nome:"BANCADA"},
+  ok: [null,null,null,null,null], cal: [], estados: ["ESPERA","CONTAGEM","BUSCA","MIRA","ATAQUE","RECUO","GIRO_BORDA","AVANCO_BORDA"],
+  bg: [ {n:"BFE",x:40,y:34,alt:2.7,lim:600,preto:0,branco:0,nvs:false,abaixo:true},{n:"BFD",x:55,y:-34,alt:2.7,lim:600,preto:0,branco:0,nvs:false,abaixo:true},
+        {n:"BTE",x:-75,y:34,alt:2.7,lim:600,preto:0,branco:0,nvs:false,abaixo:true},{n:"BTD",x:-60,y:-34,alt:2.7,lim:600,preto:0,branco:0,nvs:false,abaixo:true} ],
+  bmask: 0, bcru: 0, bmv: [], bTempo: 0,
+  v: [-1,-1,-1,-1,-1], r: [-1,-1,-1,-1,-1],
+  tgt: {visto:false}, acao: 0, lado: 0, estado: 0, saude: 0, alcance: 542, tD: 0,
+  jan: [], trail: [], reg: null,
+  bayes: false, opLado: 152, alcPreto: 550, mapa: null
+};
+const ACOES = ["BUSCAR","ATACAR","CURVA ESQ","CURVA DIR","GIRO ESQ","GIRO DIR","SEGURAR"];
+const JAN = 40;
+let port = null, reader = null, writer = null, conectado = false, demo = false;
+let modo = null, es = null, base = "", timerPing = null;
+const rede = {n: 0, t0: performance.now(), hz: 0, rtt: null, perd: 0, tot: 0, espAnt: null};
+const $ = id => document.getElementById(id);
+const servidoPeloEsp = location.protocol.startsWith("http");
+if (!("serial" in navigator) && !servidoPeloEsp) $("nosupport").style.display = "block";
+const N = () => S.geo.length;
+const rad = d => d * Math.PI / 180, deg = r => r * 180 / Math.PI;
+const normA = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
+const okS = i => S.ok[i] !== false;
+// maior leitura do sensor que ainda cai dentro do círculo de raio "alcance" em volta do robô (igual ao firmware)
+function alcSensor(g) {
+  const ux = Math.cos(rad(g.a)), uy = Math.sin(rad(g.a)), su = g.x * ux + g.y * uy, d = su * su - (g.x * g.x + g.y * g.y) + S.alcance * S.alcance;
+  return Math.max(15, d > 0 ? -su + Math.sqrt(d) : 0);
+}
+
+// ============================== TERMINAL ==============================
+function log(t, c) {
+  const d = document.createElement("div"); d.className = c || ""; d.textContent = t; $("term").appendChild(d);
+  while ($("term").childNodes.length > 1500) $("term").removeChild($("term").firstChild);
+  if ($("auto").checked) $("term").scrollTop = $("term").scrollHeight;
+}
+function acao(t) { const a = $("action"); if (t) { a.className = ""; a.textContent = t; } else { a.className = "idle"; a.textContent = "Nenhuma ação pendente."; } }
+
+// ============================== PROTOCOLO ==============================
+function linha(l) {
+  l = l.replace(/\r$/, ""); if (!l) return;
+  const p = l.split(",");
+  switch (p[0]) {
+    case "D": return dados(p.slice(1).map(Number));
+    case "G": { const i = +p[1]; S.geo[i] = {n: p[2], x: +p[3], y: +p[4], a: +p[5]}; S.geo.length = Math.max(S.geo.length, i + 1); montaTabela(); cena3d(); return; }
+    case "I": S.ok[+p[1]] = p[2] === "1"; return;
+    case "C": S.cal[+p[1]] = {g: +p[2], o: +p[3], nvs: p[4] === "1"}; return;
+    case "B": S.corpo = {f:+p[1], t:+p[2], e:+p[3], d:+p[4], h:+p[5], lente:+p[6], nome:p[7] || ""}; $("pGeo").textContent = "geometria: " + S.corpo.nome; cena3d(); return;
+    case "E": S.estados = p.slice(1); return;
+    case "R": { const i = +p[1]; S.bg[i] = {n: p[2], x: +p[3], y: +p[4], alt: +p[5], lim: +p[6], preto: +p[7], branco: +p[8], nvs: p[9] === "1", abaixo: p[10] !== "0"};
+                if (i === 0) S.bg.length = 1; montaBorda(); cena3d(); return; }
+    case "Q": return dadosBorda(p.slice(1).map(Number));
+    case "K": S.alcance = +p[1] || 542; return;
+    case "X": S.bayes = p[1] === "1"; S.opLado = +p[2] || 152; S.alcPreto = +p[3] || 550; return;
+    case "M": return dadosMapa(p);
+    case "H": return;
+  }
+  if (l.startsWith("> ")) { log(l, "a"); acao(l.slice(2)); }
+  else if (l.startsWith("! ")) { log(l, "e"); if (/cancelad|esgotado|nada foi gravado|Nada gravado/.test(l)) acao(null); }
+  else if (l.startsWith("# ")) { log(l, "i"); if (/CALIBRADO/.test(l)) acao(null); }
+  else log(l);
+}
+function dados(n) {
+  const k = N();
+  if (n.length < 2 * k + 9) return;
+  S.v = n.slice(0, k); S.r = n.slice(k, 2 * k);
+  const b = 2 * k;
+  S.tgt = {visto: n[b] === 1, ang: n[b + 1] / 10, dist: n[b + 2], conf: n[b + 3], mask: n[b + 4], cx: n[b + 5], cy: n[b + 6],
+           sigma: n.length > b + 12 ? n[b + 12] / 10 : null, confi: n.length > b + 13 ? n[b + 13] / 100 : null,
+           existe: n.length > b + 14 ? n[b + 14] / 100 : (n[b] === 1 ? 1 : 0)};
+  S.acao = n[b + 7]; S.lado = n[b + 8];
+  S.rumo = n.length > b + 16 ? {modo: n[b + 15], ang: n[b + 16] / 10, ganho: n.length > b + 17 ? n[b + 17] / 100 : 0} : null;
+  if (n.length > b + 9) S.estado = n[b + 9];
+  if (n.length > b + 10) { S.saude = n[b + 10]; for (let i = 0; i < k; i++) S.ok[i] = !!(S.saude & (1 << i)); }
+  S.tD = performance.now();
+  if (n.length > b + 11) {                       // relógio do ESP32: detecta pacotes perdidos
+    const te = n[b + 11];
+    if (rede.espAnt !== null) { const gap = te - rede.espAnt; if (gap > 0 && gap < 2000) { const esp = Math.max(1, Math.round(gap / 20)); rede.tot += esp; rede.perd += esp - 1; } }
+    rede.espAnt = te;
+  }
+  rede.n++;
+  for (let i = 0; i < k; i++) {
+    S.jan[i] = S.jan[i] || [];
+    if (S.v[i] > 0) { S.jan[i].push({v: S.v[i], r: S.r[i]}); if (S.jan[i].length > JAN) S.jan[i].shift(); }
+  }
+  if (S.tgt.visto) S.trail.push({x: S.tgt.cx, y: S.tgt.cy, t: performance.now()});
+  S.reg = regiao();
+  painel();
+}
+
+// ============================== MAPA DE PROBABILIDADE (rastreador) ==============================
+// M,nb,nr,r0,dr,<células>: '0'..'o' = nível 0..63; "!"+c = (c-'0') células nível 0 seguidas.
+// Célula [anel R][direção M]: direção de -180+M*360/nb a -180+(M+1)*360/nb graus, anel de r0+R*dr a r0+(R+1)*dr mm.
+function dadosMapa(p) {
+  const nb = +p[1], nr = +p[2], r0 = +p[3], dr = +p[4], s = p.slice(5).join(",");
+  if (!(nb > 0 && nr > 0)) return;
+  const v = new Uint8Array(nb * nr); let k = 0;
+  for (let i = 0; i < s.length && k < v.length; i++) {
+    const ch = s.charCodeAt(i);
+    if (ch === 33) { k += s.charCodeAt(++i) - 48; } else v[k++] = Math.max(0, Math.min(63, ch - 48));
+  }
+  S.mapa = {nb, nr, r0, dr, v, t: performance.now()};
+  mapa3d();
+}
+
+// ============================== BORDA ==============================
+function ondeBorda(g) { return (g.x >= 0 ? "frente" : "trás") + " " + (g.y >= 0 ? "esquerda" : "direita"); }
+let actx = null;
+let tBip = 0;
+function bip() {
+  if (!$("som").checked) return;
+  if (performance.now() - tBip < 2000) return;            // no máximo 1 bipe a cada 2 s
+  tBip = performance.now();
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = "square"; o.frequency.value = 880; g.gain.value = 0.07;
+    o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + 0.12);
+  } catch (e) {}
+}
+function montaBorda() {
+  const tb = $("tbBorda"); tb.innerHTML = "";
+  S.bg.forEach((g, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><b>${g.n}</b> <span class="mut">${ondeBorda(g)}</span></td><td class="n" id="bmv${i}">-</td>
+      <td><div class="barra"><i id="bbar${i}"></i><b id="blim${i}"></b></div></td><td class="n" id="blm${i}">-</td>
+      <td class="n" id="bpr${i}">-</td><td class="n" id="bbr${i}">-</td><td id="best${i}">-</td>`;
+    tb.appendChild(tr);
+  });
+}
+function dadosBorda(n) {
+  if (n.length < 2) return;
+  const ant = S.bmask;
+  S.bmask = n[0]; S.bcru = n[1]; S.bmv = n.slice(2); S.bTempo = performance.now();
+  const novos = S.bmask & ~ant;
+  if (novos) {
+    bip();
+    const nomes = S.bg.filter((g, i) => novos & (1 << i)).map(g => g.n + " (" + ondeBorda(g) + ")").join(", ");
+    log("[borda] " + nomes, "e");
+  }
+  painelBorda();
+}
+function painelBorda() {
+  const nb = S.bg.length;
+  if (!$("bmv0") && nb) montaBorda();
+  for (let i = 0; i < nb; i++) {
+    const g = S.bg[i], mv = S.bmv[i], conf = S.bmask & (1 << i), cru = S.bcru & (1 << i);
+    if (!$("bmv" + i)) continue;
+    $("bmv" + i).textContent = mv !== undefined ? mv : "-";
+    // barra: 0% = preto, 100% = branco (calibrado) ou escala 0..3300 mV invertida (padrão)
+    let pr = g.nvs ? g.preto : (g.abaixo ? 3300 : 0), br = g.nvs ? g.branco : (g.abaixo ? 0 : 3300);
+    const frac = v => Math.max(0, Math.min(1, (v - pr) / ((br - pr) || 1)));
+    $("bbar" + i).style.width = mv !== undefined ? (100 * frac(mv)).toFixed(0) + "%" : "0";
+    $("bbar" + i).style.background = conf ? "var(--err)" : cru ? "#e8eef2" : "#8195a3";
+    $("blim" + i).style.left = (100 * frac(g.lim)).toFixed(0) + "%";
+    $("blm" + i).textContent = g.lim; $("bpr" + i).textContent = g.nvs ? g.preto : "-"; $("bbr" + i).textContent = g.nvs ? g.branco : "-";
+    $("best" + i).innerHTML = conf ? '<b style="color:var(--err)">BORDA!</b>' : cru ? "branco" : '<span class="mut">preto</span>';
+  }
+  const quem = S.bg.filter((g, i) => S.bmask & (1 << i));
+  const av = $("bordaAviso");
+  if (quem.length) {
+    av.className = "alerta";
+    const fr = quem.some(g => g.x >= 0), tr = quem.some(g => g.x < 0);
+    av.textContent = "⚠ BORDA: " + quem.map(g => ondeBorda(g)).join(" + ") + (fr && tr ? " (de lado na linha)" : fr ? " → recuar" : " → avançar") +
+      (quem.some(g => !g.nvs) ? " · sensor SEM calibração: clique em Diagnosticar e calibrar" : "");
+    $("pBorda").textContent = "BORDA!"; $("pBorda").className = "pill bad";
+  } else {
+    av.className = ""; av.textContent = nb ? (S.bmv.length ? "dentro do ringue (todos no preto)" : "sem dados da borda") : "borda desativada (USAR_BORDA 0)";
+    $("pBorda").textContent = "borda ok"; $("pBorda").className = S.bmv.length ? "pill on" : "pill";
+  }
+}
+
+// ============================== REGIÃO POSSÍVEL ==============================
+// Não inventa posição: parte do sensor que vê mais perto (a leitura dele é um ARCO
+// dentro do cone) e corta o arco usando os outros sensores:
+//  - vizinho que vê o mesmo objeto  -> o ponto precisa estar no cone dele
+//  - sensor funcionando que NÃO vê  -> o ponto não pode estar no meio do cone dele
+function regiao() {
+  const k = N(); let a = -1, da = 1e9;
+  for (let i = 0; i < k; i++) if (S.v[i] > 0 && S.v[i] < da) { da = S.v[i]; a = i; }
+  if (a < 0) return null;
+  const R = Math.max(5, (+$("objW").value || 78) / 2), g = S.geo[a];
+  const cand = [];
+  for (let s = -MEIO * 2; s <= MEIO * 2; s++) {
+    const th = g.a + s * 0.5, px = g.x + da * Math.cos(rad(th)), py = g.y + da * Math.sin(rad(th));
+    let ok = true;
+    for (let j = 0; j < k && ok; j++) {
+      if (j === a || !okS(j)) continue;
+      const gj = S.geo[j], dx = px - gj.x, dy = py - gj.y, dj = Math.hypot(dx, dy);
+      if (dj > S.alcance) continue;
+      const dif = Math.abs(normA(deg(Math.atan2(dy, dx)) - gj.a)), m = deg(Math.atan(R / Math.max(dj, 1)));
+      const ve = S.v[j] > 0;
+      const mesmo = ve && Math.abs(S.v[j] - da) <= 150 && Math.abs(gj.a - g.a) <= 45;
+      if (mesmo) { if (dif > MEIO + m) ok = false; }
+      else if (!ve) { if (dif < MEIO - 2) ok = false; }
+      else if (S.v[j] > dj + 100 && dif < MEIO - 2) ok = false;   // veria mais perto
+    }
+    cand.push({th, ok, px, py});
+  }
+  // maior trecho contínuo consistente
+  let best = null, cur = null;
+  for (const c of cand) {
+    if (c.ok) { if (!cur) cur = [c]; else cur.push(c); }
+    else if (cur) { if (!best || cur.length > best.length) best = cur; cur = null; }
+  }
+  if (cur && (!best || cur.length > best.length)) best = cur;
+  const incons = !best;
+  const pts = best || cand;
+  const b1 = deg(Math.atan2(pts[0].py, pts[0].px)), b2 = deg(Math.atan2(pts[pts.length - 1].py, pts[pts.length - 1].px));
+  const mid = pts[Math.floor(pts.length / 2)];
+  return {a, da, pts, th1: pts[0].th, th2: pts[pts.length - 1].th, bmin: Math.min(b1, b2), bmax: Math.max(b1, b2),
+          bmid: deg(Math.atan2(mid.py, mid.px)), dmid: Math.hypot(mid.px, mid.py), incons};
+}
+
+// Rumo = para onde o robô deve virar agora (P.rumo no firmware)
+const RUMO_NOME = ["-", "ATACAR", "MIRAR", "PROVÁVEL", "PROCURAR"], RUMO_COR = ["#8195a3", "#ff3b3b", "#ff9f43", "#ffd36f", "#6fb6ff"];
+const corRumo = m => RUMO_COR[m] || RUMO_COR[0];
+function textoRumo(r) {
+  if (!r || !r.modo) return "-";
+  const lado = Math.abs(r.ang) < 3 ? "em frente" : `${Math.abs(r.ang).toFixed(0)}° à ${r.ang > 0 ? "esquerda" : "direita"}`;
+  if (r.modo === 4) return `PROCURAR · girar ${lado}` + (r.ganho > 0 ? ` (os cones varrem ${(100 * r.ganho).toFixed(0)}% do mapa)` : "");
+  return `${RUMO_NOME[r.modo]} · ${lado}`;
+}
+// "provável": sem sensor confirmando agora, mas o mapa ainda acha que ele está ali
+const provavelOp = t => !t.visto && S.bayes && t.existe >= 0.3 && t.confi >= 0.15;
+const forcaMapa = () => S.bayes ? Math.max(0, Math.min(1, ((S.tgt.existe || 0) - 0.15) / 0.45)) : 1;   // some com a arena vazia
+
+// ============================== PAINEL (texto e tabela) ==============================
+function montaTabela() {
+  const tb = $("tbody"); tb.innerHTML = "";
+  const cb = $("calBtns"); cb.innerHTML = "";
+  for (let i = 0; i < N(); i++) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><span class="sw" style="background:${CORES[i]}"></span><b>${S.geo[i].n}</b></td><td id="st${i}">-</td>
+      <td class="n" id="rb${i}">-</td><td class="n" id="rc${i}">-</td><td class="n" id="me${i}">-</td><td class="n" id="dp${i}">-</td><td class="n" id="er${i}">-</td><td id="ca${i}">-</td>`;
+    tb.appendChild(tr);
+    const b = document.createElement("button"); b.textContent = S.geo[i].n; b.style.marginRight = "4px";
+    b.onclick = () => enviar("cal " + S.geo[i].n); cb.appendChild(b);
+  }
+}
+function stats(arr, key) {
+  if (!arr || !arr.length) return null;
+  const n = arr.length; let s = 0, s2 = 0;
+  for (const e of arr) { s += e[key]; s2 += e[key] * e[key]; }
+  const m = s / n; return {m, dp: Math.sqrt(Math.max(0, s2 / n - m * m)), n};
+}
+function painel() {
+  const real = +$("real").value;
+  let k_ok = 0;
+  for (let i = 0; i < N(); i++) {
+    if (!$("st" + i)) montaTabela();
+    const ok = S.ok[i];
+    if (ok) k_ok++;
+    const cob = S.r[i] > 0 && S.r[i] < 60;
+    $("st" + i).innerHTML = ok === false ? '<span style="color:var(--err)">FALHOU</span>' : cob ? "<b>COBERTO</b>" : ok ? '<span style="color:var(--acc)">OK</span>' : "-";
+    $("rb" + i).textContent = S.r[i] > 0 ? S.r[i] : "-";
+    $("rc" + i).textContent = S.v[i] > 0 ? S.v[i] : "-";
+    const st = stats(S.jan[i], "v");
+    $("me" + i).textContent = st ? st.m.toFixed(1) : "-";
+    $("dp" + i).textContent = st ? st.dp.toFixed(1) : "-";
+    $("er" + i).textContent = st && real > 0 ? (st.m - real > 0 ? "+" : "") + (st.m - real).toFixed(1) : "-";
+    $("er" + i).style.color = st && real > 0 ? (Math.abs(st.m - real) <= 5 ? "var(--acc)" : Math.abs(st.m - real) <= 15 ? "var(--warn)" : "var(--err)") : "";
+    const c = S.cal[i];
+    $("ca" + i).innerHTML = c ? `<span class="tag" style="${c.nvs ? "color:var(--acc)" : ""}">${c.nvs ? "cal" : "sem"} ${c.g.toFixed(2)} ${c.o >= 0 ? "+" : ""}${c.o.toFixed(0)}</span>` : "-";
+  }
+  $("nJan").textContent = JAN;
+  $("pSaude").textContent = `ToF ${k_ok}/${N()}`; $("pSaude").className = "pill " + (k_ok === N() ? "on" : k_ok >= 3 ? "demo" : "bad");
+  const en = S.estados[S.estado] || S.estado; $("pEstado").textContent = "estado: " + en; $("kEstado").textContent = en;
+  const t = S.tgt;
+  const rho = t.cx !== undefined ? Math.hypot(t.cx, t.cy) : 0;
+  if (t.visto) {
+    const d = t.dist > 0 ? t.dist : rho - S.opLado / 2 - S.corpo.f;
+    $("tMain").textContent = `${t.ang > 0 ? "+" : ""}${t.ang.toFixed(1)}°  ${(d / 10).toFixed(1)} cm`; $("tMain").style.color = "#ff6b6b";
+    $("tSub").textContent = (Math.abs(t.ang) < 7 ? "de frente" : t.ang > 0 ? "à esquerda" : "à direita") + (t.dist > 0 ? " · distância do sensor até a face" : "");
+    $("kEst").textContent = `${t.ang.toFixed(1)}° · centro a ${rho.toFixed(0)} mm`;
+  } else {
+    const vazia = S.bayes && !(t.existe >= 0.3);
+    $("tMain").textContent = vazia ? "ARENA VAZIA" : "SEM ALVO"; $("tMain").style.color = "";
+    $("tSub").textContent = vazia ? `nenhum oponente até ${(S.alcance / 10).toFixed(0)} cm (o máximo dentro do dohyo)` :
+      S.lado ? `${S.bayes ? "provavelmente" : "visto por último"}: ${S.lado > 0 ? "esquerda" : "direita"}` +
+      (provavelOp(t) ? ` (~${t.ang.toFixed(0)}°)` : "") : "-";
+    $("kEst").textContent = provavelOp(t) ? `provável ${t.ang.toFixed(0)}° · ${rho.toFixed(0)} mm` : "-";
+  }
+  $("kInc").textContent = t.sigma !== null && t.sigma !== undefined && S.bayes ?
+    `±${t.sigma.toFixed(1)}° · existe ${(100 * (t.existe || 0)).toFixed(0)}%` : "-";
+  const r = S.reg;
+  $("kReg").textContent = r ? `${r.bmin.toFixed(0)}° a ${r.bmax.toFixed(0)}° (±${((r.bmax - r.bmin) / 2).toFixed(1)}°)${r.incons ? " · leituras conflitantes" : ""}` : "-";
+  $("kQuem").textContent = S.geo.filter((g, i) => S.v[i] > 0).map((g, i) => g.n).join(" + ") || "nenhum";
+  $("kAcao").textContent = ACOES[S.acao] || "-";
+  $("kRumo").textContent = textoRumo(S.rumo); $("kRumo").style.color = S.rumo ? corRumo(S.rumo.modo) : "";
+}
+
+// ============================== RADAR 2D ==============================
+const c2 = $("c2d"), x2 = c2.getContext("2d");
+let W2 = 0, H2 = 0, E2 = 1, OX = 0, OY = 0;
+function tam2d() {
+  const r = c2.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  c2.width = r.width * dpr; c2.height = r.height * dpr; x2.setTransform(dpr, 0, 0, dpr, 0, 0);
+  W2 = r.width; H2 = r.height;
+}
+const PX = (x, y) => OX - y * E2, PY = (x, y) => OY - x * E2;
+const cang = a => Math.atan2(-Math.cos(rad(a)), -Math.sin(rad(a)));   // direção do robô -> ângulo do canvas
+function hexA(h, a) { const n = parseInt(h.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; }
+
+function desenha2d() {
+  const agora = performance.now();
+  if (c2.getBoundingClientRect().width !== W2) tam2d();
+  const Rv = +$("zoom").value;
+  E2 = (Math.min(W2, H2) * 0.46) / Rv; OX = W2 / 2; OY = H2 * 0.62;
+  x2.clearRect(0, 0, W2, H2);
+  // anéis e raios
+  x2.font = "11px ui-monospace,Consolas,monospace";
+  const passo = Rv > 500 ? 100 : 50;
+  for (let d = passo; d <= Rv * 1.4; d += passo) {
+    x2.strokeStyle = d % 100 === 0 ? "#22333d" : "#162129"; x2.lineWidth = 1;
+    x2.beginPath(); x2.arc(OX, OY, d * E2, 0, Math.PI * 2); x2.stroke();
+    if (d % 100 === 0) { x2.fillStyle = "#56707f"; x2.fillText((d / 10) + " cm", OX + 4, OY - d * E2 - 3); }
+  }
+  x2.strokeStyle = "#162129";
+  for (let a = -180; a < 180; a += 15) { x2.beginPath(); x2.moveTo(OX, OY); x2.lineTo(OX - Math.sin(rad(a)) * Rv * 2 * E2, OY - Math.cos(rad(a)) * Rv * 2 * E2); x2.stroke(); }
+  // cones
+  for (let i = 0; i < N(); i++) {
+    const g = S.geo[i], lx = PX(g.x, g.y), ly = PY(g.x, g.y), cor = CORES[i];
+    const a0 = cang(g.a + MEIO), a1 = cang(g.a - MEIO), ve = S.v[i] > 0, cob = S.r[i] > 0 && S.r[i] < 60;
+    x2.beginPath(); x2.moveTo(lx, ly); x2.arc(lx, ly, alcSensor(g) * E2, a0, a1); x2.closePath();
+    x2.fillStyle = cob ? "rgba(255,255,255,.3)" : hexA(cor, ve ? .14 : S.ok[i] === false ? .02 : .05); x2.fill();
+    x2.strokeStyle = hexA(cor, S.ok[i] === false ? .15 : .35); x2.lineWidth = 1; x2.stroke();
+    if (ve) {
+      x2.beginPath(); x2.arc(lx, ly, S.v[i] * E2, a0, a1);
+      x2.strokeStyle = cor; x2.lineWidth = 4; x2.lineCap = "round"; x2.stroke(); x2.lineCap = "butt";
+    }
+    const lr = Math.min(alcSensor(g), Rv * 0.95) * E2;
+    x2.fillStyle = S.ok[i] === false ? "#664" : cor; x2.font = "bold 12px system-ui,sans-serif"; x2.textAlign = "center";
+    x2.fillText(g.n + (ve ? " " + S.v[i] : S.ok[i] === false ? " (falhou)" : ""), lx - Math.sin(rad(g.a)) * lr, ly - Math.cos(rad(g.a)) * lr + 4);
+    x2.textAlign = "left";
+  }
+  // mapa de probabilidade (fica embaixo do corpo e da estimativa)
+  const M = S.mapa;
+  if (M && agora - M.t < 2000 && forcaMapa() > 0) {
+    const db = 360 / M.nb, fade = (agora - M.t < 800 ? 1 : 0.4) * forcaMapa();
+    for (let R = 0; R < M.nr; R++) {
+      const r0 = (M.r0 + R * M.dr) * E2, r1 = (M.r0 + (R + 1) * M.dr) * E2;
+      for (let m = 0; m < M.nb; m++) {
+        const lv = M.v[R * M.nb + m]; if (lv < 3) continue;          // < 3 = menos de 0,2% do pico: não desenha
+        const b0 = -180 + m * db, b1 = b0 + db;
+        x2.beginPath(); x2.arc(OX, OY, r1, cang(b1), cang(b0)); x2.arc(OX, OY, r0, cang(b0), cang(b1), true); x2.closePath();
+        x2.fillStyle = `rgba(255,${(150 - lv).toFixed(0)},40,${(fade * (0.03 + 0.72 * Math.pow(lv / 63, 1.5))).toFixed(3)})`; x2.fill();
+      }
+    }
+  }
+  // alcance: maior distância possível até o oponente dentro do dohyo (mais longe que isso é ignorado)
+  x2.setLineDash([3, 6]); x2.strokeStyle = "rgba(111,182,255,.45)"; x2.lineWidth = 1.2;
+  x2.beginPath(); x2.arc(OX, OY, S.alcance * E2, 0, 7); x2.stroke(); x2.setLineDash([]);
+  x2.fillStyle = "rgba(111,182,255,.7)"; x2.font = "10px system-ui"; x2.fillText(`alcance ${(S.alcance / 10).toFixed(1)} cm`, OX + S.alcance * E2 * 0.71 + 4, OY + S.alcance * E2 * 0.71);
+  // corpo
+  const c = S.corpo;
+  x2.fillStyle = "#e9edf0"; x2.strokeStyle = "#9aa7b0"; x2.lineWidth = 1;
+  x2.beginPath(); x2.rect(PX(c.f, c.e), PY(c.f, c.e), (c.e + c.d) * E2, (c.f + c.t) * E2); x2.fill(); x2.stroke();
+  if (c.nome === "BANCADA") {           // trilhas da protoboard
+    x2.lineWidth = Math.max(1, 1.2 * E2);
+    [[c.e - 4, "#d62828"], [c.e - 8, "#1d4ed8"], [-c.d + 8, "#16a34a"], [-c.d + 4, "#ca8a04"]].forEach(([y, col]) => {
+      x2.strokeStyle = col; x2.beginPath(); x2.moveTo(PX(c.f - 4, y), PY(c.f - 4, y)); x2.lineTo(PX(-c.t + 4, y), PY(-c.t + 4, y)); x2.stroke();
+    });
+  }
+  x2.strokeStyle = "#111"; x2.lineWidth = 3; x2.beginPath(); x2.moveTo(PX(c.f, c.e), PY(c.f, c.e)); x2.lineTo(PX(c.f, -c.d), PY(c.f, -c.d)); x2.stroke();
+  x2.fillStyle = "#333"; x2.beginPath(); x2.arc(OX, OY, 3, 0, 7); x2.fill();
+  x2.fillStyle = "#555"; x2.font = "10px system-ui"; x2.textAlign = "center"; x2.fillText("frente", PX(c.f, 0), PY(c.f, 0) + 12); x2.textAlign = "left";
+  // placas dos sensores
+  for (let i = 0; i < N(); i++) {
+    const g = S.geo[i];
+    x2.save(); x2.translate(PX(g.x, g.y), PY(g.x, g.y)); x2.rotate(-rad(g.a));
+    x2.fillStyle = S.ok[i] === false ? "#553" : "#7b2d8e"; x2.fillRect(-PCB_L / 2 * E2, 0, PCB_L * E2, Math.max(2, PCB_E * E2));
+    x2.fillStyle = "#000"; x2.fillRect(-2.2 * E2, -1 * E2, 4.4 * E2, Math.max(1.5, 1 * E2));
+    x2.restore();
+  }
+  // SETA do rumo: do centro do robô para onde ele deve virar (oponente ou busca)
+  if (S.rumo && S.rumo.modo) {
+    const ru = S.rumo, cor = corRumo(ru.modo), alvo = ru.modo <= 3 && S.tgt.cx !== undefined ? Math.hypot(S.tgt.cx, S.tgt.cy) : 0;
+    const L = Math.max(70, Math.min(alvo ? alvo - S.opLado / 2 : 150, 0.9 * Rv)), ux = Math.cos(rad(ru.ang)), uy = Math.sin(rad(ru.ang));
+    const x0 = PX(0, 0), y0 = PY(0, 0), x1 = PX(L * ux, L * uy), y1 = PY(L * ux, L * uy);
+    const ang = Math.atan2(y1 - y0, x1 - x0), cab = 14;
+    x2.strokeStyle = cor; x2.fillStyle = cor; x2.lineWidth = 4; x2.lineCap = "round";
+    x2.beginPath(); x2.moveTo(x0, y0); x2.lineTo(x1 - cab * 0.6 * Math.cos(ang), y1 - cab * 0.6 * Math.sin(ang)); x2.stroke(); x2.lineCap = "butt";
+    x2.beginPath(); x2.moveTo(x1, y1); x2.lineTo(x1 - cab * Math.cos(ang - 0.45), y1 - cab * Math.sin(ang - 0.45));
+    x2.lineTo(x1 - cab * Math.cos(ang + 0.45), y1 - cab * Math.sin(ang + 0.45)); x2.closePath(); x2.fill();
+    x2.font = "bold 12px system-ui,sans-serif"; x2.textAlign = "center";
+    x2.fillText(RUMO_NOME[ru.modo] + (Math.abs(ru.ang) >= 3 ? ` ${ru.ang > 0 ? "+" : ""}${ru.ang.toFixed(0)}°` : ""), x1 + 22 * Math.cos(ang), y1 + 22 * Math.sin(ang) + 4);
+    x2.textAlign = "left";
+  }
+  // sensores de borda (vista de cima: quadradinho do TCRT5000)
+  for (let i = 0; i < S.bg.length; i++) {
+    const g = S.bg[i], conf = S.bmask & (1 << i), cru = S.bcru & (1 << i);
+    const sx = PX(g.x, g.y), sy = PY(g.x, g.y), w = Math.max(6, 10 * E2), h = Math.max(4, 6 * E2);
+    if (conf) {
+      const pul = 0.5 + 0.5 * Math.sin(agora / 90);
+      x2.fillStyle = `rgba(255,60,60,${0.25 + 0.35 * pul})`; x2.beginPath(); x2.arc(sx, sy, Math.max(14, 22 * E2), 0, 7); x2.fill();
+    }
+    x2.fillStyle = conf ? "#ff3b3b" : cru ? "#f4f7f9" : "#2a343b"; x2.strokeStyle = conf ? "#fff" : "#6d7f8b"; x2.lineWidth = 1;
+    x2.fillRect(sx - w / 2, sy - h / 2, w, h); x2.strokeRect(sx - w / 2, sy - h / 2, w, h);
+    x2.fillStyle = conf ? "#ff8080" : "#9fb2bf"; x2.font = "10px ui-monospace,Consolas,monospace"; x2.textAlign = "center";
+    x2.fillText(g.n + (S.bmv[i] !== undefined ? " " + S.bmv[i] : ""), sx, sy + (g.x >= 0 ? -h / 2 - 4 : h / 2 + 11));
+    x2.textAlign = "left";
+  }
+  if (S.bmask) {
+    const quem = S.bg.filter((g, i) => S.bmask & (1 << i)).map(ondeBorda).join(" + ");
+    x2.fillStyle = "rgba(90,10,14,.85)"; x2.fillRect(0, 0, W2, 30);
+    x2.fillStyle = "#ffd0d0"; x2.font = "bold 15px system-ui,sans-serif"; x2.textAlign = "center";
+    x2.fillText("⚠ BORDA: " + quem, W2 / 2, 20); x2.textAlign = "left";
+  }
+  if (demo && dohyoDemo) {                 // só no demo: onde está a borda simulada (verdade de campo)
+    const dx = -dohyoDemo.x, dy = -dohyoDemo.y, c = Math.cos(-dohyoDemo.h), s = Math.sin(-dohyoDemo.h);
+    const cxr = c * dx - s * dy, cyr = s * dx + c * dy;         // centro do dohyo no referencial do robô
+    x2.strokeStyle = "rgba(255,255,255,.35)"; x2.lineWidth = 25 * E2; x2.beginPath(); x2.arc(PX(cxr, cyr), PY(cxr, cyr), 372.5 * E2, 0, 7); x2.stroke();
+    x2.fillStyle = "rgba(255,255,255,.4)"; x2.font = "10px system-ui"; x2.fillText("borda simulada (demo)", 8, H2 - 8);
+  }
+  // rastro
+  S.trail = S.trail.filter(p => agora - p.t < 1500);
+  for (const p of S.trail) { x2.fillStyle = `rgba(255,93,93,${.3 * (1 - (agora - p.t) / 1500)})`; x2.beginPath(); x2.arc(PX(p.x, p.y), PY(p.x, p.y), 3, 0, 7); x2.fill(); }
+  // região possível (só na fusão simples: com o rastreador o mapa já mostra isso)
+  const r = S.bayes ? null : S.reg;
+  if (r) {
+    const g = S.geo[r.a];
+    x2.beginPath(); x2.arc(PX(g.x, g.y), PY(g.x, g.y), r.da * E2, cang(r.th2), cang(r.th1));
+    x2.strokeStyle = r.incons ? "rgba(255,207,64,.6)" : "rgba(255,70,70,.55)"; x2.lineWidth = 14; x2.lineCap = "round"; x2.stroke(); x2.lineCap = "butt";
+  }
+  // estimativa do robô
+  const t = S.tgt;
+  const provavel = provavelOp(t);
+  if (demo && dObj.presente) {                                   // verdade do demo: onde o quadrado simulado realmente está
+    x2.save(); x2.translate(PX(dObj.x, dObj.y), PY(dObj.x, dObj.y)); x2.rotate(-dObj.phi);
+    const h = dObj.lado / 2 * E2; x2.strokeStyle = "rgba(255,255,255,.6)"; x2.lineWidth = 1.5; x2.strokeRect(-h, -h, 2 * h, 2 * h);
+    x2.restore(); x2.fillStyle = "rgba(255,255,255,.55)"; x2.font = "10px system-ui"; x2.textAlign = "center";
+    x2.fillText("real (demo)", PX(dObj.x, dObj.y), PY(dObj.x, dObj.y) + dObj.lado * 0.75 * E2 + 10); x2.textAlign = "left";
+  }
+  if (t.visto || provavel) {
+    const tx = PX(t.cx, t.cy), ty = PY(t.cx, t.cy), rho = Math.hypot(t.cx, t.cy);
+    // incerteza: arco de ±sigma na distância do centro
+    if (S.bayes && t.sigma > 0) {
+      x2.strokeStyle = "rgba(255,93,93,.35)"; x2.lineWidth = 5; x2.beginPath();
+      x2.arc(OX, OY, rho * E2, cang(t.ang + t.sigma), cang(t.ang - t.sigma)); x2.stroke();
+    }
+    // corpo do oponente (lado L), de frente para nós (a orientação real não é medida)
+    x2.save(); x2.translate(tx, ty); x2.rotate(-rad(t.ang));
+    const h = S.opLado / 2 * E2;
+    x2.fillStyle = t.visto ? "rgba(255,70,70,.28)" : "rgba(255,70,70,.08)"; x2.fillRect(-h, -h, 2 * h, 2 * h);
+    if (!t.visto) x2.setLineDash([5, 4]);
+    x2.strokeStyle = "#ff5d5d"; x2.lineWidth = 2; x2.strokeRect(-h, -h, 2 * h, 2 * h); x2.setLineDash([]);
+    x2.restore();
+    x2.setLineDash([6, 5]); x2.strokeStyle = "rgba(255,93,93,.85)"; x2.lineWidth = 1.5;
+    x2.beginPath(); x2.moveTo(OX, OY); x2.lineTo(tx, ty); x2.stroke(); x2.setLineDash([]);
+    x2.fillStyle = "#ff5d5d"; x2.beginPath(); x2.arc(tx, ty, 4, 0, 7); x2.fill();
+    x2.fillStyle = "#fff"; x2.font = "bold 13px system-ui,sans-serif";
+    const txt = `${t.ang > 0 ? "+" : ""}${t.ang.toFixed(0)}°` + (S.bayes && t.sigma > 0 ? ` ±${t.sigma.toFixed(0)}°` : "") + (t.visto ? "" : " provável");
+    x2.fillText(txt, tx + S.opLado / 2 * E2 + 6, ty - 4);
+  }
+  if (conectado && agora - S.tD > 1500) { x2.fillStyle = "#ffcf40"; x2.font = "13px system-ui"; x2.fillText("sem dados do ESP32 (clique Conectar de novo ou envie s1)", 10, H2 - 10); }
+}
+
+// ============================== 3D ==============================
+// eixos: robô (x frente, y esquerda, z cima) -> three (X = -y, Y = z, Z = -x)
+const T = (x, y, z) => new THREE.Vector3(-y, z, -x);
+const v3 = $("v3d"), c3 = $("c3d");
+const ren = new THREE.WebGLRenderer({canvas: c3, antialias: true});
+ren.setPixelRatio(window.devicePixelRatio || 1);
+const cena = new THREE.Scene(); cena.background = new THREE.Color(0x070b0e);
+const cam = new THREE.PerspectiveCamera(45, 1, 1, 10000);
+const ctl = new THREE.OrbitControls(cam, c3);
+ctl.enableDamping = true; ctl.target.set(0, 20, -150);
+cena.add(new THREE.AmbientLight(0xffffff, 0.55));
+const luz = new THREE.DirectionalLight(0xffffff, 0.8); luz.position.set(300, 800, 400); cena.add(luz);
+let grupo = new THREE.Group(); cena.add(grupo);
+const dinam = new THREE.Group(); cena.add(dinam);
+let caps = [], capGeo = null, regMesh = null, alvoMesh = null, lbls = [], bordas3d = [], mapaMesh = null, mapaChave = "";
+const seta3d = new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 30, 0), 150, 0x6fb6ff, 40, 24);
+seta3d.visible = false; dinam.add(seta3d);
+
+function vista(tipo) {
+  if (tipo === "topo") { cam.position.set(0, 1100, -148); ctl.target.set(0, 0, -150); }   // levemente atrás: frente fica para cima
+  else if (tipo === "lado") { cam.position.set(-700, 120, -150); ctl.target.set(0, 30, -150); }
+  else { cam.position.set(-380, 420, 420); ctl.target.set(0, 20, -150); }
+  ctl.update();
+}
+function capaUnit(meio, seg) {        // calota de raio 1, eixo +x (robô), meio-ângulo "meio" graus
+  const pos = [], idx = [];
+  const nr = seg, na = seg * 2;
+  pos.push(1, 0, 0);
+  for (let r = 1; r <= nr; r++) {
+    const th = rad(meio) * r / nr;
+    for (let a = 0; a < na; a++) {
+      const ph = 2 * Math.PI * a / na;
+      pos.push(Math.cos(th), Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph));
+    }
+  }
+  for (let a = 0; a < na; a++) idx.push(0, 1 + a, 1 + (a + 1) % na);
+  for (let r = 1; r < nr; r++) for (let a = 0; a < na; a++) {
+    const p = 1 + (r - 1) * na + a, q = 1 + (r - 1) * na + (a + 1) % na, p2 = p + na, q2 = q + na;
+    idx.push(p, p2, q2, p, q2, q);
+  }
+  const g = new THREE.BufferGeometry();
+  // converte (x frente, y esq, z cima) -> three
+  const P = []; for (let i = 0; i < pos.length; i += 3) { const v = T(pos[i], pos[i + 1], pos[i + 2]); P.push(v.x, v.y, v.z); }
+  g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+function cena3d() {
+  cena.remove(grupo); grupo = new THREE.Group(); cena.add(grupo);
+  lbls.forEach(l => l.el.remove()); lbls = [];
+  const c = S.corpo, Hl = c.lente;
+  // chão com grade e anéis
+  const grid = new THREE.GridHelper(2000, 40, 0x22333d, 0x141e25); grupo.add(grid);
+  for (let d = 100; d <= 800; d += 100) {
+    const pts = []; for (let a = 0; a <= 64; a++) { const t = 2 * Math.PI * a / 64; pts.push(T(d * Math.cos(t), d * Math.sin(t), 0.5)); }
+    grupo.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({color: 0x2b3f4b})));
+  }
+  // corpo
+  const L = c.f + c.t, Wd = c.e + c.d;
+  const corpo = new THREE.Mesh(new THREE.BoxGeometry(Wd, c.h, L), new THREE.MeshLambertMaterial({color: c.nome === "BANCADA" ? 0xeeeeee : 0x39424a}));
+  corpo.position.copy(T((c.f - c.t) / 2, (c.e - c.d) / 2, c.h / 2)); grupo.add(corpo);
+  const frente = new THREE.Mesh(new THREE.BoxGeometry(Wd, 2, 2), new THREE.MeshLambertMaterial({color: 0x111111}));
+  frente.position.copy(T(c.f, (c.e - c.d) / 2, c.h + 1)); grupo.add(frente);
+  // sensores, palitos e cones
+  caps = [];
+  capGeo = capaUnit(MEIO, 8);
+  for (let i = 0; i < N(); i++) {
+    const g = S.geo[i], cor = new THREE.Color(CORES[i]);
+    const eixo = new THREE.Group(); eixo.position.copy(T(g.x, g.y, Hl)); eixo.rotation.y = rad(g.a); grupo.add(eixo);
+    // placa (em pé) atrás da lente e palito
+    const pcb = new THREE.Mesh(new THREE.BoxGeometry(PCB_L, PCB_H, PCB_E), new THREE.MeshLambertMaterial({color: 0x7b2d8e}));
+    pcb.position.set(0, 0, 1.8); eixo.add(pcb);
+    const chip = new THREE.Mesh(new THREE.BoxGeometry(4.4, 2.4, 1), new THREE.MeshLambertMaterial({color: 0x050505}));
+    chip.position.set(0, 0, 0.5); eixo.add(chip);
+    const palito = new THREE.Mesh(new THREE.BoxGeometry(12, Hl + 2, 2), new THREE.MeshLambertMaterial({color: 0xd8b98a}));
+    palito.position.set(0, -(Hl + 2) / 2 + 2, 3.6); eixo.add(palito);
+    // cone de visão (vértice na lente)
+    const Lc = alcSensor(g);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(Lc * Math.tan(rad(MEIO)), Lc, 40, 1, true),
+      new THREE.MeshBasicMaterial({color: cor, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false}));
+    cone.rotation.x = Math.PI / 2; cone.position.set(0, 0, -Lc / 2); eixo.add(cone);
+    // calota da leitura (escala = distância)
+    const cap = new THREE.Mesh(capGeo, new THREE.MeshLambertMaterial({color: cor, transparent: true, opacity: 0.75, side: THREE.DoubleSide}));
+    const capG = new THREE.Group(); capG.position.copy(T(g.x, g.y, Hl)); capG.rotation.y = rad(g.a); capG.add(cap); capG.visible = false;
+    grupo.add(capG); caps.push({g: capG, cone});
+    const el = document.createElement("div"); el.className = "lbl3d"; el.style.color = CORES[i]; v3.appendChild(el);
+    lbls.push({el, p: T(g.x + 6 * Math.cos(rad(g.a)), g.y + 6 * Math.sin(rad(g.a)), Hl + 14), i});
+  }
+  // sensores de borda: caixinha do TCRT5000 + disco no chão que acende
+  bordas3d = [];
+  for (let i = 0; i < S.bg.length; i++) {
+    const g = S.bg[i];
+    const caixa = new THREE.Mesh(new THREE.BoxGeometry(10, 7, 6), new THREE.MeshLambertMaterial({color: 0x1b2a6b}));
+    caixa.position.copy(T(g.x, g.y, g.alt + 3.5)); grupo.add(caixa);
+    const placa = new THREE.Mesh(new THREE.BoxGeometry(14, 1.6, 32), new THREE.MeshLambertMaterial({color: 0x1d4fa8}));
+    placa.position.copy(T(g.x, g.y - Math.sign(g.y) * 11, g.alt + 7.8)); placa.rotation.y = Math.PI / 2; grupo.add(placa);
+    const disco = new THREE.Mesh(new THREE.CircleGeometry(16, 24), new THREE.MeshBasicMaterial({color: 0xff3030, transparent: true, opacity: 0.8, depthWrite: false}));
+    disco.rotation.x = -Math.PI / 2; disco.position.copy(T(g.x, g.y, 0.8)); grupo.add(disco);
+    bordas3d.push({caixa, disco});
+  }
+  const elA = document.createElement("div"); elA.className = "lbl3d"; elA.style.color = "#ff6b6b"; v3.appendChild(elA);
+  lbls.push({el: elA, alvo: true});
+  if (!alvoMesh) {                          // oponente: caixa L x L (altura 60 mm), escala ajustada a cada quadro
+    alvoMesh = new THREE.Group();
+    const cx = new THREE.BoxGeometry(1, 1, 1);
+    const corpoOp = new THREE.Mesh(cx, new THREE.MeshLambertMaterial({color: 0xff4646, transparent: true, opacity: 0.45, depthWrite: false}));
+    const arestas = new THREE.LineSegments(new THREE.EdgesGeometry(cx), new THREE.LineBasicMaterial({color: 0xff8080}));
+    alvoMesh.add(corpoOp); alvoMesh.add(arestas);
+    dinam.add(alvoMesh);
+  }
+}
+// mapa de probabilidade no chão: um quadrilátero por célula, cor/transparência por nível
+function mapa3d() {
+  const M = S.mapa; if (!M) return;
+  const chave = [M.nb, M.nr, M.r0, M.dr].join(",");
+  if (chave !== mapaChave) {
+    if (mapaMesh) { dinam.remove(mapaMesh); mapaMesh.geometry.dispose(); }
+    const pos = [], db = 360 / M.nb;
+    for (let R = 0; R < M.nr; R++) for (let m = 0; m < M.nb; m++) {
+      const r0 = M.r0 + R * M.dr, r1 = r0 + M.dr, b0 = rad(-180 + m * db), b1 = rad(-180 + (m + 1) * db);
+      const P = (r, b) => T(r * Math.cos(b), r * Math.sin(b), 1);
+      const a = P(r0, b0), b = P(r1, b0), c = P(r1, b1), d = P(r0, b1);
+      for (const v of [a, b, c, a, c, d]) pos.push(v.x, v.y, v.z);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(pos.length / 3 * 4), 4));
+    mapaMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide}));
+    dinam.add(mapaMesh); mapaChave = chave;
+  }
+  const col = mapaMesh.geometry.attributes.color;
+  for (let c = 0; c < M.nb * M.nr; c++) {
+    const lv = M.v[c] / 63, a = M.v[c] >= 3 ? 0.03 + 0.75 * Math.pow(lv, 1.5) : 0;
+    for (let k = 0; k < 6; k++) col.setXYZW(c * 6 + k, 1, (150 - 63 * lv) / 255, 40 / 255, a);
+  }
+  col.needsUpdate = true;
+}
+function regiao3d() {
+  if (regMesh) { dinam.remove(regMesh); regMesh.geometry.dispose(); regMesh = null; }
+  const r = S.reg; if (!r) return;
+  const g = S.geo[r.a], Hl = S.corpo.lente, d = r.da;
+  const pos = [], idx = [], na = Math.max(2, r.pts.length), nv = 8;
+  for (let a = 0; a < na; a++) {
+    const th = rad(r.th1 + (r.th2 - r.th1) * a / (na - 1));
+    for (let b = 0; b <= nv; b++) {
+      const el = rad(-MEIO + FOV * b / nv);
+      const v = T(g.x + d * Math.cos(el) * Math.cos(th), g.y + d * Math.cos(el) * Math.sin(th), Hl + d * Math.sin(el));
+      pos.push(v.x, v.y, v.z);
+    }
+  }
+  for (let a = 0; a < na - 1; a++) for (let b = 0; b < nv; b++) {
+    const p = a * (nv + 1) + b, q = p + nv + 1; idx.push(p, q, q + 1, p, q + 1, p + 1);
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx);
+  regMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color: r.incons ? 0xffcf40 : 0xff4646, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false}));
+  dinam.add(regMesh);
+}
+function desenha3d() {
+  const rc = v3.getBoundingClientRect();
+  if (ren.domElement.width !== Math.round(rc.width * (window.devicePixelRatio || 1))) {
+    ren.setSize(rc.width, rc.height, false); cam.aspect = rc.width / rc.height; cam.updateProjectionMatrix();
+  }
+  for (let i = 0; i < caps.length; i++) {
+    const ve = S.v[i] > 0;
+    caps[i].g.visible = ve;
+    if (ve) caps[i].g.children[0].scale.setScalar(S.v[i]);
+    caps[i].cone.material.opacity = S.ok[i] === false ? 0.02 : ve ? 0.14 : 0.06;
+  }
+  regiao3d();
+  for (let i = 0; i < bordas3d.length; i++) {
+    const conf = S.bmask & (1 << i), cru = S.bcru & (1 << i);
+    bordas3d[i].disco.visible = !!(conf || cru);
+    bordas3d[i].disco.material.color.setHex(conf ? 0xff3030 : 0xf0f0f0);
+    bordas3d[i].caixa.material.color.setHex(conf ? 0xff3030 : 0x1b2a6b);
+  }
+  const t = S.tgt, provavel = provavelOp(t);
+  if (alvoMesh) {
+    alvoMesh.visible = !!(t.visto || provavel);
+    if (alvoMesh.visible) {
+      alvoMesh.position.copy(T(t.cx, t.cy, 30)); alvoMesh.scale.set(S.opLado, 60, S.opLado); alvoMesh.rotation.y = rad(t.ang);
+      alvoMesh.children[0].material.opacity = t.visto ? 0.45 : 0.12;
+    }
+  }
+  // seta do rumo: sai do centro do robô, um pouco acima dele, e aponta para onde ele deve virar
+  if (S.rumo && S.rumo.modo) {
+    const ru = S.rumo, alvo = ru.modo <= 3 && t.cx !== undefined ? Math.hypot(t.cx, t.cy) : 0;
+    const L = Math.max(90, Math.min(alvo ? alvo - S.opLado / 2 : 170, 450));
+    seta3d.position.copy(T(0, 0, S.corpo.h + 22));
+    seta3d.setDirection(T(Math.cos(rad(ru.ang)), Math.sin(rad(ru.ang)), 0).normalize());
+    seta3d.setLength(L, Math.min(45, L * 0.35), 26); seta3d.setColor(new THREE.Color(corRumo(ru.modo)));
+    seta3d.visible = true;
+  } else seta3d.visible = false;
+  if (mapaMesh) { mapaMesh.visible = !!(S.mapa && performance.now() - S.mapa.t < 2000 && forcaMapa() > 0); mapaMesh.material.opacity = forcaMapa(); }
+  ctl.update();
+  ren.render(cena, cam);
+  for (const l of lbls) {
+    let p, txt;
+    if (l.alvo) {
+      if (!(t.visto || provavel)) { l.el.style.display = "none"; continue; }
+      p = T(t.cx, t.cy, 80); txt = `${t.ang.toFixed(0)}°` + (S.bayes && t.sigma > 0 ? ` ±${t.sigma.toFixed(0)}°` : "") + ` · ${(Math.hypot(t.cx, t.cy) / 10).toFixed(0)} cm` + (t.visto ? "" : " (provável)");
+    }
+    else { p = l.p; txt = S.geo[l.i].n + (S.v[l.i] > 0 ? " " + S.v[l.i] : ""); }
+    const q = p.clone().project(cam);
+    if (q.z > 1) { l.el.style.display = "none"; continue; }
+    l.el.style.display = ""; l.el.textContent = txt;
+    l.el.style.left = ((q.x + 1) / 2 * rc.width) + "px"; l.el.style.top = ((1 - q.y) / 2 * rc.height) + "px";
+  }
+}
+
+// ============================== SERIAL ==============================
+async function conectar() {
+  if (!("serial" in navigator)) { alert("Use Chrome ou Edge no computador."); return; }
+  try {
+    pararDemo();
+    port = await navigator.serial.requestPort();
+    await port.open({baudRate: 115200});
+    const enc = new TextEncoderStream(); enc.readable.pipeTo(port.writable); writer = enc.writable.getWriter();
+    conectado = true; modo = "usb"; $("status").textContent = "USB conectado"; $("status").className = "pill on";
+    $("bConn").disabled = true; $("bWifi").disabled = true; $("bDisc").disabled = false; $("bDemo").disabled = true;
+    log("[painel] porta aberta; aguardando o ESP32 reiniciar...", "u");
+    setTimeout(() => enviar("s1", true), 1800);
+    ler();
+  } catch (e) { log("[painel] erro ao conectar: " + e.message, "e"); }
+}
+async function ler() {
+  const dec = new TextDecoderStream(); const fim = port.readable.pipeTo(dec.writable).catch(() => {});
+  reader = dec.readable.getReader(); let buf = "";
+  try {
+    while (true) {
+      const {value, done} = await reader.read(); if (done) break;
+      buf += value; let i;
+      while ((i = buf.indexOf("\n")) >= 0) { linha(buf.slice(0, i)); buf = buf.slice(i + 1); }
+    }
+  } catch (e) { log("[painel] leitura interrompida: " + e.message, "e"); }
+  finally { reader.releaseLock(); await fim; }
+}
+async function desconectar() {
+  if (modo === "wifi") {
+    if (es) es.close(); es = null; clearInterval(timerPing); modo = null; conectado = false;
+    $("status").textContent = "desconectado"; $("status").className = "pill"; $("pRede").textContent = "rede -";
+    $("bConn").disabled = false; $("bWifi").disabled = false; $("bDisc").disabled = true; $("bDemo").disabled = false;
+    return;
+  }
+  try { await enviar("s0", true); } catch (e) {}
+  try { await reader.cancel(); } catch (e) {}
+  try { await writer.close(); } catch (e) {}
+  try { await port.close(); } catch (e) {}
+  conectado = false; modo = null; $("status").textContent = "desconectado"; $("status").className = "pill";
+  $("bConn").disabled = false; $("bWifi").disabled = false; $("bDisc").disabled = true; $("bDemo").disabled = false;
+}
+async function enviar(t, quieto) {
+  if (demo) { log("» " + (t || "[ENTER]"), "u"); log("[demo] comandos só funcionam com o ESP32 conectado", "i"); return; }
+  if (!conectado) { log("[painel] não conectado", "e"); return; }
+  if (!quieto) log("» " + (t === "" ? "[ENTER]" : t), "u");
+  if (modo === "wifi") {
+    try { await fetch(base + "/cmd?c=" + encodeURIComponent(t), {cache: "no-store"}); }
+    catch (e) { log("[painel] comando não chegou (WiFi): " + e.message, "e"); }
+    return;
+  }
+  await writer.write(t + "\n");
+}
+
+// ============================== WIFI ==============================
+// Dados chegam por Server-Sent Events (/stream); comandos vão por /cmd.
+// O navegador reconecta sozinho se o sinal cair.
+function conectarWifi(endereco) {
+  pararDemo();
+  if (es) es.close();
+  base = endereco ? "http://" + endereco.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "") : "";
+  modo = "wifi"; conectado = true;
+  $("status").textContent = "WiFi conectando..."; $("status").className = "pill demo";
+  $("bConn").disabled = true; $("bWifi").disabled = true; $("bDisc").disabled = false; $("bDemo").disabled = true;
+  es = new EventSource(base + "/stream");
+  es.onopen = () => { $("status").textContent = "WiFi conectado"; $("status").className = "pill on"; log("[painel] WiFi conectado em " + (base || location.host), "u"); rede.espAnt = null; };
+  es.onmessage = e => linha(e.data);
+  es.onerror = () => { $("status").textContent = "WiFi reconectando..."; $("status").className = "pill bad"; };
+  clearInterval(timerPing);
+  timerPing = setInterval(async () => {               // tempo de ida e volta (RTT)
+    const t0 = performance.now();
+    try { await fetch(base + "/ping", {cache: "no-store"}); rede.rtt = performance.now() - t0; } catch (e) { rede.rtt = null; }
+  }, 2000);
+}
+setInterval(() => {                                    // taxa de pacotes e perdas, 1x por segundo
+  const agora = performance.now(), dt = (agora - rede.t0) / 1000;
+  rede.hz = rede.n / dt; rede.n = 0; rede.t0 = agora;
+  if (!conectado) return;
+  const perd = rede.tot ? 100 * rede.perd / rede.tot : 0; rede.tot = 0; rede.perd = 0;
+  $("pRede").textContent = `${modo === "wifi" ? "WiFi" : "USB"} · ${rede.hz.toFixed(0)} Hz` +
+    (modo === "wifi" ? ` · RTT ${rede.rtt === null ? "-" : rede.rtt.toFixed(0) + " ms"}` : "") + ` · perdas ${perd.toFixed(0)}%`;
+  $("pRede").className = "pill " + (rede.hz > 30 && perd < 5 ? "on" : rede.hz > 5 ? "demo" : "bad");
+}, 1000);
+
+// ============================== DEMO ==============================
+// Simula o oponente da regra (QUADRADO preto, lado informado) andando em volta do robô e gera
+// as mesmas linhas D, M e Q do ESP32, passando pelo MESMO rastreador do firmware (rastreador.cpp).
+let dObj = {x: 300, y: 60, lado: 152, phi: 0.3, presente: true}, arrastando = false, tDemo = 0, timerDemo = null, passosDemo = 0;
+// mundo do demo: dohyo centrado em (0,0); "rob" é o nosso robô (x, y em mm, h em rad); "oW" é o oponente
+const rob = {x: 0, y: 0, h: 0}, oW = {x: 300, y: 60, phi: 0.3}, dm = {avanca: false, t: 0, modo: 0};
+const praRobo = (x, y) => { const dx = x - rob.x, dy = y - rob.y, c = Math.cos(-rob.h), s = Math.sin(-rob.h); return {x: c * dx - s * dy, y: s * dx + c * dy}; };
+const praMundo = (x, y) => { const c = Math.cos(rob.h), s = Math.sin(rob.h); return {x: rob.x + c * x - s * y, y: rob.y + s * x + c * y}; };
+const fz = {lado: 0, tv: -1e9, ja: false};
+
+// ---- rastreador bayesiano: cópia fiel de rastreador.cpp ----
+const RT = {NB: 120, NR: 22, R0: 150, DR: 20, PN: 0.002, PM: 0.01};
+let rt = null;
+function rtEsperado(g, cx, cy, Rv, RE, RP) {
+  const alc = alcSensor(g);
+  const dx = cx - g.x, dy = cy - g.y, dd = Math.hypot(dx, dy);
+  const ab = Math.abs(normA(deg(Math.atan2(dy, dx)) - g.a)), dentro = ab <= MEIO;
+  if (dd >= alc + RP) return {e: -1, dentro};
+  let e;
+  if (dentro) e = dd - RE;
+  else {
+    const dl = rad(ab - MEIO); if (dl >= Math.PI / 2) return {e: -1, dentro};
+    const pp = dd * Math.sin(dl); if (pp >= Rv) return {e: -1, dentro};
+    const h = RE * RE - pp * pp; e = dd * Math.cos(dl) - (h > 0 ? Math.sqrt(h) : 0);
+  }
+  return {e: Math.max(5, e), dentro};
+}
+function rtPd(e, P) { return e <= 0.7 * P ? 0.95 : Math.max(0.05, Math.min(0.95, 0.95 - 0.85 * (e - 0.7 * P) / (0.45 * P))); }
+function rtInit() {
+  RT.NR = Math.floor((S.alcance + 50) / 20) + 1;                 // anéis até o alcance (igual RAST_NR)
+  const {NB, NR, R0, DR} = RT, NC = NB * NR, k = N(), L = S.opLado, c = S.corpo, alc = S.alcance;
+  const o = {NC, k, RE: 0.526 * L, RP: 0.7071 * L, DB: 360 / NB, alc, C0: 0.02 / alc, nLivre: 0, r: RT.PN / (RT.PN + RT.PM),
+             p: new Float32Array(NC), q: new Float32Array(NC), eq: new Uint8Array(k * NC), must: new Uint16Array(NC),
+             livre: new Uint8Array(NC), Lno: new Float32Array(512), Lz: [], ampK: new Float32Array(255), invK: new Float32Array(255)};
+  for (let r = 0; r < NR; r++) for (let b = 0; b < NB; b++) {
+    const ci = r * NB + b, rho = R0 + DR * r, th = rad(-180 + o.DB / 2 + o.DB * b), cx = rho * Math.cos(th), cy = rho * Math.sin(th);
+    const qx = Math.min(c.f, Math.max(-c.t, cx)), qy = Math.min(c.e, Math.max(-c.d, cy));
+    o.livre[ci] = Math.hypot(cx - qx, cy - qy) >= 0.46 * L ? 1 : 0; o.nLivre += o.livre[ci];
+    let m = 0;
+    for (let i = 0; i < k; i++) {
+      const {e, dentro} = rtEsperado(S.geo[i], cx, cy, o.RE, o.RE, o.RP);
+      const alc = alcSensor(S.geo[i]);
+      const v = e >= 0 ? Math.min(254, Math.round(e / 4)) : 255;
+      o.eq[i * NC + ci] = v; if (v !== 255 && dentro && e < alc) m |= 1 << i;
+    }
+    o.must[ci] = m;
+  }
+  for (let q = 0; q < 256; q++) { const d = rtPd(4 * q, S.alcPreto); o.Lno[q] = q === 255 ? 1 : (1 - 0.4 * d) * 0.98 + 0.002; o.Lno[256 + q] = q === 255 ? 1 : (1 - d) * 0.98 + 0.002; }
+  for (let q = 0; q < 255; q++) { const sg = 12 + 0.12 * q; o.invK[q] = 1 / sg; o.ampK[q] = rtPd(4 * q, S.alcPreto) / (sg * 2.5066283); }
+  for (let i = 0; i < k; i++) o.Lz.push(new Float32Array(256));
+  for (let ci = 0; ci < NC; ci++) o.p[ci] = o.livre[ci] / o.nLivre;
+  o.covFrac = new Float32Array(NB);                 // fração dos anéis em cada direção que algum cone vê
+  for (let b = 0; b < NB; b++) { let n = 0, v = 0; for (let r = 0; r < NR; r++) { const c = r * NB + b; if (!o.livre[c]) continue; n++; if (o.must[c]) v++; } o.covFrac[b] = n ? v / n : 0; }
+  rt = o;
+}
+// busca: giro (de 6 em 6°) que faz os cones varrerem mais probabilidade por segundo (igual ao firmware)
+function rtBusca(wBusca) {
+  const {NB, NR} = RT, o = rt, Pb = new Float32Array(NB), sw = new Float32Array(NB);
+  for (let b = 0; b < NB; b++) { let s = 0; for (let r = 0; r < NR; r++) s += o.p[r * NB + b]; Pb[b] = s; }
+  let agora = 0; for (let b = 0; b < NB; b++) agora += Pb[b] * o.covFrac[b];
+  let melhor = -1, ang = 0, ganho = 0;
+  for (const sent of [-1, 1]) {
+    sw.set(o.covFrac);
+    for (let k = 1; k <= NB / 2; k++) {
+      let cob = 0;
+      for (let b = 0; b < NB; b++) { const j = ((b - sent * k) % NB + NB) % NB; if (o.covFrac[j] > sw[b]) sw[b] = o.covFrac[j]; cob += Pb[b] * sw[b]; }
+      if (k % 2) continue;
+      const a = sent * k * o.DB, sc = (cob - agora) / (0.15 + Math.abs(a) / wBusca);
+      if (sc > melhor) { melhor = sc; ang = a; ganho = cob; }
+    }
+  }
+  return {ang, ganho};
+}
+function rtPasso(z, dt, giro = 0, conhecido = false, avanco = 0) {
+  const {NB, NR, R0, DR} = RT, o = rt, NC = o.NC, p = o.p, q = o.q;
+  // 1a) predição na distância: o oponente anda até 1,5 m/s (+ o quanto nós andamos)
+  const sp = (1500 + Math.abs(avanco)) * dt, sr = sp / DR, kr = Math.max(1, Math.min(12, Math.ceil(2.5 * sr)));
+  const K = []; let s = 0; for (let j = -kr; j <= kr; j++) { const w = Math.exp(-0.5 * (j / sr) ** 2); K.push(w); s += w; }
+  const refl = r => r < 0 ? -r - 1 : r >= NR ? 2 * NR - r - 1 : r;
+  q.fill(0);
+  for (let r = 0; r < NR; r++) for (let j = -kr; j <= kr; j++) { const w = K[j + kr] / s, src = refl(r - j) * NB, dst = r * NB; for (let b = 0; b < NB; b++) q[dst + b] += w * p[src + b]; }
+  // 1b) predição na direção: andar de lado + nosso giro (conhecido: o mapa gira junto; desconhecido: só borra)
+  const desloc = conhecido ? -giro * dt / o.DB : 0, srot = (conhecido ? 0.3 * Math.abs(giro) + 30 : 200) * dt;
+  for (let r = 0; r < NR; r++) {
+    const sb = Math.max(0.15, (deg(sp / (R0 + DR * r)) + srot) / o.DB);
+    const jlo = Math.max(-59, Math.floor(desloc - 2.5 * sb)), jhi = Math.min(59, Math.ceil(desloc + 2.5 * sb));
+    const W = []; let s2 = 0; for (let j = jlo; j <= jhi; j++) { const w = Math.exp(-0.5 * ((j - desloc) / sb) ** 2); W.push(w); s2 += w; }
+    const base = r * NB;
+    for (let b = 0; b < NB; b++) { let acc = 0; for (let j = jlo; j <= jhi; j++) acc += W[j - jlo] * q[base + ((b - j) % NB + NB) % NB]; p[base + b] = acc / s2; }
+  }
+  let tot = 0; for (let c = 0; c < NC; c++) { if (!o.livre[c]) p[c] = 0; tot += p[c]; }
+  // existência: pode sair do alcance / ser tirado, ou ser colocado em qualquer lugar livre
+  const fica = o.r * (1 - RT.PM), nasce = (1 - o.r) * RT.PN, rn = fica + nasce;
+  const a = 0.997 * fica / rn / tot, u = (0.003 * fica + nasce) / rn / o.nLivre;
+  for (let c = 0; c < NC; c++) if (o.livre[c]) p[c] = a * p[c] + u;
+  o.r = rn;
+  // 2) correção: cada sensor confirma (leitura) ou desmente (sem leitura) cada célula
+  const tabs = [], lin = [], sh = []; let La = 1;
+  for (let i = 0; i < o.k; i++) {
+    if (z[i] > 0) {
+      La *= o.C0;
+      const L = o.Lz[i];
+      for (let k2 = 0; k2 < 255; k2++) { const uu = (z[i] - 4 * k2) * o.invK[k2]; L[k2] = Math.abs(uu) > 6 ? o.C0 : o.ampK[k2] * Math.exp(-0.5 * uu * uu) + o.C0; }
+      L[255] = o.C0; tabs.push(L); sh.push(16);
+    } else { tabs.push(o.Lno); sh.push(i); }
+    lin.push(i * NC);
+  }
+  tot = 0;
+  for (let c = 0; c < NC; c++) {
+    let v = p[c]; if (v === 0) continue; const m = o.must[c];
+    for (let k2 = 0; k2 < tabs.length; k2++) v *= tabs[k2][o.eq[lin[k2] + c] | (((m >> sh[k2]) & 1) << 8)];
+    p[c] = v; tot += v;
+  }
+  const com = o.r * tot, sem = (1 - o.r) * La;
+  if (com + sem > 0) o.r = Math.min(0.9999, Math.max(1e-4, com / (com + sem)));
+  if (!(tot > 1e-30)) { for (let c = 0; c < NC; c++) p[c] = o.livre[c] / o.nLivre; } else for (let c = 0; c < NC; c++) p[c] /= tot;
+  // 3) estimativa: pico + média numa janela de ±18° e ±100 mm
+  let cm = 0; for (let c = 1; c < NC; c++) if (p[c] > p[cm]) cm = c;
+  const ib = cm % NB, ir = Math.floor(cm / NB); let ms = 0, sb1 = 0, sb2 = 0, sr1 = 0;
+  for (let dr = -5; dr <= 5; dr++) { const r = ir + dr; if (r < 0 || r >= NR) continue;
+    for (let db = -6; db <= 6; db++) { const v = p[r * NB + (ib + db + NB) % NB]; ms += v; sb1 += v * db; sb2 += v * db * db; sr1 += v * (R0 + DR * r); } }
+  const mb = sb1 / ms, ang = normA(-180 + o.DB / 2 + o.DB * ib + mb * o.DB), rho = sr1 / ms;
+  const est = {ang, rho, x: rho * Math.cos(rad(ang)), y: rho * Math.sin(rad(ang)), sigma: Math.sqrt(Math.max(0, sb2 / ms - mb * mb)) * o.DB, massa: ms, existe: o.r, mask: 0, dist: -1};
+  for (let i = 0; i < o.k; i++) {
+    if (!(z[i] > 0)) continue;
+    const {e} = rtEsperado(S.geo[i], est.x, est.y, o.RP, o.RE, o.RP);
+    if (e >= 0 && Math.abs(z[i] - e) <= 3 * (12 + 0.03 * e) + 25) { est.mask |= 1 << i; if (est.dist < 0 || z[i] < est.dist) est.dist = z[i]; }
+  }
+  return est;
+}
+function rtMapa() {            // mesmo formato da linha M do ESP32 (blocos de 3 direções x 2 anéis)
+  const {NB, NR} = RT, nb = 40, nr = Math.ceil(NR / 2), s = new Float32Array(nb * nr); let mx = 1e-12;
+  for (let R = 0; R < nr; R++) for (let m = 0; m < nb; m++) {
+    let v = 0; for (let r = 2 * R; r < 2 * R + 2 && r < NR; r++) for (let b = 3 * m; b < 3 * m + 3; b++) v += rt.p[r * NB + b];
+    s[R * nb + m] = v; if (v > mx) mx = v;
+  }
+  let out = "", zeros = 0;
+  const desc = () => { if (zeros === 1) out += "0"; else if (zeros > 1) out += "!" + String.fromCharCode(48 + zeros); zeros = 0; };
+  for (let c = 0; c < nb * nr; c++) { const lv = Math.round(63 * Math.sqrt(s[c] / mx)); if (lv === 0) { if (++zeros === 78) desc(); } else { desc(); out += String.fromCharCode(48 + lv); } }
+  desc();
+  return `M,${nb},${nr},140,40,${out}`;
+}
+
+// ---- mundo simulado: quadrado preto, 13 raios por cone (como o ToF "vê" o cone) ----
+function gauss() { return Math.sqrt(-2 * Math.log(Math.random() + 1e-12)) * Math.cos(2 * Math.PI * Math.random()); }
+function quadDemo() {
+  const h = dObj.lado / 2, c = Math.cos(dObj.phi), s = Math.sin(dObj.phi);
+  return [[h, h], [-h, h], [-h, -h], [h, -h]].map(([x, y]) => [dObj.x + c * x - s * y, dObj.y + s * x + c * y]);
+}
+function raioSeg(ox, oy, ux, uy, a, b) {
+  const ex = b[0] - a[0], ey = b[1] - a[1], den = ux * ey - uy * ex;
+  if (Math.abs(den) < 1e-9) return null;
+  const t = ((a[0] - ox) * ey - (a[1] - oy) * ex) / den, u = ((a[0] - ox) * uy - (a[1] - oy) * ux) / den;
+  return t > 0 && u >= 0 && u <= 1 ? t : null;
+}
+function simula(i, sq) {
+  const g = S.geo[i], ts = [];
+  for (let k = 0; k < 13; k++) {
+    const th = rad(g.a - MEIO + 2 * MEIO * k / 12), ux = Math.cos(th), uy = Math.sin(th);
+    let best = null;
+    for (let j = 0; j < 4; j++) { const t = raioSeg(g.x, g.y, ux, uy, sq[j], sq[(j + 1) % 4]); if (t !== null && (best === null || t < best)) best = t; }
+    if (best !== null) ts.push(best);
+  }
+  if (Math.random() < 0.005) return Math.round(20 + Math.random() * 780);          // leitura falsa de vez em quando
+  if (!ts.length) return -1;
+  ts.sort((a, b) => a - b);
+  const f = ts.length / 13, tmin = ts[0], tmed = ts[Math.floor(ts.length / 2)];
+  const d = tmin + 0.3 * (tmed - tmin);
+  const pd = Math.min(1, 2.5 * f) * (d > 300 ? Math.max(0, Math.min(1, (S.alcPreto - d) / (S.alcPreto - 300))) : 1);   // preto longe falha
+  if (Math.random() > pd) return -1;
+  return Math.round(d + gauss() * (4 + 0.02 * d));
+}
+let dohyoDemo = null;
+const demoB = {cont: []};
+function bordaDemo() {
+  tDemo2 += 0.02;
+  if ($("mexe").checked) dohyoDemo = {x: rob.x, y: rob.y, h: rob.h};          // o robô simulado de verdade
+  else {
+    const R = 220 + 150 * Math.sin(tDemo2 * 0.35);          // robô passeia e de vez em quando chega na borda
+    dohyoDemo = {x: R * Math.cos(tDemo2 * 0.5), y: R * Math.sin(tDemo2 * 0.5), h: tDemo2 * 0.5 + Math.PI / 2 + 0.6 * Math.sin(tDemo2)};
+  }
+  let mask = 0, cru = 0; const mv = [];
+  S.bg.forEach((g, i) => {
+    const c = Math.cos(dohyoDemo.h), s = Math.sin(dohyoDemo.h);
+    const wx = dohyoDemo.x + c * g.x - s * g.y, wy = dohyoDemo.y + s * g.x + c * g.y, r = Math.hypot(wx, wy);
+    const branco = r >= 360 && r <= 385;
+    mv[i] = Math.round((branco ? 450 : r > 385 ? 3200 : 3000) + (Math.random() - .5) * 60);
+    if (branco) { cru |= 1 << i; demoB.cont[i] = (demoB.cont[i] || 0) + 1; } else demoB.cont[i] = 0;
+    if (demoB.cont[i] >= 2) mask |= 1 << i;
+  });
+  linha(["Q", mask, cru, ...mv].join(","));
+}
+let tDemo2 = 0;
+// Rumo (a seta): mesma regra de percepcao.cpp (atualizaRumo)
+function rumoDe(e, visto, cent, lado) {
+  if (visto) return {modo: cent ? 1 : 2, ang: e.ang, ganho: 0};
+  if (e.existe >= 0.3 && e.existe * e.massa >= 0.15) return {modo: 3, ang: e.ang, ganho: 0};
+  const bu = rtBusca(600 * 120 / 255);
+  return {modo: 4, ang: bu.ganho >= 0.05 ? bu.ang : 90 * (lado || 1), ganho: bu.ganho};
+}
+// O que a máquina de estados faria com o rumo (BUSCA/MIRA/ATAQUE simplificados) -> giro (°/s) e avanço (mm/s)
+function controleDemo(ru, dist, dt) {
+  const W = 600 * 120 / 255, sg = ru.ang >= 0 ? 1 : -1;
+  if (ru.modo !== 4) dm.avanca = false, dm.t = 0;
+  if (ru.modo === 1) return {w: 4 * ru.ang, v: dist > 40 ? 250 : 0};                       // ATACAR: avança corrigindo
+  if (ru.modo === 2) return {w: sg * Math.min(W, 60 + 5 * Math.abs(ru.ang)), v: 0};          // MIRAR: gira até ~0°
+  if (ru.modo === 3) return Math.abs(ru.ang) <= 12 ? {w: 0, v: 200} : {w: sg * W, v: 0};    // PROVÁVEL
+  dm.t += dt;                                                                                // PROCURAR
+  if (dm.avanca) { if (dm.t >= 0.25) { dm.avanca = false; dm.t = 0; } return {w: 0, v: 200}; }
+  if (dm.t >= 1.5) { dm.avanca = true; dm.t = 0; }                                         // reajuste de posição
+  return {w: sg * W, v: 0};
+}
+function passoDemo() {
+  const dt = 0.02, mexe = $("mexe").checked;
+  if (!mexe) { rob.x = 0; rob.y = 0; rob.h = 0; }
+  bordaDemo();
+  if (!arrastando) { tDemo += 0.008; const R = 250 + 90 * Math.sin(tDemo * 0.6); oW.x = R * Math.cos(tDemo); oW.y = R * Math.sin(tDemo) * 1.1; oW.phi += 0.01; }
+  const pr = praRobo(oW.x, oW.y); dObj.x = pr.x; dObj.y = pr.y; dObj.phi = oW.phi - rob.h;
+  dObj.lado = Math.max(10, +$("objW").value || 152);
+  const sq = quadDemo(), k = N(), r = [], v = [];
+  for (let i = 0; i < k; i++) {
+    r[i] = dObj.presente ? simula(i, sq) : (Math.random() < 0.005 ? Math.round(20 + Math.random() * 780) : -1);   // vazia: só leitura falsa rara
+    v[i] = r[i] >= 15 && r[i] <= alcSensor(S.geo[i]) ? r[i] : -1;
+  }
+  const e = rtPasso(v, dt, mexe ? dm.w || 0 : 0, mexe, mexe ? dm.v || 0 : 0), agora = performance.now();
+  // mesmas regras de oponente.cpp (fundeBayes)
+  const existe = e.existe >= 0.5;
+  if (e.mask && existe) { fz.tv = agora; fz.ja = true; }
+  const visto = fz.ja && existe && e.massa >= 0.25 && agora - fz.tv <= 100;
+  let ic = 0, men = 999; S.geo.forEach((g, i) => { if (Math.abs(g.a) < men) { men = Math.abs(g.a); ic = i; } });
+  const cent = visto && !!(e.mask & (1 << ic)) && Math.abs(e.ang) <= 7;
+  if (fz.ja && e.existe >= 0.3 && Math.abs(e.ang) >= 3) fz.lado = e.ang > 0 ? 1 : -1;
+  const ru = rumoDe(e, visto, cent, fz.lado);
+  const ac = !visto ? 0 : cent ? 1 : Math.abs(e.ang) <= 40 ? (e.ang > 0 ? 2 : 3) : (e.ang > 0 ? 4 : 5);
+  const mask = existe ? e.mask : 0, conf = mask.toString(2).split("1").length - 1;
+  linha(["D", ...v, ...r, visto ? 1 : 0, Math.round(e.ang * 10), existe ? e.dist : -1, conf, mask, Math.round(e.x), Math.round(e.y),
+         ac, fz.lado, 0, (1 << k) - 1, Math.round(agora), Math.round(e.sigma * 10), Math.round(e.existe * e.massa * 100), Math.round(e.existe * 100),
+         ru.modo, Math.round(ru.ang * 10), Math.round(ru.ganho * 100)].join(","));
+  if (++passosDemo % 12 === 0) linha(rtMapa());
+  // robô simulado obedece ao rumo (o mapa sabe o giro: os motores "contam" para o rastreador)
+  if (mexe) {
+    const c = controleDemo(ru, e.dist > 0 ? e.dist : 999, dt);
+    let vv = c.v; const nx = rob.x + vv * dt * Math.cos(rob.h), ny = rob.y + vv * dt * Math.sin(rob.h);
+    if (Math.hypot(nx, ny) > 280) vv = 0;                      // fica longe da borda no demo
+    rob.h += rad(c.w) * dt; rob.x += vv * dt * Math.cos(rob.h); rob.y += vv * dt * Math.sin(rob.h);
+    dm.w = c.w; dm.v = vv;
+  } else { dm.w = 0; dm.v = 0; }
+}
+function iniciarDemo() {
+  demo = true; $("status").textContent = "demo"; $("status").className = "pill demo"; $("bDemo").textContent = "Parar demo";
+  S.ok = S.geo.map(() => true); S.cal = S.geo.map(() => ({g: 1, o: 0, nvs: false}));
+  S.bg.forEach(g => { g.nvs = true; g.preto = 3000; g.branco = 450; g.lim = Math.round(450 + 0.35 * 2550); });
+  S.bayes = true; S.opLado = 152; S.alcPreto = 550; S.alcance = 542; fz.ja = false; fz.lado = 0; dObj.presente = true; rtInit();
+  Object.assign(rob, {x: 0, y: 0, h: 0}); Object.assign(dm, {avanca: false, t: 0, w: 0, v: 0});
+  $("bOp").style.display = ""; $("bOp").textContent = "Tirar oponente"; $("lMexe").style.display = "";
+  log("[demo] oponente quadrado PRETO simulado (lado informado), com o mesmo rastreador do firmware. Arraste no radar 2D para mover.", "u");
+  timerDemo = setInterval(passoDemo, 20);
+}
+function pararDemo() {
+  if (!demo) return; demo = false; clearInterval(timerDemo);
+  $("status").textContent = "desconectado"; $("status").className = "pill"; $("bDemo").textContent = "Modo demo";
+  S.v = S.geo.map(() => -1); S.r = S.geo.map(() => -1); S.tgt = {visto: false}; S.reg = null; dohyoDemo = null; S.mapa = null; S.bayes = false;
+  $("bOp").style.display = "none"; $("lMexe").style.display = "none"; S.rumo = null;
+  S.bmask = 0; S.bcru = 0; S.bmv = []; painel(); painelBorda();
+}
+function evRobo(e) { const r = c2.getBoundingClientRect(); const px = e.clientX - r.left, py = e.clientY - r.top; return {x: (OY - py) / E2, y: (OX - px) / E2}; }
+c2.addEventListener("pointerdown", e => { if (!demo) return; arrastando = true; const p = evRobo(e), w = praMundo(p.x, p.y); oW.x = w.x; oW.y = w.y; c2.setPointerCapture(e.pointerId); });
+c2.addEventListener("pointermove", e => { if (demo && arrastando) { const p = evRobo(e), w = praMundo(p.x, p.y); oW.x = w.x; oW.y = w.y; } });
+c2.addEventListener("pointerup", () => arrastando = false);
+
+// ============================== EVENTOS ==============================
+$("bConn").onclick = conectar; $("bDisc").onclick = desconectar;
+$("bWifi").onclick = () => conectarWifi($("endWifi").value);
+$("bDemo").onclick = () => demo ? pararDemo() : iniciarDemo();
+$("bOp").onclick = () => { dObj.presente = !dObj.presente; $("bOp").textContent = dObj.presente ? "Tirar oponente" : "Colocar oponente";
+  log(dObj.presente ? "[demo] oponente colocado" : "[demo] arena vazia: o robô não deve inventar oponente", "u"); };
+$("bEnter").onclick = () => enviar(""); $("bAbort").onclick = () => enviar("x");
+$("bSend").onclick = () => { enviar($("cmd").value.trim()); $("cmd").value = ""; };
+$("bClear").onclick = () => $("term").innerHTML = "";
+$("bZeraJan").onclick = () => { S.jan = []; painel(); };
+$("cmd").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); enviar($("cmd").value.trim()); $("cmd").value = ""; } });
+document.querySelectorAll("[data-cmd]").forEach(b => b.onclick = () => enviar(b.dataset.cmd));
+document.addEventListener("keydown", e => {
+  const ativo = document.activeElement;
+  if (ativo && (ativo.tagName === "INPUT" || ativo.tagName === "BUTTON")) return;
+  if (e.key === "Enter") { e.preventDefault(); enviar(""); }
+  if (e.key === "Escape") { e.preventDefault(); enviar("x"); }
+});
+$("cTopo").onclick = () => vista("topo"); $("cPersp").onclick = () => vista("persp"); $("cLado").onclick = () => vista("lado");
+if ("serial" in navigator) navigator.serial.addEventListener("disconnect", () => { if (conectado) { log("[painel] cabo USB desconectado", "e"); desconectar(); } });
+
+montaTabela(); montaBorda(); cena3d(); vista("persp"); tam2d(); painel(); painelBorda();
+(function loop() { desenha2d(); desenha3d(); requestAnimationFrame(loop); })();
+if (servidoPeloEsp) { $("endWifi").value = location.host; conectarWifi(""); }   // aberto de dentro do ESP32: conecta sozinho
+else log("[painel] Pronto. Conecte pelo WiFi (rede SUMO-ROBO) ou USB, ou use o modo demo.", "u");
+</script>
+</body>
+</html>
