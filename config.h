@@ -125,7 +125,7 @@ static const CfgToF TOF[] = {
 // Sensores de borda: 4 módulos TCRT5000 (com LM393, pinos VCC GND D0 A0)
 // O código usa a saída analógica A0 (Blackbook, capítulo 9), porque o D0 do comparador
 // não distingue arranhão de linha; o trimpot azul só mexe no D0. Os pinos 34, 35, 36 (VP)
-// e 39 (VN) são do ADC1, que continua funcionando com o WiFi ligado. A alimentação é de
+// e 39 (VN) são do ADC1 e servem só como entrada, o que combina com o A0. A alimentação é de
 // 3,3 V, assim o A0 nunca passa de 3,3 V. Dohyo: 77 cm, laminado preto e borda branca de
 // 2,5 cm. Altura boa do sensor ao chão: entre 3 e 8 mm.
 // ============================================================================
@@ -188,26 +188,13 @@ static const CfgBorda BORDA[] = {
 #define INVERTE_DIR       0
 
 // ============================================================================
-// WiFi para telemetria e painel sem cabo (USAR_WIFI 0 deixa só a USB).
-// O ESP32 cria a própria rede; com o celular ou notebook conectado nela, o painel abre em
-// http://192.168.4.1 sem precisar de internet. Com WIFI_STA_SSID preenchido, o ESP32
-// tenta primeiro o roteador. Na competição o valor recomendado é USAR_WIFI 0.
-// ============================================================================
-#define USAR_WIFI         1
-#define WIFI_AP_SSID      "SUMO-ROBO"
-#define WIFI_AP_SENHA     "sumo1234"     // no mínimo 8 caracteres
-#define WIFI_AP_CANAL     6
-#define WIFI_STA_SSID     ""             // nome do roteador (vazio usa só a rede própria)
-#define WIFI_STA_SENHA    ""
-#define WIFI_NOME_MDNS    "sumo"         // endereço http://sumo.local quando o sistema suporta
-#define STREAM_MS         20             // telemetria a 50 Hz, o mesmo ritmo dos sensores
-
-// ============================================================================
-// Interface
+// Interface. O robô é autônomo: a telemetria sai só pela USB, para o Monitor Serial e para
+// o painel (painel_sumo.html), e o firmware não liga WiFi nem Bluetooth.
 // ============================================================================
 #define PINO_START        32     // botão ligado ao GND (INPUT_PULLUP)
 #define PINO_LED          2      // LED azul da placa
 #define SERIAL_BAUD       115200
+#define STREAM_MS         20     // dados para o painel a 50 Hz, o mesmo ritmo dos sensores
 
 // ============================================================================
 // Estratégia: velocidades de -255 a 255 e tempos em ms

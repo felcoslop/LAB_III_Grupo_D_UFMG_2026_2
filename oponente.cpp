@@ -210,7 +210,7 @@ void tof_atualiza() {
       if (errI2C[i] < 255) errI2C[i]++;
       if (desde > TOF_TIMEOUT_MS) { bruto[i] = -1; filtrado[i] = -1; ultZ[i] = -2; }
       // O sensor só vira FALHOU com erro repetido de verdade. Uma pausa longa do loop
-      // (por exemplo, enviando o painel pelo WiFi) não derruba um sensor bom.
+      // (por exemplo, religando outro sensor com o comando init) não derruba um sensor bom.
       if (errI2C[i] >= 10 && desde > TOF_PERDIDO_MS) {
         ok[i] = false;
         xshutDesliga(i);                            // o sensor volta desligado para o 0x29 e pode ser religado depois
