@@ -38,11 +38,33 @@ struct CfgToF {
 // 1 escolhe a geometria da bancada (protoboard 165 x 54,7 mm), 0 escolhe o robô (152 x 152 mm)
 #define GEOMETRIA_BANCADA 1
 
+// Quantidade de sensores de oponente: 5 (montagem original) ou 7, com um par a mais nos cantos
+// de trás (TE e TD, a ±160 graus). A frente continua com os 3 sensores de antes e o FC segue
+// sozinho no centro, decidindo o ataque, como pede o capítulo 2 do Sumo Robot Blackbook (número
+// ímpar de sensores, com um no centro). Na simulação com o rastreador, o par de trás reduziu os
+// ataques que chegam sem ser vistos de 36% para 8% e o tempo médio de busca de 206 para 35 ms,
+// sem piorar a precisão na frente (detalhes no README e no guia de 7 sensores).
+// O par novo fica no fim da tabela para os 5 sensores antigos manterem o mesmo XSHUT, endereço,
+// cor no painel e calibração gravada.
+// O valor também pode vir da compilação (-DQTD_TOF=7), como o CI faz.
+// Com 7 sensores, o I2C a 100 kHz fica ocupado boa parte do tempo; na placa definitiva, com
+// fios curtos, o I2C_CLOCK_HZ pode subir para 400000.
+#ifndef QTD_TOF
+#define QTD_TOF 5
+#endif
+#if QTD_TOF != 5 && QTD_TOF != 7
+#error "QTD_TOF precisa ser 5 ou 7"
+#endif
+
 #if GEOMETRIA_BANCADA
 // Protoboard 165 x 54,7 x 10,2 mm com a linha 63 na frente; a origem é o centro dela.
 // Medidas da montagem real (01/10): FE e FD a 54,4 mm um do outro, FC a 31,6 mm do FE e a
 // 29,9 mm do FD. Com essas três distâncias o FC fica cerca de 14 mm à frente dos cantos e
 // 1 mm para a direita. LE e LD ficam a 59,3 mm um do outro, no meio da protoboard.
+// TE e TD (7 sensores) ainda não foram montados: a posição abaixo é a prevista no gabarito
+// (doc/guia_montagem_sensores_7.pdf), nas quinas de trás da protoboard, com o palito colado por
+// fora para não atrapalhar os fios das linhas 1 a 4. Depois de montar, a posição medida
+// substitui estes números.
 static const CfgToF TOF[] = {
   //  nome   xshut  endereço   x     y    ang   offset
   {  "LE",   13,    0x30,     -1,   30,   90,    0  },   // meio da lateral esquerda
@@ -50,6 +72,13 @@ static const CfgToF TOF[] = {
   {  "FC",   27,    0x32,     87,   -1,    0,    0  },   // centro da frente, decide o ataque
   {  "FD",   26,    0x33,     73,  -27,  -20,    0  },   // canto frente direito
   {  "LD",   25,    0x34,     -2,  -30,  -90,    0  },   // meio da lateral direita
+  // XSHUT do TE no GPIO 33 e do TD no GPIO 15. O 15 é pino de boot, mas o nível que ele precisa
+  // no boot é o alto, o mesmo do XSHUT com o sensor ligado. O GPIO 12 ficou de fora porque
+  // nível alto nele no boot muda a tensão da flash e o ESP32 pode não ligar.
+#if QTD_TOF == 7
+  {  "TE",   33,    0x35,    -80,   25,  160,    0  },   // quina traseira esquerda (prevista)
+  {  "TD",   15,    0x36,    -80,  -25, -160,    0  },   // quina traseira direita (prevista)
+#endif
 };
 // contorno do corpo em mm a partir da origem e altura das lentes, usados pelo painel
 #define CORPO_FRENTE_MM   82.5f
@@ -60,6 +89,8 @@ static const CfgToF TOF[] = {
 #define LENTE_ALTURA_MM   23.0f    // centro das lentes, entre 21 e 24 mm acima da base
 #define GEOMETRIA_NOME    "BANCADA"
 #else
+// Robô de 152 x 152 mm com a origem no centro. Com 7 sensores, TE e TD ficam nos cantos de
+// trás, apontando a ±160 graus, onde os 5 sensores não enxergam nada.
 static const CfgToF TOF[] = {
   //  nome   xshut  endereço   x     y    ang   offset
   {  "LE",   13,    0x30,     10,   70,   90,    0  },   // lateral esquerda
@@ -67,6 +98,10 @@ static const CfgToF TOF[] = {
   {  "FC",   27,    0x32,     68,    0,    0,    0  },   // frente centro, decide o ataque
   {  "FD",   26,    0x33,     66,  -40,  -20,    0  },   // frente direita
   {  "LD",   25,    0x34,     10,  -70,  -90,    0  },   // lateral direita
+#if QTD_TOF == 7
+  {  "TE",   33,    0x35,    -60,   62,  160,    0  },   // canto traseiro esquerdo
+  {  "TD",   15,    0x36,    -60,  -62, -160,    0  },   // canto traseiro direito
+#endif
 };
 #define CORPO_FRENTE_MM   76.0f
 #define CORPO_TRAS_MM     76.0f

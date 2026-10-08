@@ -375,7 +375,7 @@ static void calBorda() {
 //   K,alcance,map...            mantido para ser compatível com o radar antigo
 //   X,bayes,ladoOponente,alcancePreto,massaMin     parâmetros do rastreador
 // Dados enviados a cada STREAM_MS:
-//   D,mm0..mm4,bruto0..bruto4,visto,ang*10,dist,conf,mascara,cx,cy,acao,lado,estado,saude,millis,
+//   D,mm0..mmN,bruto0..brutoN,visto,ang*10,dist,conf,mascara,cx,cy,acao,lado,estado,saude,millis,
 //     sigma*10,confianca*100,existe*100,rumoModo,rumoAng*10,buscaGanho*100
 //     (cx e cy são o centro do oponente; rumoModo: 0 nada, 1 atacar, 2 mirar, 3 provável, 4 procurar)
 //   Q,bordaConfirmada,bordaCru,mv0..mv3
