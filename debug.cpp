@@ -1,6 +1,7 @@
 // debug.cpp
 // Comandos de teste, calibração e o stream de dados para o painel. Os comandos chegam pela
-// entrada_le() do telemetria.cpp (USB ou painel) e o comando help mostra a lista completa.
+// entrada_le() do telemetria.cpp (Monitor Serial ou painel, os dois pela USB) e o comando help
+// mostra a lista completa.
 // Este é o único módulo que conversa com todos os outros, porque precisa mostrar tudo.
 #include "debug.h"
 #include "config.h"
@@ -12,9 +13,6 @@
 #include "estados.h"
 #include "rastreador.h"
 #include <Wire.h>
-#if USAR_WIFI
-#include <WiFi.h>
-#endif
 
 static char     linha[48];          // comando que está sendo digitado
 static uint8_t  nLinha = 0;
@@ -44,7 +42,6 @@ static void ajuda() {
   Log.println(F("# tempo              duracao do ciclo (atual e pior caso)"));
   Log.println(F("# go | stop          inicia (5 s) / para a maquina de estados"));
   Log.println(F("# s1 | s0            liga/desliga stream para o painel (HTML)"));
-  Log.println(F("# wifi               mostra rede, endereco e paineis conectados"));
   Log.println(F("# ============================================"));
 }
 
@@ -93,7 +90,6 @@ static void scan() {
 // (calibração), já que nesse tempo o loop() principal fica parado.
 static void servico() {
   percepcao_atualiza();
-  telemetria_passo();
   uint32_t t = millis();
   if (modoStream && t - tStream >= STREAM_MS) { tStream = t; streamDados(); }
   if (modoStream && oponente_bayes() && t - tMapa >= MAPA_MS) { tMapa = t; streamMapa(); }
@@ -369,7 +365,7 @@ static void calBorda() {
 
 // Protocolo de texto entre o ESP32 e o painel (painel_sumo.html).
 // Cada linha começa com uma letra que indica o tipo. O cabeçalho é enviado nos comandos s1 e geo
-// e toda vez que um painel conecta:
+// (o painel manda s1 logo depois de abrir a porta USB) e depois de cada calibração:
 //   G,i,nome,x,y,ang            geometria de cada ToF
 //   I,i,ok                      sensor respondendo
 //   C,i,ganho,offset,gravada    calibração do ToF
@@ -441,18 +437,6 @@ static void streamDados() {
 #endif
 }
 
-// Comando wifi: modo da rede, endereço e quantos painéis estão conectados.
-static void wifiInfo() {
-#if USAR_WIFI
-  Log.printf("# WiFi: modo %s | IP %s | %u painel(is) conectado(s) | stream a %d ms\n",
-             WiFi.getMode() == WIFI_AP ? "rede propria (AP)" : "roteador",
-             (WiFi.getMode() == WIFI_AP ? WiFi.softAPIP() : WiFi.localIP()).toString().c_str(),
-             telemetria_paineis(), STREAM_MS);
-#else
-  Log.println(F("# WiFi desligado (USAR_WIFI 0)"));
-#endif
-}
-
 // Interpretação de uma linha de comando. Uma cópia com as letras originais é guardada para os
 // argumentos (nome do sensor), e a comparação dos comandos é feita em minúsculas.
 static void executa(char* c) {
@@ -496,7 +480,6 @@ static void executa(char* c) {
   else if (!strcmp(c, "stop"))   { estados_parar();   Log.println(F("# parado")); }
   else if (!strcmp(c, "s1") || !strcmp(c, "geo") || !strcmp(c, "cfg")) { modoStream = modoStream || !strcmp(c, "s1"); streamCabecalho(); }
   else if (!strcmp(c, "s0"))     modoStream = false;
-  else if (!strcmp(c, "wifi"))   wifiInfo();
   else Log.printf("! comando desconhecido: %s (digite help)\n", c);
 }
 
@@ -504,9 +487,8 @@ void debug_init() { ajuda(); lista(); }   // no boot aparecem os comandos e a ta
 
 // O loop do sumo_esp32.ino chama esta função em toda volta. Primeiro o laço junta os caracteres
 // até formar uma linha e executa o comando; depois os modos contínuos ligados são impressos,
-// cada um no seu ritmo. Um painel novo liga o stream automaticamente.
+// cada um no seu ritmo. O painel liga o stream sozinho, enviando s1 logo depois de conectar.
 void debug_passo() {
-  if (telemetria_novo_painel()) { modoStream = true; streamCabecalho(); }
   int lido;
   while ((lido = entrada_le()) >= 0) {
     char ch = (char)lido;

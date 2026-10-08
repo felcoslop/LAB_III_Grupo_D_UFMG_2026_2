@@ -5,8 +5,9 @@
 ![Linguagem](https://img.shields.io/badge/linguagem-C%2B%2B-00599C)
 ![Disciplina](https://img.shields.io/badge/UFMG-ELE635-8a1538)
 ![Status](https://img.shields.io/badge/status-bancada%20de%20teste-orange)
+[![Compilação](https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2/actions/workflows/compilacao.yml/badge.svg)](https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2/actions/workflows/compilacao.yml)
 
-Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **Grupo D**, desenvolvido na disciplina ELE635 Laboratório de Sistemas III da UFMG. O ESP32 lê cinco sensores de distância VL53L0X e quatro sensores de linha TCRT5000, estima onde está o oponente com um filtro bayesiano em grade e decide o movimento com uma máquina de estados. Um painel web, servido pelo próprio ESP32, mostra sensores, mapa de probabilidade, rumo e estado em 2D e 3D.
+Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **Grupo D**, desenvolvido na disciplina ELE635 Laboratório de Sistemas III da UFMG. O ESP32 lê cinco sensores de distância VL53L0X e quatro sensores de linha TCRT5000, estima onde está o oponente com um filtro bayesiano em grade e decide o movimento com uma máquina de estados. Um painel web, que abre direto no navegador e conversa com o robô pela USB, mostra sensores, mapa de probabilidade, rumo e estado em 2D e 3D.
 
 ![Painel do robô em modo demo, com radar 2D, ambiente 3D, tabela de precisão e sensores de borda](doc/img/painel_demo.jpg)
 
@@ -21,13 +22,14 @@ Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **
 - [Mapa do código](#mapa-do-código)
 - [Configuração](#configuração)
 - [Estrutura de pastas](#estrutura-de-pastas)
+- [Integração contínua](#integração-contínua)
 - [Equipe](#equipe)
 
 ## Contexto
 
 O projeto faz parte da disciplina ELE635 Laboratório de Sistemas III, do curso de Engenharia de Sistemas da UFMG, no semestre 2026/2, com o Prof. Gustavo Medeiros Freitas. A disciplina cobre o ciclo completo de um projeto de engenharia, da concepção até a competição, e o robô segue a classe de 1000 g (Lego/Vex Sumô) das regras de sumô da RoboCore [ROBOCORE, s.d.]: massa de até 1000 g, base de 15,2 x 15,2 cm, dojô (no código, dohyo) preto de 77 cm de diâmetro com borda branca de 2,5 cm, controle totalmente autônomo e início obrigatório 5 s depois do comando.
 
-A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma protoboard que faz o papel de chassi provisório, o ESP32 é alimentado por um carregador portátil e a telemetria sai pelo WiFi. Nessa fase os motores ficam desligados no firmware (`USAR_MOTORES 0`), mas a máquina de estados roda normalmente e o painel mostra o comando que iria para cada roda.
+A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma protoboard que faz o papel de chassi provisório, e o ESP32 fica ligado ao computador pela USB, que alimenta a placa e leva a telemetria. Nessa fase os motores ficam desligados no firmware (`USAR_MOTORES 0`), mas a máquina de estados roda normalmente e o painel mostra o comando que iria para cada roda.
 
 ## Funcionalidades
 
@@ -37,14 +39,15 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 - Rumo (a seta do painel) até o oponente ou até os pontos cegos, usado pela máquina de estados na busca.
 - Leitura analógica da linha branca, com confirmação por tempo e calibração guiada em três medidas (ar, preto e branco).
 - Máquina de estados com contagem obrigatória de 5 s, busca, mira, ataque e fuga da borda.
-- Rede WiFi própria com painel 2D e 3D embutido no ESP32, dados a 50 Hz e comandos pelo navegador.
+- Painel 2D e 3D em um único arquivo HTML, sem internet, ligado ao robô pela USB, com dados a 50 Hz e comandos pelo navegador.
+- Firmware sem rádio: o robô compete de forma autônoma, sem WiFi e sem Bluetooth, o que deixa o núcleo 0 livre para o rastreador.
 - Terminal de comandos pela USB ou pelo painel para teste, calibração e diagnóstico.
 
 ## Hardware
 
 | Componente | Qtd. | Uso no projeto |
 |---|---|---|
-| ESP32 DevKit V1 (30 pinos) com placa de expansão | 1 | microcontrolador de dois núcleos, com WiFi e ADC |
+| ESP32 DevKit V1 (30 pinos) com placa de expansão | 1 | microcontrolador de dois núcleos, com ADC (o rádio fica desligado) |
 | VL53L0X (placas CJVL53L0XV2 / GY-530) | 5 | distância até o oponente: LE, FE, FC, FD e LD |
 | TCRT5000 com comparador LM393 | 4 | linha branca da borda, lida pela saída analógica A0 |
 | TB6612FNG | 1 | ponte H dos dois motores (desativada na bancada) |
@@ -61,7 +64,7 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 | TB6612 PWMA / AIN1 / AIN2 | 18 / 19 / 23 | motor esquerdo, STBY ligado direto no 3V3 |
 | TB6612 PWMB / BIN1 / BIN2 | 4 / 16 / 17 | motor direito |
 
-Todos os sensores ficam no 3V3 do ESP32. As placas clone do VL53L0X puxam SDA e SCL para 2,8 V, nível que o ESP32 entende como 1, e o firmware nunca coloca nível alto no XSHUT: para desligar um sensor o pino vira saída em LOW e, para ligar, vira entrada com o pull-up interno. Os sensores de borda usam pinos do ADC1 porque o ADC2 do ESP32 fica indisponível com o WiFi ligado.
+Todos os sensores ficam no 3V3 do ESP32. As placas clone do VL53L0X puxam SDA e SCL para 2,8 V, nível que o ESP32 entende como 1, e o firmware nunca coloca nível alto no XSHUT: para desligar um sensor o pino vira saída em LOW e, para ligar, vira entrada com o pull-up interno. Os sensores de borda usam os pinos 34, 35, 36 e 39 do ADC1, que servem só como entrada e combinam com a saída A0 dos módulos.
 
 Na bancada (`GEOMETRIA_BANCADA 1`), a origem do referencial é o centro da protoboard, com x para a frente e y para a esquerda, em milímetros:
 
@@ -86,12 +89,12 @@ Os PDFs da pasta `doc/` trazem os gabaritos em escala 1:1 da bancada e do robô,
 | Biblioteca VL53L0X da Pololu | 1.3.1 | Gerenciador de Bibliotecas |
 | Python 3 | 3.x | necessário só para gerar o painel de novo |
 
-O firmware usa o core do ESP32 [ESPRESSIF SYSTEMS, s.d.] e a biblioteca VL53L0X da Pololu [POLOLU, s.d.]. As bibliotecas WiFi, ESPmDNS, Preferences e Wire já vêm com o core.
+O firmware usa o core do ESP32 [ESPRESSIF SYSTEMS, s.d.] e a biblioteca VL53L0X da Pololu [POLOLU, s.d.]. As bibliotecas Preferences e Wire já vêm com o core.
 
 ### Passo a passo
 
-1. Extração do zip em uma pasta chamada `sumo_esp32`. A Arduino IDE exige que o nome da pasta seja igual ao do arquivo `.ino`, e o "Extrair tudo" do Windows usa o nome do zip, então `sumo_esp32.zip` já gera a pasta certa. Em um clone do repositório, o nome da pasta precisa do mesmo cuidado.
-2. Abertura do `sumo_esp32.ino` na IDE. Os outros arquivos `.h` e `.cpp` aparecem como abas, e a pasta `src/` entra na compilação.
+1. Extração do zip em uma pasta chamada `sumo_esp32`. A Arduino IDE exige que o nome da pasta seja igual ao do arquivo `.ino`, e o "Extrair tudo" do Windows usa o nome do zip, então `sumo_esp32.zip` já gera a pasta certa. Em um clone do repositório, o nome da pasta precisa do mesmo cuidado, por exemplo com `git clone https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2 sumo_esp32`.
+2. Abertura do `sumo_esp32.ino` na IDE. Os outros arquivos `.h` e `.cpp` aparecem como abas.
 3. Ajustes no menu Ferramentas, conforme a tabela abaixo.
 4. Compilação e gravação pela USB, com o botão Carregar.
 5. Monitor Serial em 115200 baud, com a opção "Nova linha".
@@ -99,10 +102,8 @@ O firmware usa o core do ESP32 [ESPRESSIF SYSTEMS, s.d.] e a biblioteca VL53L0X 
 | Opção em Ferramentas | Valor |
 |---|---|
 | Placa | ESP32 Dev Module |
-| Partition Scheme | Huge APP (3MB No OTA/1MB SPIFFS) |
+| Partition Scheme | padrão (o firmware cabe com folga) |
 | Porta | porta COM do ESP32 |
-
-O esquema de partição maior é necessário porque o painel comprimido ocupa cerca de 180 KB dentro do firmware.
 
 ## Uso
 
@@ -132,13 +133,10 @@ Os comandos funcionam no Monitor Serial e no terminal do painel.
 | `tempo` | duração do ciclo do loop, tempo do rastreador e linhas descartadas na USB |
 | `go` e `stop` | início (contagem de 5 s) e parada da máquina de estados |
 | `s1` e `s0` | stream de dados para o painel, ligado e desligado |
-| `wifi` | modo da rede, endereço IP e painéis conectados |
 
-### Painel pelo WiFi
+### Painel pela USB
 
-Com `USAR_WIFI 1`, o ESP32 cria a rede **SUMO-ROBO** (senha `sumo1234`). Depois de conectar o celular ou o notebook nessa rede, o endereço http://192.168.4.1 abre o painel direto do ESP32, sem internet; em sistemas com mDNS, http://sumo.local também funciona. O painel conecta sozinho no stream de dados e envia comandos para o mesmo terminal da USB. A página só sai do ESP32 com o robô em ESPERA, porque o envio de 180 KB pode segurar o loop por alguns instantes.
-
-O arquivo `painel_sumo.html` também abre direto no Chrome ou no Edge do computador, sem internet, porque o three.js está embutido nele [THREE.JS, 2022]. Nesse caso, a conexão pode ser pelo WiFi (botão "Conectar WiFi" com o endereço 192.168.4.1) ou pela USB (botão "USB", que usa a Web Serial do navegador a 115200 baud). O botão "Modo demo" simula um oponente preto de 15,2 cm e roda em JavaScript o mesmo rastreador do firmware; o quadrado pode ser arrastado no radar 2D e, com a opção "robô se mexe", o robô simulado obedece à seta.
+O arquivo `painel_sumo.html` abre direto no Chrome ou no Edge do computador, sem internet, porque o three.js está embutido nele [THREE.JS, 2022]. O botão "Conectar USB" usa a Web Serial do navegador a 115200 baud; logo depois de abrir a porta, o painel envia `s1` e passa a receber os dados a 50 Hz. O Monitor Serial da IDE precisa estar fechado, porque só um programa por vez usa a porta. O botão "Modo demo" simula um oponente preto de 15,2 cm e roda em JavaScript o mesmo rastreador do firmware; o quadrado pode ser arrastado no radar 2D e, com a opção "robô se mexe", o robô simulado obedece à seta.
 
 | Oponente à vista (rumo ATACAR) | Arena vazia (rumo PROCURAR) |
 |---|---|
@@ -171,10 +169,10 @@ flowchart LR
     PER --> EST["estados.cpp<br/>máquina de estados"]
     EST --> MOT["motores.cpp<br/>TB6612FNG"]
     PER --> DEB["debug.cpp<br/>comandos e stream"]
-    DEB --> TEL["telemetria.cpp<br/>Log, HTTP e SSE"]
+    DEB --> TEL["telemetria.cpp<br/>Log pela USB"]
     TEL --> USB["Monitor Serial"]
     TEL --> PAI["painel_sumo.html"]
-    PAI -- "/cmd" --> TEL
+    PAI -- "comandos pela USB" --> TEL
 ```
 
 Nenhum módulo usa `delay()` dentro do loop. Cada volta chama os módulos na ordem abaixo, e cada um faz uma parte pequena do trabalho e devolve o controle.
@@ -184,10 +182,9 @@ Nenhum módulo usa `delay()` dentro do loop. Cada volta chama os módulos na ord
 | 1 | `percepcao_atualiza()` | percepcao.cpp | leitura dos sensores, fusão, rumo e montagem de `P` |
 | 2 | `estados_passo()` | estados.cpp | decisão e comando dos motores |
 | 3 | `percepcao_manutencao()` | percepcao.cpp | nova tentativa nos ToF que caíram, só em ESPERA |
-| 4 | `telemetria_passo()` | telemetria.cpp | atendimento do WiFi sem bloquear |
-| 5 | `debug_passo()` | debug.cpp | comandos e envio de dados para o painel |
+| 4 | `debug_passo()` | debug.cpp | comandos e envio de dados para o painel |
 
-O ESP32 tem dois núcleos. O loop do Arduino roda no núcleo 1, e o rastreador bayesiano, que leva alguns milissegundos por passo, roda em uma tarefa do FreeRTOS no núcleo 0. A troca de dados entre os dois acontece dentro de uma trava curta (spinlock), então o loop nunca espera o filtro terminar.
+O ESP32 tem dois núcleos. O loop do Arduino roda no núcleo 1, e o rastreador bayesiano, que leva alguns milissegundos por passo, roda em uma tarefa do FreeRTOS no núcleo 0. Como o firmware não liga o rádio, a pilha do WiFi não disputa esse núcleo com o rastreador. A troca de dados entre os dois acontece dentro de uma trava curta (spinlock), então o loop nunca espera o filtro terminar.
 
 O referencial é o mesmo em todo o código: origem no centro de giro do robô, x para a frente, y para a esquerda e ângulo positivo para a esquerda. Com isso, o ângulo do oponente já é o quanto o robô precisa girar.
 
@@ -195,7 +192,7 @@ O referencial é o mesmo em todo o código: origem no centro de giro do robô, x
 
 ### `sumo_esp32.ino`
 
-Arquivo principal. O `setup()` configura primeiro os motores, para o robô nascer parado, cria um buffer de 4 KB na serial e inicializa telemetria, percepção, máquina de estados e debug. O `loop()` apenas chama os módulos na ordem da tabela de arquitetura.
+Arquivo principal. O `setup()` configura primeiro os motores, para o robô nascer parado, cria um buffer de 4 KB na serial e inicializa percepção, máquina de estados e debug. O `loop()` apenas chama os módulos na ordem da tabela de arquitetura.
 
 ### `config.h`
 
@@ -271,14 +268,7 @@ Controle da ponte H TB6612FNG, com valores de -255 a 255 por roda. Os pinos IN1 
 
 ### `telemetria.h` e `telemetria.cpp`
 
-Saída de texto e servidor web, só com as bibliotecas do core do ESP32. O objeto `Log` substitui o `Serial` em todo o projeto: cada linha vai inteira para a USB e para os painéis conectados. As linhas de dados são descartadas na USB quando o buffer está cheio, e no WiFi o envio usa `MSG_DONTWAIT`, então uma rede lenta perde quadros mas nunca segura o robô. O stream usa Server-Sent Events, que o navegador reconecta sozinho e que não exigem biblioteca extra.
-
-| Endereço | Resposta |
-|---|---|
-| `/` | painel comprimido em gzip (somente em ESPERA) |
-| `/stream` | linhas do `Log` em tempo real (Server-Sent Events), até 2 painéis |
-| `/cmd?c=lista` | comando entregue ao terminal, como se tivesse sido digitado |
-| `/ping` | resposta curta para medir o atraso |
+Saída de texto e entrada de comandos pela USB. O objeto `Log` substitui o `Serial` em todo o projeto: cada linha sai inteira, o que deixa o painel ler sem pedaços misturados. As linhas de dados (`D`, `Q` e `M`) são descartadas quando o buffer da serial está cheio, então o robô nunca fica esperando a USB; o comando `tempo` mostra quantas linhas foram descartadas. A função `entrada_le()` entrega ao debug os caracteres que chegam do Monitor Serial ou do painel.
 
 ### `debug.h` e `debug.cpp`
 
@@ -286,16 +276,16 @@ Comandos de teste e calibração, os modos contínuos (`ver`, `id`, `borda`) e o
 
 | Linha | Conteúdo | Quando |
 |---|---|---|
-| `G`, `I`, `C` | geometria, status e calibração de cada ToF | conexão do painel e comando `s1` |
-| `R` | posição, limiar e calibração de cada sensor de borda | conexão do painel e comando `s1` |
-| `B`, `E`, `K`, `X` | corpo do robô, nomes dos estados, alcance e parâmetros do rastreador | conexão do painel e comando `s1` |
+| `G`, `I`, `C` | geometria, status e calibração de cada ToF | comando `s1`, enviado pelo painel ao conectar |
+| `R` | posição, limiar e calibração de cada sensor de borda | comando `s1` e depois de cada calibração |
+| `B`, `E`, `K`, `X` | corpo do robô, nomes dos estados, alcance e parâmetros do rastreador | comando `s1` |
 | `D` | leituras, oponente, estado, saúde, incerteza, existência e rumo | a cada 20 ms |
 | `Q` | borda confirmada, borda crua e mV de cada sensor | a cada 20 ms |
 | `M` | mapa de probabilidade comprimido | a cada 250 ms |
 
 ### Painel
 
-O `painel_sumo.html` é o painel completo, com o three.js e o OrbitControls embutidos. O código fonte fica em `doc/painel_src.html`, e o script `doc/gera_painel.py` junta o fonte com as bibliotecas de `doc/vendor/`, gera o `painel_sumo.html` e cria o `src/painel_gz.h`, que guarda a versão comprimida servida pelo ESP32. Qualquer mudança no painel exige rodar `python doc/gera_painel.py` e gravar o firmware de novo.
+O `painel_sumo.html` é o painel completo, com o three.js e o OrbitControls embutidos. O código fonte fica em `doc/painel_src.html`, e o script `doc/gera_painel.py` junta o fonte com as bibliotecas de `doc/vendor/` e gera o `painel_sumo.html`. Qualquer mudança no painel exige rodar `python doc/gera_painel.py` e fazer o commit dos dois arquivos; o CI confere se eles estão iguais.
 
 ### Documentos de montagem
 
@@ -322,9 +312,8 @@ Os ajustes principais ficam no `config.h`:
 | `BORDA_LIMIAR_MV` | 600 | limiar fixo da borda antes da calibração |
 | `BORDA_FRACAO` | 0,35 | posição do limiar calibrado entre o branco e o preto |
 | `BORDA_CONFIRMA_MS` | 3 | tempo mínimo de branco contínuo para confirmar a borda |
-| `USAR_BORDA`, `USAR_MOTORES`, `USAR_WIFI` | 1, 0, 1 | liga e desliga cada parte do hardware |
-| `WIFI_AP_SSID` e `WIFI_AP_SENHA` | SUMO-ROBO e sumo1234 | rede própria do ESP32 |
-| `WIFI_STA_SSID` e `WIFI_STA_SENHA` | vazios | roteador opcional; sem conexão em 8 s, vale a rede própria |
+| `USAR_BORDA` e `USAR_MOTORES` | 1 e 0 | liga e desliga cada parte do hardware |
+| `STREAM_MS` | 20 | intervalo dos dados enviados ao painel pela USB |
 | `VEL_ATAQUE`, `VEL_GIRO`, `VEL_BUSCA`, `VEL_RECUO` | 255, 200, 120, 220 | velocidades de -255 a 255 |
 | `T_CONTAGEM_MS` | 5000 | contagem obrigatória antes da luta |
 | `T_GIRO_BORDA_MS` | 250 | tempo do giro de fuga da borda (precisa de medida) |
@@ -343,14 +332,14 @@ sumo_esp32/
   borda.h / .cpp            TCRT5000: leitura analógica, limiar e confirmação
   estados.h / .cpp          máquina de estados
   motores.h / .cpp          TB6612FNG
-  telemetria.h / .cpp       Log, WiFi, servidor HTTP e Server-Sent Events
+  telemetria.h / .cpp       Log e entrada de comandos pela USB
   debug.h / .cpp            comandos, calibração e stream para o painel
   painel_sumo.html          painel completo para abrir no computador
-  src/
-    painel_gz.h             painel comprimido servido pelo ESP32 (gerado)
+  .github/workflows/
+    compilacao.yml          CI: compilação do firmware e conferência do painel
   doc/
     painel_src.html         código fonte do painel
-    gera_painel.py          gera o painel_sumo.html e o src/painel_gz.h
+    gera_painel.py          gera o painel_sumo.html
     gera_bancada.py         gera o gabarito_bancada.pdf
     gera_guia.py            gera o guia_montagem_sensores.pdf
     gabarito_bancada.pdf    gabarito 1:1 da bancada
@@ -358,6 +347,10 @@ sumo_esp32/
     img/                    imagens deste README
     vendor/                 three.js r147, OrbitControls e licença MIT
 ```
+
+## Integração contínua
+
+O workflow `.github/workflows/compilacao.yml` roda em todo pull request para a `main` e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, e publica o uso de flash e RAM no resumo da execução. Um segundo teste gera o painel de novo a partir do `doc/painel_src.html` e falha se o `painel_sumo.html` versionado estiver diferente. As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem.
 
 ## Equipe
 

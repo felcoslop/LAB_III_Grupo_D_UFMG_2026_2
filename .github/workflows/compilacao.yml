@@ -1,0 +1,86 @@
+# Integração contínua do firmware.
+# Toda branch enviada e todo pull request para a main passam por dois testes: a compilação do
+# firmware para o ESP32 Dev Module (na linha 2.x e na linha 3.x do core da Espressif) e a
+# conferência de que o painel_sumo.html foi gerado a partir do doc/painel_src.html atual.
+name: Compilação
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  URL_ESP32: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+
+jobs:
+  firmware:
+    name: Firmware (core ESP32 ${{ matrix.core }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        core: ["2.0.17", "3.3.0"]
+    steps:
+      # a pasta precisa ter o mesmo nome do .ino para a Arduino CLI aceitar o sketch
+      - uses: actions/checkout@v4
+        with:
+          path: sumo_esp32
+
+      - uses: arduino/setup-arduino-cli@v2
+
+      - name: Cache do core e das bibliotecas
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.arduino15
+            ~/Arduino/libraries
+          key: arduino-esp32-${{ matrix.core }}-vl53l0x-1.3.1
+
+      - name: Instalação do core ESP32 e da biblioteca VL53L0X
+        run: |
+          arduino-cli core update-index --additional-urls "$URL_ESP32"
+          arduino-cli core install "esp32:esp32@${{ matrix.core }}" --additional-urls "$URL_ESP32"
+          arduino-cli lib install "VL53L0X@1.3.1"
+
+      - name: Compilação
+        run: |
+          arduino-cli compile --fqbn esp32:esp32:esp32 --warnings default \
+            --additional-urls "$URL_ESP32" sumo_esp32 2>&1 | tee compilacao.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Uso de memória
+        if: always()
+        run: |
+          {
+            echo "### Core ESP32 ${{ matrix.core }}"
+            echo '```'
+            grep -E "Sketch uses|Global variables" compilacao.log || echo "sem resumo de memória"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  painel:
+    name: Painel gerado a partir do fonte
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Geração do painel e comparação com o arquivo versionado
+        run: |
+          python doc/gera_painel.py
+          git diff --exit-code -- painel_sumo.html || {
+            echo "::error::painel_sumo.html desatualizado: rode python doc/gera_painel.py e faça o commit"
+            exit 1
+          }

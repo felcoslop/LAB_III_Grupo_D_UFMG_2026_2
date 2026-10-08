@@ -226,7 +226,7 @@ bool rastreador_init() {
   memset(&pend, 0, sizeof(pend));
   estPub = est;
 #if defined(ARDUINO_ARCH_ESP32) && RASTREADOR_NUCLEO >= 0
-  // tarefa de prioridade baixa no outro núcleo (o WiFi também roda lá, com prioridade maior)
+  // tarefa de prioridade baixa no outro núcleo, que fica livre porque o firmware não usa o rádio
   extern void rastreadorTarefa(void*);
   if (xTaskCreatePinnedToCore(rastreadorTarefa, "rastreador", 4096, nullptr, 1, &tarefa, RASTREADOR_NUCLEO) != pdPASS)
     tarefa = nullptr;                             // sem tarefa o filtro roda no próprio loop

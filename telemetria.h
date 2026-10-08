@@ -1,16 +1,10 @@
 // telemetria.h
-// Saída de texto (USB e WiFi) e entrada de comandos (USB e WiFi).
+// Saída de texto e entrada de comandos pela USB.
 // O objeto Log substitui Serial.print, Serial.printf e Serial.println no projeto todo: o texto
-// vai para a USB e, quando existe painel conectado pelo WiFi, vai para o painel também.
-// A função entrada_le() devolve o próximo caractere digitado, venha ele da USB ou do painel,
-// e devolve -1 quando não tem nada.
-//
-// Com USAR_WIFI 1 no config.h, o ESP32 cria a rede "SUMO-ROBO" (ou entra no roteador, quando
-// configurado) e atende três endereços:
-//   http://192.168.4.1                abre o painel guardado no próprio ESP32 (sem internet)
-//   http://192.168.4.1/stream         dados em tempo real (Server-Sent Events)
-//   http://192.168.4.1/cmd?c=lista    envia um comando
-// Nenhuma parte deste módulo bloqueia o robô; quando o WiFi engasga, o pacote é descartado.
+// sai pela USB sempre em linhas inteiras, o que deixa o painel (painel_sumo.html) ler cada linha
+// sem pedaços misturados. A função entrada_le() devolve o próximo caractere digitado no Monitor
+// Serial ou enviado pelo painel, e devolve -1 quando não tem nada.
+// O robô é autônomo e não usa rádio: nenhuma parte deste módulo liga WiFi ou Bluetooth.
 #pragma once
 #include <Arduino.h>
 
@@ -22,9 +16,5 @@ public:
 };
 extern Saida Log;
 
-void telemetria_init();
-void telemetria_passo();          // uma chamada por volta do loop; a rede é atendida sem bloquear
-bool telemetria_novo_painel();    // true uma única vez logo depois que um painel conecta
-uint8_t telemetria_paineis();     // quantos painéis estão recebendo dados
 int  entrada_le();                // próximo caractere de comando (-1 quando não tem nada)
 uint32_t telemetria_descartes_usb(); // linhas de dados não enviadas pela USB por causa da serial cheia
