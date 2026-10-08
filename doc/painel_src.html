@@ -58,7 +58,7 @@ td.n{font-family:var(--mono);text-align:right}
 </style>
 </head>
 <body>
-<div id="nosupport">Sem Web Serial neste navegador: use a conexão <b>WiFi</b> (rede SUMO-ROBO, endereço 192.168.4.1) ou abra no Chrome/Edge do computador para USB.</div>
+<div id="nosupport">Sem Web Serial neste navegador: abra no Chrome ou no Edge do computador para conectar pela USB, ou use o modo demo.</div>
 <header>
   <h1>Painel ToF · Sumô</h1>
   <span id="status" class="pill">desconectado</span>
@@ -66,11 +66,9 @@ td.n{font-family:var(--mono);text-align:right}
   <span id="pSaude" class="pill">ToF -/-</span>
   <span id="pEstado" class="pill">estado: -</span>
   <span id="pBorda" class="pill">borda -</span>
-  <span id="pRede" class="pill" title="taxa de pacotes, tempo de ida e volta e perdas">rede -</span>
+  <span id="pRede" class="pill" title="taxa de pacotes e perdas na USB">dados -</span>
   <span style="flex:1"></span>
-  <input id="endWifi" value="192.168.4.1" style="width:130px;font-family:var(--mono)" title="endereço do ESP32">
-  <button id="bWifi" class="pri">Conectar WiFi</button>
-  <button id="bConn">USB</button>
+  <button id="bConn" class="pri">Conectar USB</button>
   <button id="bDemo">Modo demo</button>
   <button id="bDisc" class="danger" disabled>Desconectar</button>
 </header>
@@ -205,11 +203,10 @@ const S = {
 const ACOES = ["BUSCAR","ATACAR","CURVA ESQ","CURVA DIR","GIRO ESQ","GIRO DIR","SEGURAR"];
 const JAN = 40;
 let port = null, reader = null, writer = null, conectado = false, demo = false;
-let modo = null, es = null, base = "", timerPing = null;
-const rede = {n: 0, t0: performance.now(), hz: 0, rtt: null, perd: 0, tot: 0, espAnt: null};
+let modo = null;
+const rede = {n: 0, t0: performance.now(), hz: 0, perd: 0, tot: 0, espAnt: null};
 const $ = id => document.getElementById(id);
-const servidoPeloEsp = location.protocol.startsWith("http");
-if (!("serial" in navigator) && !servidoPeloEsp) $("nosupport").style.display = "block";
+if (!("serial" in navigator)) $("nosupport").style.display = "block";
 const N = () => S.geo.length;
 const rad = d => d * Math.PI / 180, deg = r => r * 180 / Math.PI;
 const normA = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
@@ -865,7 +862,8 @@ async function conectar() {
     await port.open({baudRate: 115200});
     const enc = new TextEncoderStream(); enc.readable.pipeTo(port.writable); writer = enc.writable.getWriter();
     conectado = true; modo = "usb"; $("status").textContent = "USB conectado"; $("status").className = "pill on";
-    $("bConn").disabled = true; $("bWifi").disabled = true; $("bDisc").disabled = false; $("bDemo").disabled = true;
+    $("bConn").disabled = true; $("bDisc").disabled = false; $("bDemo").disabled = true;
+    rede.espAnt = null;
     log("[painel] porta aberta; aguardando o ESP32 reiniciar...", "u");
     setTimeout(() => enviar("s1", true), 1800);
     ler();
@@ -884,58 +882,28 @@ async function ler() {
   finally { reader.releaseLock(); await fim; }
 }
 async function desconectar() {
-  if (modo === "wifi") {
-    if (es) es.close(); es = null; clearInterval(timerPing); modo = null; conectado = false;
-    $("status").textContent = "desconectado"; $("status").className = "pill"; $("pRede").textContent = "rede -";
-    $("bConn").disabled = false; $("bWifi").disabled = false; $("bDisc").disabled = true; $("bDemo").disabled = false;
-    return;
-  }
   try { await enviar("s0", true); } catch (e) {}
   try { await reader.cancel(); } catch (e) {}
   try { await writer.close(); } catch (e) {}
   try { await port.close(); } catch (e) {}
   conectado = false; modo = null; $("status").textContent = "desconectado"; $("status").className = "pill";
-  $("bConn").disabled = false; $("bWifi").disabled = false; $("bDisc").disabled = true; $("bDemo").disabled = false;
+  $("pRede").textContent = "dados -"; $("pRede").className = "pill";
+  $("bConn").disabled = false; $("bDisc").disabled = true; $("bDemo").disabled = false;
 }
 async function enviar(t, quieto) {
   if (demo) { log("» " + (t || "[ENTER]"), "u"); log("[demo] comandos só funcionam com o ESP32 conectado", "i"); return; }
   if (!conectado) { log("[painel] não conectado", "e"); return; }
   if (!quieto) log("» " + (t === "" ? "[ENTER]" : t), "u");
-  if (modo === "wifi") {
-    try { await fetch(base + "/cmd?c=" + encodeURIComponent(t), {cache: "no-store"}); }
-    catch (e) { log("[painel] comando não chegou (WiFi): " + e.message, "e"); }
-    return;
-  }
   await writer.write(t + "\n");
 }
 
-// ============================== WIFI ==============================
-// Dados chegam por Server-Sent Events (/stream); comandos vão por /cmd.
-// O navegador reconecta sozinho se o sinal cair.
-function conectarWifi(endereco) {
-  pararDemo();
-  if (es) es.close();
-  base = endereco ? "http://" + endereco.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "") : "";
-  modo = "wifi"; conectado = true;
-  $("status").textContent = "WiFi conectando..."; $("status").className = "pill demo";
-  $("bConn").disabled = true; $("bWifi").disabled = true; $("bDisc").disabled = false; $("bDemo").disabled = true;
-  es = new EventSource(base + "/stream");
-  es.onopen = () => { $("status").textContent = "WiFi conectado"; $("status").className = "pill on"; log("[painel] WiFi conectado em " + (base || location.host), "u"); rede.espAnt = null; };
-  es.onmessage = e => linha(e.data);
-  es.onerror = () => { $("status").textContent = "WiFi reconectando..."; $("status").className = "pill bad"; };
-  clearInterval(timerPing);
-  timerPing = setInterval(async () => {               // tempo de ida e volta (RTT)
-    const t0 = performance.now();
-    try { await fetch(base + "/ping", {cache: "no-store"}); rede.rtt = performance.now() - t0; } catch (e) { rede.rtt = null; }
-  }, 2000);
-}
+// ============================== TAXA DE DADOS ==============================
 setInterval(() => {                                    // taxa de pacotes e perdas, 1x por segundo
   const agora = performance.now(), dt = (agora - rede.t0) / 1000;
   rede.hz = rede.n / dt; rede.n = 0; rede.t0 = agora;
   if (!conectado) return;
   const perd = rede.tot ? 100 * rede.perd / rede.tot : 0; rede.tot = 0; rede.perd = 0;
-  $("pRede").textContent = `${modo === "wifi" ? "WiFi" : "USB"} · ${rede.hz.toFixed(0)} Hz` +
-    (modo === "wifi" ? ` · RTT ${rede.rtt === null ? "-" : rede.rtt.toFixed(0) + " ms"}` : "") + ` · perdas ${perd.toFixed(0)}%`;
+  $("pRede").textContent = `USB · ${rede.hz.toFixed(0)} Hz · perdas ${perd.toFixed(0)}%`;
   $("pRede").className = "pill " + (rede.hz > 30 && perd < 5 ? "on" : rede.hz > 5 ? "demo" : "bad");
 }, 1000);
 
@@ -1211,7 +1179,6 @@ c2.addEventListener("pointerup", () => arrastando = false);
 
 // ============================== EVENTOS ==============================
 $("bConn").onclick = conectar; $("bDisc").onclick = desconectar;
-$("bWifi").onclick = () => conectarWifi($("endWifi").value);
 $("bDemo").onclick = () => demo ? pararDemo() : iniciarDemo();
 $("bOp").onclick = () => { dObj.presente = !dObj.presente; $("bOp").textContent = dObj.presente ? "Tirar oponente" : "Colocar oponente";
   log(dObj.presente ? "[demo] oponente colocado" : "[demo] arena vazia: o robô não deve inventar oponente", "u"); };
@@ -1232,8 +1199,7 @@ if ("serial" in navigator) navigator.serial.addEventListener("disconnect", () =>
 
 montaTabela(); montaBorda(); cena3d(); vista("persp"); tam2d(); painel(); painelBorda();
 (function loop() { desenha2d(); desenha3d(); requestAnimationFrame(loop); })();
-if (servidoPeloEsp) { $("endWifi").value = location.host; conectarWifi(""); }   // aberto de dentro do ESP32: conecta sozinho
-else log("[painel] Pronto. Conecte pelo WiFi (rede SUMO-ROBO) ou USB, ou use o modo demo.", "u");
+log("[painel] Pronto. Conecte pela USB (Chrome ou Edge) ou use o modo demo.", "u");
 </script>
 </body>
 </html>
