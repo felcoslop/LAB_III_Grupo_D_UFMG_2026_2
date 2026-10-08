@@ -1,5 +1,5 @@
 // oponente.cpp
-// Módulo dos 5 sensores de oponente VL53L0X (placas CJVL53L0XV2 / GY-530).
+// Módulo dos sensores de oponente VL53L0X (placas CJVL53L0XV2 / GY-530), 5 ou 7 conforme o QTD_TOF.
 // Ele cuida de três coisas: ligar os sensores e dar um endereço I2C para cada um, ler as
 // distâncias sem travar o loop e juntar as leituras em um único oponente (a fusão).
 // As funções públicas são chamadas pelo percepcao.cpp e pelo debug.cpp.
