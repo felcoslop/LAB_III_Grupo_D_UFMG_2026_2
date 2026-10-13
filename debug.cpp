@@ -43,6 +43,7 @@ static void ajuda() {
   Log.println(F("# tempo              duracao do ciclo (atual e pior caso)"));
   Log.println(F("# cin                modelo das rodas: velocidade, giro, feed-forward e parada"));
   Log.println(F("# mov V W MS         teste parado: V mm/s e W graus/s por MS ms (ate 3000)"));
+  Log.println(F("# pwm E D MS         teste dos fios: E% e D% de PWM (-100 a 100) por MS ms"));
   Log.println(F("# go | stop          inicia (5 s) / para a maquina de estados"));
   Log.println(F("# s1 | s0            liga/desliga stream para o painel (HTML)"));
   Log.println(F("# ============================================"));
@@ -498,6 +499,12 @@ static void executa(char* c) {
     float v = 0, w = 0; int ms = 0;
     if (sscanf(c + 4, "%f %f %d", &v, &w, &ms) == 3 && ms > 0) estados_teste_mov(v, w, (uint16_t)(ms > 3000 ? 3000 : ms));
     else Log.println(F("! uso: mov V W MS   (ex.: mov 300 0 1000 ou mov 0 360 1000)"));
+  }
+  else if (!strncmp(c, "pwm ", 4)) {
+    int e = 0, d = 0, ms = 0;
+    if (sscanf(c + 4, "%d %d %d", &e, &d, &ms) == 3 && ms > 0)
+      estados_teste_pwm((int8_t)constrain(e, -100, 100), (int8_t)constrain(d, -100, 100), (uint16_t)(ms > 3000 ? 3000 : ms));
+    else Log.println(F("! uso: pwm E D MS   (ex.: pwm 30 0 1000 so a roda esquerda para a frente)"));
   }
   else if (!strcmp(c, "go"))     { estados_iniciar(); Log.println(F("# start: contagem de 5 s")); }
   else if (!strcmp(c, "stop"))   { estados_parar();   Log.println(F("# parado")); }

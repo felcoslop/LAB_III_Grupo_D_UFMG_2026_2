@@ -110,6 +110,14 @@ int main() {
   estados_teste_mov(300, 0, 2000); passo(100); bordaFrente(0); passo();
   confere(pwmE == 0 && pwmD == 0, "mov: borda vista para o teste na hora", pwmE);
 
+  // comando pwm: PWM direto em cada roda, sem cinemática, e parada no fim do tempo
+  estados_parar(); semBorda(); passo(100);
+  estados_teste_pwm(40, -100, 300); passo(100);
+  confere(pwmE == 102 && pwmD == -255, "pwm 40 -100 300: PWM 102 na esquerda e -255 na direita", pwmE);
+  confere(estados_teste_ativo(), "pwm: teste ativo durante o tempo pedido", estados_teste_ativo());
+  passo(250);
+  confere(pwmE == 0 && pwmD == 0 && !estados_teste_ativo(), "pwm: para sozinho no fim do tempo", pwmE);
+
   printf("\n%s: %d falha(s)\n", falhas ? "ERRO" : "OK", falhas);
   return falhas ? 1 : 0;
 }

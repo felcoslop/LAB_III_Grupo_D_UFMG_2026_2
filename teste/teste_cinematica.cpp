@@ -23,9 +23,9 @@ static void roda(float v, float w, int ms, Perfil p = PERFIL_NORMAL) {
 static void parado() { cinematica_init(); roda(0, 0, 400, PERFIL_BORDA); cinematica_zera_odometria(); }
 
 int main() {
-  // números do modelo (motor de 319 rpm, roda de 32 mm, 3S e L298N)
-  confere(VEL_MAX_MMS > 380 && VEL_MAX_MMS < 440, "velocidade maxima entre 380 e 440 mm/s", VEL_MAX_MMS);
-  confere(GIRO_MAX_DPS > 330 && GIRO_MAX_DPS < 380, "giro maximo entre 330 e 380 graus/s", GIRO_MAX_DPS);
+  // números do modelo (motor de 319 rpm, roda de 32 mm, 3S e ponte H de MOSFET)
+  confere(VEL_MAX_MMS > 450 && VEL_MAX_MMS < 510, "velocidade maxima entre 450 e 510 mm/s", VEL_MAX_MMS);
+  confere(GIRO_MAX_DPS > 390 && GIRO_MAX_DPS < 440, "giro maximo entre 390 e 440 graus/s", GIRO_MAX_DPS);
   confere(DIST_PARADA_MM < BORDA_FAIXA_MM + BORDA_ATE_RODA_MM, "parada na borda menor que a margem ate as rodas", DIST_PARADA_MM);
 
   // linha reta na velocidade máxima: PWM 100% nas duas rodas e estimativa chegando lá
@@ -72,7 +72,7 @@ int main() {
 
   // zona morta: comando pequeno ainda tira o motor do lugar, comando quase zero freia
   parado(); roda(5, 0, 40);
-  confere(pwmE > 40, "5 mm/s: PWM acima da tensao de partida (kS)", pwmE);
+  confere(pwmE > 255 * CIN_KS / CIN_V_DISP, "5 mm/s: PWM acima da tensao de partida (kS)", pwmE);
   parado(); roda(1, 0, 40);
   confere(pwmE == 0 && pwmD == 0, "1 mm/s: roda freada", pwmE);
 

@@ -21,5 +21,7 @@ void        estados_passo();          // uma chamada por volta do loop, depois d
 void        estados_iniciar();        // mesmo efeito do botão de start (comando "go")
 void        estados_parar();          // retorno para ESPERA (comando "stop")
 void        estados_teste_mov(float v_mms, float w_dps, uint16_t ms);   // movimento de teste em ESPERA (comando "mov")
+void        estados_teste_pwm(int8_t esq_pct, int8_t dir_pct, uint16_t ms); // PWM direto em cada roda (comando "pwm")
+bool        estados_teste_ativo();    // true durante um teste mov ou pwm
 Estado      estado_atual();
 const char* estado_nome(Estado e);

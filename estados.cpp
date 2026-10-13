@@ -15,6 +15,7 @@
 #include "telemetria.h"
 #include "percepcao.h"
 #include "cinematica.h"
+#include "motores.h"
 
 static Estado   est = ESPERA;
 static uint32_t tEntrada = 0;          // momento em que o estado atual começou
@@ -25,7 +26,9 @@ static bool     buscaAvanca = false;   // na BUSCA, true indica o avanço curto 
 static uint32_t tBusca = 0;            // início do giro ou do avanço atual da BUSCA
 // movimento de teste do comando "mov", só em ESPERA (Blackbook, capítulo 11: medir as primitivas)
 static bool     movAtivo = false;
+static bool     movBruto = false;      // true no teste pwm: PWM direto, sem passar pela cinemática
 static float    movV = 0, movW = 0;
+static int16_t  movE = 0, movD = 0;
 static uint32_t movFim = 0, movIni = 0;
 
 static const char* NOMES[N_ESTADOS] = {"ESPERA", "CONTAGEM", "BUSCA", "MIRA", "ATAQUE", "RECUO", "GIRO_BORDA", "AVANCO_BORDA"};
@@ -73,9 +76,25 @@ void estados_teste_mov(float v_mms, float w_dps, uint16_t ms) {
   if (est != ESPERA) { Log.println(F("! mov so funciona com o robo parado (ESPERA)")); return; }
   movV = v_mms; movW = w_dps; movIni = millis(); movFim = movIni + (ms > 3000 ? 3000 : ms);
   cinematica_zera_odometria();
+  movBruto = false;
   movAtivo = true;
   Log.printf("# mov: %.0f mm/s e %.0f graus/s por %u ms\n", movV, movW, (unsigned)(movFim - movIni));
 }
+
+// Teste de PWM direto, usado para conferir os fios: cada roda recebe a porcentagem pedida
+// (-100 a 100, positivo é para a frente) por ms milissegundos, sem cinemática nem rampa.
+void estados_teste_pwm(int8_t esq_pct, int8_t dir_pct, uint16_t ms) {
+  if (est != ESPERA) { Log.println(F("! pwm so funciona com o robo parado (ESPERA)")); return; }
+  esq_pct = constrain(esq_pct, -100, 100); dir_pct = constrain(dir_pct, -100, 100);
+  movE = esq_pct * 255 / 100; movD = dir_pct * 255 / 100;
+  movIni = millis(); movFim = movIni + (ms > 3000 ? 3000 : ms);
+  movBruto = true;
+  movAtivo = true;
+  Log.printf("# pwm: esquerda %d%% (%d) e direita %d%% (%d) por %u ms\n", esq_pct, movE, dir_pct, movD,
+             (unsigned)(movFim - movIni));
+}
+
+bool estados_teste_ativo() { return movAtivo; }
 
 // Mira no oponente. O giro é proporcional ao ângulo (K_MIRA graus/s por grau), limitado a
 // GIRO_MIRA_MAX_DPS. Até ANG_MIRA_CURVA o robô também avança, com v = VEL_MAX.cos(ângulo), e o
@@ -113,11 +132,13 @@ void estados_passo() {
     case ESPERA:
       if (movAtivo && (P.borda.detectada || P.t_ms >= movFim)) {
         movAtivo = false;
-        Log.printf("# mov: fim%s em %u ms | estimado %.0f mm e %.0f graus\n", P.borda.detectada ? " (BORDA)" : "",
-                   (unsigned)(P.t_ms - movIni), cinematica_dist(), cinematica_giro());
+        if (movBruto) Log.printf("# pwm: fim%s em %u ms\n", P.borda.detectada ? " (BORDA)" : "", (unsigned)(P.t_ms - movIni));
+        else          Log.printf("# mov: fim%s em %u ms | estimado %.0f mm e %.0f graus\n", P.borda.detectada ? " (BORDA)" : "",
+                                 (unsigned)(P.t_ms - movIni), cinematica_dist(), cinematica_giro());
       }
-      if (movAtivo) cinematica_comanda(movV, movW);
-      else          cinematica_para();
+      if (movAtivo && movBruto) motores(movE, movD);
+      else if (movAtivo)        cinematica_comanda(movV, movW);
+      else                      cinematica_para();
       // LED aceso fixo indica robô pronto; piscando rápido indica que faltam sensores
       led(P.saude.pronto || (P.t_ms / 100) % 2);
       if (P.start || pedidoStart) {

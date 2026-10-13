@@ -2,7 +2,7 @@
 // Cinemática das duas rodas (robô diferencial) e modelo do acionamento. A máquina de estados
 // pede um avanço v em mm/s e um giro w em graus/s (positivo é para a esquerda, o mesmo sentido
 // dos ângulos dos sensores), e este módulo transforma esse pedido na velocidade de cada roda e
-// no PWM de cada lado do L298N:
+// no PWM de cada lado da ponte H:
 //
 //   1. desaturação: se uma roda precisaria passar da velocidade máxima, o avanço diminui e o
 //      giro fica, para a mira nunca ser perdida (prioridade para o giro);
@@ -28,8 +28,8 @@ constexpr float CIN_KS        = MOTOR_V_PARTIDA;                                
 constexpr float CIN_KV        = (MOTOR_V_NOMINAL - MOTOR_V_PARTIDA) / (CIN_W_LIVRE * CIN_RAIO_MM);   // V por mm/s
 constexpr float CIN_KA        = MOTOR_KA / 1000.0f;                                       // V por mm/s²
 constexpr float CIN_V_DISP    = BATERIA_V - PONTE_QUEDA_V;                                // V no motor com PWM 100%
-constexpr float VEL_MAX_MMS   = (CIN_V_DISP - CIN_KS) / CIN_KV;                           // cerca de 410 mm/s
-constexpr float GIRO_MAX_DPS  = 2.0f * VEL_MAX_MMS / BITOLA_MM * 180.0f / (float)PI;     // cerca de 360 graus/s
+constexpr float VEL_MAX_MMS   = (CIN_V_DISP - CIN_KS) / CIN_KV;                           // cerca de 480 mm/s
+constexpr float GIRO_MAX_DPS  = 2.0f * VEL_MAX_MMS / BITOLA_MM * 180.0f / (float)PI;     // cerca de 415 graus/s
 
 // Distância de parada na borda, no pior caso: bateria cheia, robô na velocidade máxima, tempo
 // de reação (confirmação da borda e volta do loop) e roda patinando para trás na frenagem.
@@ -44,7 +44,7 @@ enum Perfil : uint8_t {
 
 void  cinematica_init();
 void  cinematica_comanda(float v_mms, float w_dps, Perfil perfil = PERFIL_NORMAL);   // uma chamada por volta do loop
-void  cinematica_para();          // freio nas duas rodas (os dois IN do L298N em LOW)
+void  cinematica_para();          // parada das duas rodas (os dois IN da ponte H em LOW)
 float cinematica_v_mms();         // avanço estimado do robô
 float cinematica_w_dps();         // giro estimado do robô
 float cinematica_giro();          // giro acumulado (graus) desde o último cinematica_zera_odometria()

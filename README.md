@@ -41,7 +41,7 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 - Rumo (a seta do painel) até o oponente ou até os pontos cegos, usado pela máquina de estados na busca.
 - Leitura analógica da linha branca, com confirmação por tempo e calibração guiada em três medidas (ar, preto e branco).
 - Máquina de estados com contagem obrigatória de 5 s, busca, mira, ataque e fuga da borda.
-- Cinemática das duas rodas com o modelo do motor JGB37-520 e da ponte L298N: cada estado pede avanço em mm/s e giro em graus/s, a fuga da borda usa a tensão toda na hora e o firmware não compila se a distância de parada não couber na margem até as rodas.
+- Cinemática das duas rodas com o modelo do motor JGB37-520 e da ponte H: cada estado pede avanço em mm/s e giro em graus/s, a fuga da borda usa a tensão toda na hora e o firmware não compila se a distância de parada não couber na margem até as rodas. Os comandos `pwm` e `mov` testam os motores com o robô parado.
 - Painel 2D e 3D em um único arquivo HTML, sem internet, ligado ao robô pela USB, com dados a 50 Hz e comandos pelo navegador.
 - Firmware sem rádio: o robô compete de forma autônoma, sem WiFi e sem Bluetooth, o que deixa o núcleo 0 livre para o rastreador.
 - Terminal de comandos pela USB ou pelo painel para teste, calibração e diagnóstico.
@@ -55,7 +55,7 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 | TCRT5000 com comparador LM393 | 4 | linha branca da borda, lida pela saída analógica A0 |
 | Motor JGB37-520, 12 V, 319 rpm (redução de 18,8:1) | 2 | tração, com pneu StickyMAX S20 de 32 mm [ROBOCORE, s.d.b] |
 | Bateria 3S de Li-ion (18650) com BMS | 1 | alimentação dos motores; o ESP32 tem bateria e conversor próprios |
-| L298N (módulo de ponte H dupla) | 1 | ponte H dos dois motores, com os jumpers de ENA e ENB no lugar (desativada na bancada) |
+| Módulo de ponte H dupla de 10 A (3 a 18 V, entradas IN1 a IN4) | 1 | ponte H de MOSFET dos dois motores, com PWM de até 2 kHz (desativada na bancada) |
 | Botão | 1 | start, ligado entre o GPIO 0 e o GND, em paralelo com o botão BOOT da placa |
 | Chave DIP de 4 vias | 1 | ligada nos GPIOs 12, 14, 2 e 15; ainda sem uso no firmware |
 
@@ -66,8 +66,8 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 | XSHUT TE / TD (só com 7 sensores) | 16 / 4 | sem restrição de boot |
 | Borda BFE / BFD (frente) | 34 / 35 | ADC1, pinos só de entrada |
 | Borda BTE / BTD (trás) | 32 / 33 | ADC1 |
-| L298N IN1 / IN2 | 25 / 26 | motor esquerdo, com o PWM no próprio IN |
-| L298N IN3 / IN4 | 27 / 13 | motor direito |
+| Ponte H IN1 / IN2 | 25 / 26 | motor esquerdo, com o PWM de 1 kHz no próprio IN |
+| Ponte H IN3 / IN4 | 27 / 13 | motor direito |
 | Botão de start | 0 | `INPUT_PULLUP`, nível baixo indica botão apertado; não pode estar apertado na hora de ligar |
 | Chave DIP 1 a 4 | 12 / 14 / 2 / 15 | cada via liga o pino no 3V3 |
 
@@ -114,7 +114,7 @@ Com a pinagem da placa nova, os únicos GPIOs livres são o 36 e o 39, que serve
 
 ## Cinemática das rodas
 
-O robô tem duas rodas de tração, uma de cada lado, e anda como um robô diferencial: com as duas rodas na mesma velocidade ele segue reto, com velocidades diferentes ele faz curva e com velocidades opostas ele gira no eixo. A máquina de estados não trabalha com PWM. Cada estado pede um avanço `v`, em mm/s, e um giro `w`, em graus/s (positivo para a esquerda, o mesmo sentido dos ângulos dos sensores), e o módulo `cinematica.cpp` transforma o pedido no PWM de cada lado do L298N. A origem do referencial fica no meio do eixo das rodas, então o ângulo do oponente que sai do rastreador já é o giro que o robô precisa fazer.
+O robô tem duas rodas de tração, uma de cada lado, e anda como um robô diferencial: com as duas rodas na mesma velocidade ele segue reto, com velocidades diferentes ele faz curva e com velocidades opostas ele gira no eixo. A máquina de estados não trabalha com PWM. Cada estado pede um avanço `v`, em mm/s, e um giro `w`, em graus/s (positivo para a esquerda, o mesmo sentido dos ângulos dos sensores), e o módulo `cinematica.cpp` transforma o pedido no PWM de cada lado da ponte H. A origem do referencial fica no meio do eixo das rodas, então o ângulo do oponente que sai do rastreador já é o giro que o robô precisa fazer.
 
 ```mermaid
 flowchart LR
@@ -122,7 +122,7 @@ flowchart LR
     DES --> LIM["limitador de aceleração<br/>(fora no perfil da borda)"]
     LIM --> CI["cinemática inversa<br/>vE = v - w.B/2<br/>vD = v + w.B/2"]
     CI --> FF["feed-forward<br/>kS + kV.v + kA.a"]
-    FF --> MOT["motores.cpp<br/>PWM no L298N"]
+    FF --> MOT["motores.cpp<br/>PWM na ponte H"]
     FF --> EST2["modelo ao contrário<br/>velocidade estimada das rodas"]
     EST2 --> RAS["rastreador<br/>gira o mapa junto"]
     EST2 --> GIR["GIRO_BORDA<br/>mede os 135 graus"]
@@ -130,7 +130,7 @@ flowchart LR
 
 ### Modelo do motor
 
-A base do modelo é a tabela do fabricante para a linha de 12 V e 319 rpm do JGB37-520 [RCDRONE, s.d.], a folha de dados do L298 [STMICROELECTRONICS, s.d.] e a medida do pneu [ROBOCORE, s.d.b]. O anúncio do motor fala em 21 kgf.cm, valor que não fecha com a corrente de 1,2 A nem com a redução de 18,8:1 e por isso ficou de fora.
+A base do modelo é a tabela do fabricante para a linha de 12 V e 319 rpm do JGB37-520 [RCDRONE, s.d.] e a medida do pneu [ROBOCORE, s.d.b]. O esquema da placa mostra um L298N, mas a ponte usada é um módulo de 10 A com transistores MOSFET, que perde só alguns décimos de volt; um L298N perderia de 1,8 a 3,2 V com 1 A [STMICROELECTRONICS, s.d.]. O anúncio do motor fala em 21 kgf.cm, valor que não fecha com a corrente de 1,2 A nem com a redução de 18,8:1 e por isso ficou de fora.
 
 | Dado | Valor | Origem |
 |---|---|---|
@@ -139,28 +139,28 @@ A base do modelo é a tabela do fabricante para a linha de 12 V e 319 rpm do JGB
 | Corrente livre e com o eixo travado | 0,1 A e 1,2 A | tabela do motor |
 | Torque com o eixo travado | 1,9 kgf.cm (0,19 N.m) | tabela do motor |
 | Tensão de partida | 1,5 V | tabela do motor |
-| Queda no L298N com 1 A | 1,8 V típica e 3,2 V máxima | folha de dados do L298 |
+| Queda na ponte H | cerca de 0,2 V | estimada para a ponte de MOSFET, precisa de medida |
 | Diâmetro da roda | 32 mm | pneu StickyMAX S20 |
 | Bitola (centro a centro das rodas) | 132 mm | gabarito do robô, precisa de medida no chassi |
 
-O modelo do motor é uma reta de tensão por velocidade que passa pelos dois pontos da tabela: 1,5 V para sair do lugar e 319 rpm livre com 12 V. Com a bateria 3S em 11,1 V e 1,5 V perdidos no L298N, o motor recebe 9,6 V com PWM de 100%:
+O modelo do motor é uma reta de tensão por velocidade que passa pelos dois pontos da tabela: 1,5 V para sair do lugar e 319 rpm livre com 12 V. Com a bateria 3S em 11,1 V e 0,2 V perdidos na ponte H, o motor recebe 10,9 V com PWM de 100%:
 
 | Resultado do modelo | Valor |
 |---|---|
-| Velocidade máxima em linha reta | 412 mm/s (cerca de 490 mm/s com a bateria cheia) |
-| Giro máximo no eixo | 358 graus/s, meia volta em 0,5 s |
+| Velocidade máxima em linha reta | 478 mm/s (cerca de 555 mm/s com a bateria cheia) |
+| Giro máximo no eixo | 415 graus/s, meia volta em 0,43 s |
 | kS, kV e kA de cada roda | 1,5 V; 19,6 mV por mm/s; 1,25 mV por mm/s² |
-| Força no chão na partida, por roda | 3,3 N, abaixo dos 3,9 N que o atrito permite com atrito 1 |
-| Distância de parada na borda, no pior caso | 30 mm |
+| Força no chão na partida, por roda | 3,9 N, no limite dos 3,9 N que o atrito permite com atrito 1 |
+| Distância de parada na borda, no pior caso | 38 mm |
 
-Esses números corrigem três valores antigos do `config.h`, que estavam marcados como "precisa ser medido". O rastreador girava o mapa a 600 graus/s com PWM máximo, quase o dobro do giro real, e andava com ele a 1500 mm/s, mais de três vezes a velocidade real. E o giro de fuga da borda, de 250 ms com PWM 200, dava só uns 70 graus, e não os 135 graus do comentário.
+Esses números corrigem três valores antigos do `config.h`, que estavam marcados como "precisa ser medido". O rastreador girava o mapa a 600 graus/s com PWM máximo, quase 45% acima do giro real, e andava com ele a 1500 mm/s, mais de três vezes a velocidade real. E o giro de fuga da borda, de 250 ms com PWM 200, dava só uns 80 graus, e não os 135 graus do comentário.
 
 ### Do pedido ao PWM
 
 Cada volta do loop passa o pedido da máquina de estados por quatro etapas:
 
 1. Desaturação com prioridade para o giro. Quando avanço e giro juntos passam da velocidade máxima de uma das rodas, o avanço diminui e o giro fica. O linorobot2_hardware reduz os dois na mesma proporção [JIMENO, 2021]; no sumô a mira vale mais que a velocidade, porque um robô que chega rápido e torto entrega a lateral para o oponente.
-2. Limitador de aceleração, no estilo do SpeedLimiter do diff_drive_controller [ROS-CONTROLS, s.d.], com 6 m/s², perto do limite de tração. O limite segura as reversões bruscas, quando a corrente do motor chega a 1,8 A e a roda patina. O perfil da fuga da borda não passa por ele.
+2. Limitador de aceleração, no estilo do SpeedLimiter do diff_drive_controller [ROS-CONTROLS, s.d.], com 6 m/s², perto do limite de tração. O limite segura as reversões bruscas, quando a corrente do motor chega a 2 A e a roda patina, e também a partida, que com a ponte de MOSFET fica no limite da tração. O perfil da fuga da borda não passa por ele.
 3. Cinemática inversa do diff_drive_controller [ROS-CONTROLS, s.d.]: a roda esquerda anda `v - w.B/2` e a direita `v + w.B/2`, com B a bitola.
 4. Feed-forward do SimpleMotorFeedforward do WPILib [WPILIB, s.d.]: a tensão de cada roda é `kS.sinal(v) + kV.v + kA.a`, dividida pela tensão que chega no motor. O kS vence o atrito de partida; sem ele, um pedido de 5 mm/s viraria PWM 2 e a roda nem sairia do lugar.
 
@@ -170,26 +170,26 @@ O JGB37-520 deste projeto não tem encoder. Por isso o mesmo modelo, rodado ao c
 
 | Estado | Avanço `v` | Giro `w` | Perfil |
 |---|---|---|---|
-| BUSCA sem pista | 0 | 170 graus/s para o lado do rumo | normal |
-| BUSCA com o oponente provável à frente, ou no avanço curto | 200 mm/s | 0 | normal |
-| MIRA até 40 graus | `VEL_MAX.cos(ângulo)` | `6.ângulo`, até 320 graus/s | normal |
-| MIRA acima de 40 graus | 0 | 320 graus/s para o lado do oponente | normal |
+| BUSCA sem pista | 0 | 200 graus/s para o lado do rumo | normal |
+| BUSCA com o oponente provável à frente, ou no avanço curto | 240 mm/s | 0 | normal |
+| MIRA até 40 graus | `VEL_MAX.cos(ângulo)` | `6.ângulo`, até 370 graus/s | normal |
+| MIRA acima de 40 graus | 0 | 370 graus/s para o lado do oponente | normal |
 | ATAQUE | `VEL_MAX` | `6.ângulo` (correção) | normal |
 | RECUO | `-VEL_MAX` | 0 | borda |
 | AVANCO_BORDA | `VEL_MAX` | 0 | borda |
-| GIRO_BORDA | 0 | 320 graus/s, até 135 graus estimados | normal |
+| GIRO_BORDA | 0 | 370 graus/s, até 135 graus estimados | normal |
 
-A mira é proporcional: o giro pedido é 6 graus/s para cada grau de erro, e o erro cai a 37% em cerca de 0,17 s. Com o oponente a 20 graus para a esquerda, por exemplo, a mira pede 120 graus/s de giro e 387 mm/s de avanço. Os dois juntos não cabem nas rodas, então a desaturação baixa o avanço para 274 mm/s e as rodas ficam em 136 mm/s (esquerda) e 412 mm/s (direita): uma curva fechada para o oponente, sem perder a mira. No ataque, a mesma correção mantém o oponente no centro enquanto o robô empurra.
+A mira é proporcional: o giro pedido é 6 graus/s para cada grau de erro, e o erro cai a 37% em cerca de 0,17 s. Com o oponente a 20 graus para a esquerda, por exemplo, a mira pede 120 graus/s de giro e 450 mm/s de avanço. Os dois juntos não cabem nas rodas, então a desaturação baixa o avanço para 340 mm/s e as rodas ficam em 202 mm/s (esquerda) e 478 mm/s (direita): uma curva fechada para o oponente, sem perder a mira. No ataque, a mesma correção mantém o oponente no centro enquanto o robô empurra.
 
 ### A borda vem antes de tudo
 
-O RECUO e o AVANCO_BORDA usam o perfil da borda: sem limitador e com a tensão toda no sentido da fuga já na primeira volta do loop. No pior caso, com a bateria cheia e o robô a 490 mm/s, o robô percorre uns 3 mm durante os 6 ms de confirmação da borda e da volta do loop e mais 27 mm freando com a roda patinando para trás (atrito 0,7 e 80% do peso nas rodas), cerca de 30 mm no total. A margem é a faixa branca de 25 mm somada à distância entre o sensor de borda e o eixo das rodas, 60 mm no robô, ou seja, 85 mm. O `cinematica.cpp` faz essa conta durante a compilação (`static_assert`): um motor mais rápido, uma roda maior ou uma bateria com mais tensão que quebrem a margem param a compilação com uma mensagem de erro. Na frenagem mais longa, a ponta da lâmina pode passar da borda do dojô por um instante, mas as rodas ficam sempre a mais de 50 mm dela.
+O RECUO e o AVANCO_BORDA usam o perfil da borda: sem limitador e com a tensão toda no sentido da fuga já na primeira volta do loop. No pior caso, com a bateria cheia e o robô a 555 mm/s, o robô percorre uns 3 mm durante os 6 ms de confirmação da borda e da volta do loop e mais 35 mm freando com a roda patinando para trás (atrito 0,7 e 80% do peso nas rodas), cerca de 38 mm no total. A margem é a faixa branca de 25 mm somada à distância entre o sensor de borda e o eixo das rodas, 60 mm no robô, ou seja, 85 mm. O `cinematica.cpp` faz essa conta durante a compilação (`static_assert`): um motor mais rápido, uma roda maior ou uma bateria com mais tensão que quebrem a margem param a compilação com uma mensagem de erro. Na frenagem mais longa, a ponta da lâmina pode passar da borda do dojô por um instante, mas as rodas ficam sempre a mais de 45 mm dela.
 
 O giro de recuperação (GIRO_BORDA) também mudou. Antes ele durava um tempo fixo e ignorava a borda; agora ele termina quando a cinemática estima 135 graus, com 900 ms como limite de segurança, e continua vigiando a borda: uma quina que volta ao branco no meio do giro, ou um empurrão do oponente, leva o robô de novo ao RECUO ou ao AVANCO_BORDA.
 
 ### Acerto do modelo com o robô montado
 
-Os valores marcados com "medir" no `config.h` ficam certos só com o robô montado. O capítulo 11 do Blackbook manda medir as primitivas de movimento antes de montar qualquer tática: a distância percorrida em um tempo fixo e o tempo de uma volta completa no eixo [DEDE, s.d.]. O comando `cin` mostra os números do modelo, e o comando `mov V W MS` faz o robô parado em ESPERA andar com avanço V e giro W por MS milissegundos e, no fim, mostra a distância e o giro estimados. Com `mov 300 0 1000`, a distância medida com a régua, comparada com a estimada, acerta o `MOTOR_RPM_LIVRE` ou a `PONTE_QUEDA_V`; com `mov 0 300 1000`, o giro medido no chão acerta a `BITOLA_MM`. Qualquer borda vista interrompe o teste na hora.
+Os valores marcados com "medir" no `config.h` ficam certos só com o robô montado. O capítulo 11 do Blackbook manda medir as primitivas de movimento antes de montar qualquer tática: a distância percorrida em um tempo fixo e o tempo de uma volta completa no eixo [DEDE, s.d.]. O comando `cin` mostra os números do modelo, e o comando `mov V W MS` faz o robô parado em ESPERA andar com avanço V e giro W por MS milissegundos e, no fim, mostra a distância e o giro estimados. Com `mov 300 0 1000`, a distância medida com a régua, comparada com a estimada, acerta o `MOTOR_RPM_LIVRE` ou a `PONTE_QUEDA_V`; com `mov 0 300 1000`, o giro medido no chão acerta a `BITOLA_MM`. Qualquer borda vista interrompe o teste na hora. Antes disso, o comando `pwm E D MS` confere os fios: cada roda recebe a porcentagem de PWM pedida (de -100 a 100, positivo para a frente), sem passar pela cinemática. Com `pwm 30 0 1000` só a roda esquerda precisa girar, para a frente; roda ao contrário se corrige com `INVERTE_ESQ` ou `INVERTE_DIR` e rodas trocadas com `TROCA_MOTORES`. Os dois testes funcionam com os sensores desligados, porque rodam no estado ESPERA, e durante eles o firmware não tenta religar os ToF.
 
 ## Instalação
 
@@ -246,6 +246,7 @@ Os comandos funcionam no Monitor Serial e no terminal do painel.
 | `tempo` | duração do ciclo do loop, tempo do rastreador e linhas descartadas na USB |
 | `cin` | números do modelo das rodas: velocidade e giro máximos, feed-forward e distância de parada |
 | `mov V W MS` | teste com o robô parado: avanço V mm/s e giro W graus/s por MS ms (até 3000), com a estimativa no fim |
+| `pwm E D MS` | teste dos fios: PWM direto de E% na roda esquerda e D% na direita (-100 a 100) por MS ms |
 | `go` e `stop` | início (contagem de 5 s) e parada da máquina de estados |
 | `s1` e `s0` | stream de dados para o painel, ligado e desligado |
 
@@ -283,7 +284,7 @@ flowchart LR
     BOR --> PER
     PER --> EST["estados.cpp<br/>máquina de estados"]
     EST --> CIN["cinematica.cpp<br/>v e w para cada roda"]
-    CIN --> MOT["motores.cpp<br/>L298N"]
+    CIN --> MOT["motores.cpp<br/>ponte H"]
     CIN -. "giro e avanço estimados" .-> RAS
     PER --> DEB["debug.cpp<br/>comandos e stream"]
     DEB --> TEL["telemetria.cpp<br/>Log pela USB"]
@@ -383,7 +384,7 @@ Na BUSCA, o robô gira no eixo a 170 graus/s para o lado do rumo; depois de 1,5 
 
 ### `motores.h` e `motores.cpp`
 
-Controle da ponte H L298N, com valores de -255 a 255 por roda. Os jumpers de ENA e ENB ficam no lugar e o PWM vai no próprio pino IN: para a frente o IN1 recebe o PWM e o IN2 fica em LOW, e no tempo desligado do PWM os dois ficam em LOW, o que freia o motor. Nesse modo, chamado de acionar e frear, a velocidade fica quase proporcional ao PWM. Com comando 0 os dois pinos ficam em LOW e o motor fica freado, e não solto. As chaves `INVERTE_ESQ` e `INVERTE_DIR` corrigem um motor ligado ao contrário e a `TROCA_MOTORES` corrige os dois motores trocados de saída, sem mexer nos fios. Com `USAR_MOTORES 0`, o módulo só guarda o último comando, que aparece no debug.
+Controle do módulo de ponte H dupla de 10 A, com valores de -255 a 255 por roda. O PWM vai no próprio pino IN: para a frente o IN1 recebe o PWM e o IN2 fica em LOW, e para trás o contrário. Com comando 0 os dois pinos ficam em LOW e o motor para. O PWM sai a 1 kHz, a frequência padrão do `analogWrite` do ESP32 nos cores 2.x e 3.x, abaixo do limite de 2 kHz do módulo. As chaves `INVERTE_ESQ` e `INVERTE_DIR` corrigem um motor ligado ao contrário e a `TROCA_MOTORES` corrige os dois motores trocados de saída, sem mexer nos fios. Com `USAR_MOTORES 0`, o módulo só guarda o último comando, que aparece no debug.
 
 ### `cinematica.h` e `cinematica.cpp`
 
@@ -438,12 +439,12 @@ Os ajustes principais ficam no `config.h`:
 | `USAR_BORDA` e `USAR_MOTORES` | 1 e 0 | liga e desliga cada parte do hardware |
 | `STREAM_MS` | 20 | intervalo dos dados enviados ao painel pela USB |
 | `MOTOR_RPM_LIVRE`, `MOTOR_V_PARTIDA` e `MOTOR_KA` | 319, 1,5 e 1,25 | modelo do motor (tabela do JGB37-520; o kA precisa de medida) |
-| `BATERIA_V` e `PONTE_QUEDA_V` | 11,1 e 1,5 | tensão que chega no motor com PWM de 100% |
+| `BATERIA_V` e `PONTE_QUEDA_V` | 11,1 e 0,2 | tensão que chega no motor com PWM de 100% |
 | `RODA_DIAMETRO_MM` e `BITOLA_MM` | 32 e 132 | roda e distância entre as rodas (a bitola precisa de medida) |
 | `ACEL_MAX_MMS2` e `FREIO_MIN_MMS2` | 6000 e 4400 | limite de aceleração das manobras e pior frenagem na borda |
-| `VEL_BUSCA_MMS` e `GIRO_BUSCA_DPS` | 200 e 170 | avanço curto e giro da busca |
-| `K_MIRA`, `ANG_MIRA_CURVA` e `GIRO_MIRA_MAX_DPS` | 6, 40 e 320 | ganho da mira, ângulo até onde a mira é curva e giro máximo da mira |
-| `GIRO_BORDA_DPS`, `ANG_GIRO_BORDA` e `T_GIRO_BORDA_MAX_MS` | 320, 135 e 900 | giro de recuperação na borda e limite de segurança |
+| `VEL_BUSCA_MMS` e `GIRO_BUSCA_DPS` | 240 e 200 | avanço curto e giro da busca |
+| `K_MIRA`, `ANG_MIRA_CURVA` e `GIRO_MIRA_MAX_DPS` | 6, 40 e 370 | ganho da mira, ângulo até onde a mira é curva e giro máximo da mira |
+| `GIRO_BORDA_DPS`, `ANG_GIRO_BORDA` e `T_GIRO_BORDA_MAX_MS` | 370, 135 e 900 | giro de recuperação na borda e limite de segurança |
 | `T_CONTAGEM_MS` | 5000 | contagem obrigatória antes da luta |
 | `T_BUSCA_GIRO_MS` e `T_BUSCA_AVANCO_MS` | 1500 e 250 | tempo girando na busca e tempo do avanço curto |
 | `MODO_DEFENSIVO` | 0 | 1 faz o robô só mirar, sem avançar |
@@ -459,7 +460,7 @@ sumo_esp32/
   rastreador.h / .cpp       filtro bayesiano em grade (núcleo 0)
   borda.h / .cpp            TCRT5000: leitura analógica, limiar e confirmação
   estados.h / .cpp          máquina de estados
-  motores.h / .cpp          ponte H L298N
+  motores.h / .cpp          ponte H dupla de 10 A
   cinematica.h / .cpp       cinemática das rodas e modelo do motor
   telemetria.h / .cpp       Log e entrada de comandos pela USB
   debug.h / .cpp            comandos, calibração e stream para o painel
