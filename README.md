@@ -50,34 +50,37 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 | ESP32 DevKit V1 (30 pinos) com placa de expansão | 1 | microcontrolador de dois núcleos, com ADC (o rádio fica desligado) |
 | VL53L0X (placas CJVL53L0XV2 / GY-530) | 5 ou 7 | distância até o oponente: LE, FE, FC, FD e LD, mais TE e TD na versão de 7 |
 | TCRT5000 com comparador LM393 | 4 | linha branca da borda, lida pela saída analógica A0 |
-| TB6612FNG | 1 | ponte H dos dois motores (desativada na bancada) |
-| Botão | 1 | start, ligado entre o GPIO 32 e o GND |
+| L298N (módulo de ponte H dupla) | 1 | ponte H dos dois motores, com os jumpers de ENA e ENB no lugar (desativada na bancada) |
+| Botão | 1 | start, ligado entre o GPIO 0 e o GND, em paralelo com o botão BOOT da placa |
+| Chave DIP de 4 vias | 1 | ligada nos GPIOs 12, 14, 2 e 15; ainda sem uso no firmware |
 
 | Função | GPIO | Observação |
 |---|---|---|
 | I2C SDA / SCL | 21 / 22 | barramento comum dos ToF, a 100 kHz |
-| XSHUT LE / FE / FC / FD / LD | 13 / 14 / 27 / 26 / 25 | um fio por sensor, define o nome de cada um |
-| XSHUT TE / TD (só com 7 sensores) | 33 / 15 | o 15 é pino de boot, mas precisa de nível alto no boot, o mesmo do XSHUT ligado |
+| XSHUT LE / FE / FC / FD / LD | 17 / 23 / 19 / 18 / 5 | um fio por sensor, define o nome de cada um; o 5 é pino de boot e precisa de nível alto, o mesmo do XSHUT ligado |
+| XSHUT TE / TD (só com 7 sensores) | 16 / 4 | sem restrição de boot |
 | Borda BFE / BFD (frente) | 34 / 35 | ADC1, pinos só de entrada |
-| Borda BTE / BTD (trás) | 36 (VP) / 39 (VN) | ADC1, pinos só de entrada |
-| Botão de start | 32 | `INPUT_PULLUP`, nível baixo indica botão apertado |
-| LED de status | 2 | LED azul da placa |
-| TB6612 PWMA / AIN1 / AIN2 | 18 / 19 / 23 | motor esquerdo, STBY ligado direto no 3V3 |
-| TB6612 PWMB / BIN1 / BIN2 | 4 / 16 / 17 | motor direito |
+| Borda BTE / BTD (trás) | 32 / 33 | ADC1 |
+| L298N IN1 / IN2 | 25 / 26 | motor esquerdo, com o PWM no próprio IN |
+| L298N IN3 / IN4 | 27 / 13 | motor direito |
+| Botão de start | 0 | `INPUT_PULLUP`, nível baixo indica botão apertado; não pode estar apertado na hora de ligar |
+| Chave DIP 1 a 4 | 12 / 14 / 2 / 15 | cada via liga o pino no 3V3 |
 
-Todos os sensores ficam no 3V3 do ESP32. As placas clone do VL53L0X puxam SDA e SCL para 2,8 V, nível que o ESP32 entende como 1, e o firmware nunca coloca nível alto no XSHUT: para desligar um sensor o pino vira saída em LOW e, para ligar, vira entrada com o pull-up interno. Os sensores de borda usam os pinos 34, 35, 36 e 39 do ADC1, que servem só como entrada e combinam com a saída A0 dos módulos.
+A pinagem segue o documento de ligação da placa nova (Lab3-Liga) e o esquema do Fritzing. Todos os sensores ficam no 3V3 do ESP32. As placas clone do VL53L0X puxam SDA e SCL para 2,8 V, nível que o ESP32 entende como 1, e o firmware nunca coloca nível alto no XSHUT: para desligar um sensor o pino vira saída em LOW e, para ligar, vira entrada com o pull-up interno. Os sensores de borda usam os pinos 34, 35, 32 e 33 do ADC1 e precisam do fio na saída A0 dos módulos; no esquema atual o fio sai do D0, que só entrega 0 ou 3,3 V e não separa arranhão de linha.
+
+A chave DIP pede três cuidados. A DIP 1, no GPIO 12, precisa estar desligada na hora de ligar o ESP32, porque nível alto nesse pino durante o boot muda a tensão da memória flash e a placa não liga. A DIP 3, no GPIO 2, precisa estar desligada na hora de gravar o firmware. E o GPIO 2 deixou de acender o LED de status (`PINO_LED -1`): com a chave ligada e o pino em LOW, o 3V3 ficaria em curto com o pino.
 
 Na bancada (`GEOMETRIA_BANCADA 1`), a origem do referencial é o centro da protoboard, com x para a frente e y para a esquerda, em milímetros:
 
 | Sensor | XSHUT | Endereço | x | y | Ângulo |
 |---|---|---|---|---|---|
-| LE | 13 | 0x30 | -1 | 30 | 90° |
-| FE | 14 | 0x31 | 73 | 27 | 20° |
-| FC | 27 | 0x32 | 87 | -1 | 0° |
-| FD | 26 | 0x33 | 73 | -27 | -20° |
-| LD | 25 | 0x34 | -2 | -30 | -90° |
-| TE (7 sensores, posição prevista) | 33 | 0x35 | -80 | 25 | 160° |
-| TD (7 sensores, posição prevista) | 15 | 0x36 | -80 | -25 | -160° |
+| LE | 17 | 0x30 | -1 | 30 | 90° |
+| FE | 23 | 0x31 | 73 | 27 | 20° |
+| FC | 19 | 0x32 | 87 | -1 | 0° |
+| FD | 18 | 0x33 | 73 | -27 | -20° |
+| LD | 5 | 0x34 | -2 | -30 | -90° |
+| TE (7 sensores, posição prevista) | 16 | 0x35 | -80 | 25 | 160° |
+| TD (7 sensores, posição prevista) | 4 | 0x36 | -80 | -25 | -160° |
 
 Os PDFs da pasta `doc/` trazem os gabaritos em escala 1:1 da bancada e do robô, o mapa de ligação na protoboard e uma lista de conferência antes de energizar. O `guia_montagem_sensores_7.pdf` faz o mesmo para a versão de 7 sensores e traz também a pinagem completa do ESP32.
 
@@ -102,7 +105,7 @@ O par na frente melhora um pouco a mira nas diagonais, mas não muda o que passa
 
 ![Radar 2D do painel com 7 sensores e o oponente atrás, visto só pelo TE](doc/img/radar_7_sensores.jpg)
 
-Com a pinagem atual cabem no máximo 8 sensores: o GPIO 5 é o último pino livre sem restrição de boot. Um 8º sensor deixa o número de sensores par, o que o livro desaconselha [DEDE, s.d.]. Para passar de 8, os XSHUT precisariam de um expansor I2C, como o PCF8574.
+Com a pinagem da placa nova, os únicos GPIOs livres são o 36 e o 39, que servem só como entrada e não podem acionar um XSHUT. Um 8º sensor precisaria de um pino da chave DIP ou de um expansor I2C, como o PCF8574, e ainda deixaria o número de sensores par, o que o livro desaconselha [DEDE, s.d.].
 
 ## Instalação
 
@@ -193,7 +196,7 @@ flowchart LR
     OPO --> PER["percepcao.cpp<br/>struct P e rumo"]
     BOR --> PER
     PER --> EST["estados.cpp<br/>máquina de estados"]
-    EST --> MOT["motores.cpp<br/>TB6612FNG"]
+    EST --> MOT["motores.cpp<br/>L298N"]
     PER --> DEB["debug.cpp<br/>comandos e stream"]
     DEB --> TEL["telemetria.cpp<br/>Log pela USB"]
     TEL --> USB["Monitor Serial"]
@@ -290,7 +293,7 @@ Na BUSCA, o robô gira no eixo para o lado do rumo; depois de 1,5 s girando sem 
 
 ### `motores.h` e `motores.cpp`
 
-Controle da ponte H TB6612FNG, com valores de -255 a 255 por roda. Os pinos IN1 e IN2 escolhem o sentido e o PWM define a força. As chaves `INVERTE_ESQ` e `INVERTE_DIR` corrigem um motor ligado ao contrário sem trocar fios. Com `USAR_MOTORES 0`, o módulo só guarda o último comando, que aparece no debug e entra no rastreador como estimativa do giro do robô.
+Controle da ponte H L298N, com valores de -255 a 255 por roda. Os jumpers de ENA e ENB ficam no lugar e o PWM vai no próprio pino IN: para a frente o IN1 recebe o PWM e o IN2 fica em LOW, e no tempo desligado do PWM os dois ficam em LOW, o que freia o motor. Nesse modo, chamado de acionar e frear, a velocidade fica quase proporcional ao PWM. Com comando 0 os dois pinos ficam em LOW e o motor fica freado, e não solto. As chaves `INVERTE_ESQ` e `INVERTE_DIR` corrigem um motor ligado ao contrário e a `TROCA_MOTORES` corrige os dois motores trocados de saída, sem mexer nos fios. Com `USAR_MOTORES 0`, o módulo só guarda o último comando, que aparece no debug e entra no rastreador como estimativa do giro do robô.
 
 ### `telemetria.h` e `telemetria.cpp`
 
@@ -358,7 +361,7 @@ sumo_esp32/
   rastreador.h / .cpp       filtro bayesiano em grade (núcleo 0)
   borda.h / .cpp            TCRT5000: leitura analógica, limiar e confirmação
   estados.h / .cpp          máquina de estados
-  motores.h / .cpp          TB6612FNG
+  motores.h / .cpp          ponte H L298N
   telemetria.h / .cpp       Log e entrada de comandos pela USB
   debug.h / .cpp            comandos, calibração e stream para o painel
   painel_sumo.html          painel completo para abrir no computador

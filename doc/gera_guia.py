@@ -351,17 +351,16 @@ if QTD == 7:
     txt(W / 2, H - 15 * mm, "PINAGEM COMPLETA DO ESP32 E POSIÇÃO DOS 7 SENSORES", 13, "SB", anchor="c")
     pinos = [
         ("21 / 22", "I2C SDA / SCL", "barramento comum dos 7 ToF (100 kHz; 400 kHz na placa definitiva)"),
-        ("13 / 14 / 27 / 26 / 25", "XSHUT LE / FE / FC / FD / LD", "os 5 sensores de antes, sem mudança"),
-        ("33", "XSHUT TE", "novo, sem restrição de boot"),
-        ("15", "XSHUT TD", "novo; pino de boot que precisa de nível alto, o mesmo do XSHUT ligado"),
-        ("34 / 35", "borda BFE / BFD", "ADC1, só entrada"),
-        ("36 (VP) / 39 (VN)", "borda BTE / BTD", "ADC1, só entrada"),
-        ("32", "botão de start", "INPUT_PULLUP, nível baixo = apertado"),
-        ("2", "LED de status", "LED azul da placa"),
-        ("18 / 19 / 23", "TB6612 PWMA / AIN1 / AIN2", "motor esquerdo; STBY no 3V3"),
-        ("4 / 16 / 17", "TB6612 PWMB / BIN1 / BIN2", "motor direito"),
-        ("5", "livre", "último pino livre sem risco (serve para um 8º sensor)"),
-        ("12", "evitar", "nível alto no boot muda a tensão da flash e o ESP32 pode não ligar"),
+        ("17 / 23 / 19 / 18 / 5", "XSHUT LE / FE / FC / FD / LD", "o 5 é pino de boot e precisa de nível alto, o mesmo do XSHUT ligado"),
+        ("16", "XSHUT TE", "novo, sem restrição de boot"),
+        ("4", "XSHUT TD", "novo, sem restrição de boot"),
+        ("34 / 35", "borda BFE / BFD", "ADC1, só entrada; fio no A0 do módulo"),
+        ("32 / 33", "borda BTE / BTD", "ADC1; fio no A0 do módulo"),
+        ("25 / 26", "L298N IN1 / IN2", "motor esquerdo; PWM no próprio IN, jumper do ENA no lugar"),
+        ("27 / 13", "L298N IN3 / IN4", "motor direito; jumper do ENB no lugar"),
+        ("0", "botão de start", "o mesmo do botão BOOT; não apertar ao ligar"),
+        ("12 / 14 / 2 / 15", "chave DIP 1 a 4", "DIP 1 desligada ao ligar; DIP 3 desligada ao gravar"),
+        ("36 / 39", "livres", "só entrada e sem pull-up interno"),
         ("1 / 3", "não usar", "serial da USB (gravação e Monitor Serial)"),
     ]
     y = H - 27 * mm
@@ -369,10 +368,10 @@ if QTD == 7:
         fnt = "SB" if i == 0 else "S"
         if i > 0 and i % 2 == 0:
             c.setFillColor(colors.HexColor("#f3f4f6")); c.rect(12 * mm, y - 1.4 * mm, 186 * mm, 4.4 * mm, fill=1, stroke=0)
-        destaque = colors.HexColor(COR["TE"]) if f.endswith("TE") else colors.HexColor(COR["TD"]) if f.endswith("TD") else colors.black
+        destaque = colors.HexColor(COR[f[-2:]]) if f in ("XSHUT TE", "XSHUT TD") else colors.black
         txt(14 * mm, y, g, 7.8, "SB" if i == 0 else "M", destaque); txt(56 * mm, y, f, 7.8, fnt, destaque); txt(104 * mm, y, o, 7.6, fnt)
         y -= 4.6 * mm
-    txt(14 * mm, y - 1 * mm, "O DevKit de 30 pinos expõe 25 GPIOs: com 7 sensores o projeto usa 21, e o 5 é o último livre sem restrição.", 7.8, "SB")
+    txt(14 * mm, y - 1 * mm, "Pinagem da placa nova (Lab3-Liga): com 7 sensores e a chave DIP, sobram só o 36 e o 39 (apenas entrada).", 7.8, "SB")
 
     # diagramas de cobertura (escala 1:18): hoje, a alternativa descartada e a escolhida
     def alcance(x, y_, a, R=542.0):
