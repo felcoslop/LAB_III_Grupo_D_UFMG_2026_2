@@ -20,5 +20,6 @@ void        estados_init();
 void        estados_passo();          // uma chamada por volta do loop, depois de percepcao_atualiza()
 void        estados_iniciar();        // mesmo efeito do botão de start (comando "go")
 void        estados_parar();          // retorno para ESPERA (comando "stop")
+void        estados_teste_mov(float v_mms, float w_dps, uint16_t ms);   // movimento de teste em ESPERA (comando "mov")
 Estado      estado_atual();
 const char* estado_nome(Estado e);

@@ -423,7 +423,7 @@ static void busca() {
   for (int b = 0; b < NB; b++) { float s = 0; for (int r = 0; r < NR; r++) s += p[r * NB + b]; Pb[b] = s; }   // probabilidade por direção
   float agora = 0;                                       // o que os cones já cobrem com o robô parado
   for (int b = 0; b < NB; b++) agora += Pb[b] * covFrac[b];
-  const float wBusca = GIRO_MAX_DPS * (float)VEL_BUSCA / 255.0f;   // velocidade de giro na busca (graus/s)
+  const float wBusca = GIRO_BUSCA_DPS;                 // velocidade de giro na busca (graus/s)
   float melhor = -1, melhorAng = 0, melhorGanho = 0;
   // laço externo: os dois sentidos de giro; laço do meio: o tamanho do giro; laço interno: as direções
   for (int sentido = -1; sentido <= 1; sentido += 2) {

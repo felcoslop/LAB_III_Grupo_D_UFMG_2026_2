@@ -10,6 +10,7 @@
 #include "oponente.h"
 #include "borda.h"
 #include "motores.h"
+#include "cinematica.h"
 #include "estados.h"
 #include "rastreador.h"
 #include <Wire.h>
@@ -40,6 +41,8 @@ static void ajuda() {
   Log.println(F("# bordazera          apaga a calibracao da borda"));
   Log.println(F("# init               tenta religar sensores que falharam (robo parado)"));
   Log.println(F("# tempo              duracao do ciclo (atual e pior caso)"));
+  Log.println(F("# cin                modelo das rodas: velocidade, giro, feed-forward e parada"));
+  Log.println(F("# mov V W MS         teste parado: V mm/s e W graus/s por MS ms (ate 3000)"));
   Log.println(F("# go | stop          inicia (5 s) / para a maquina de estados"));
   Log.println(F("# s1 | s0            liga/desliga stream para o painel (HTML)"));
   Log.println(F("# ============================================"));
@@ -241,7 +244,8 @@ static void imprimeVer() {
 #endif
   static const char* RM[] = {"-", "ATACAR", "MIRAR", "PROVAVEL", "PROCURAR"};   // mesma ordem do RumoModo
   Log.printf(" | rumo %s %+4.0f", RM[P.rumo.modo < 5 ? P.rumo.modo : 0], P.rumo.angulo);
-  Log.printf(" | %-10s | mot %4d %4d | ToF %u/%u\n", estado_nome(estado_atual()), motores_esq(), motores_dir(),
+  Log.printf(" | %-10s | mot %4d %4d | rodas %+4.0f %+4.0f mm/s | ToF %u/%u\n", estado_nome(estado_atual()),
+                motores_esq(), motores_dir(), cinematica_roda_esq(), cinematica_roda_dir(),
                 P.saude.tof_ok, P.saude.tof_total);
 }
 
@@ -437,6 +441,19 @@ static void streamDados() {
 #endif
 }
 
+// Comando cin: números do modelo das rodas (cinematica.h), calculados a partir do config.h.
+// Servem para conferir o config e para comparar com as medidas do robô montado.
+static void cin() {
+  Log.printf("# motor: kS %.2f V | kV %.2f mV por mm/s | kA %.2f mV por mm/s2 | tensao no motor %.1f V\n",
+                CIN_KS, CIN_KV * 1000, CIN_KA * 1000, CIN_V_DISP);
+  Log.printf("# maximos: %.0f mm/s em linha reta | %.0f graus/s no eixo | 180 graus em %.0f ms\n",
+                VEL_MAX_MMS, GIRO_MAX_DPS, 180.0f / GIRO_MAX_DPS * 1000);
+  Log.printf("# borda: parada no pior caso %.1f mm | margem ate as rodas %.0f mm\n",
+                DIST_PARADA_MM, BORDA_FAIXA_MM + BORDA_ATE_RODA_MM);
+  Log.printf("# estimativa agora: %+.0f mm/s, %+.0f graus/s (motores %s)\n", cinematica_v_mms(), cinematica_w_dps(),
+                USAR_MOTORES ? "ligados" : "desligados");
+}
+
 // Interpretação de uma linha de comando. Uma cópia com as letras originais é guardada para os
 // argumentos (nome do sensor), e a comparação dos comandos é feita em minúsculas.
 static void executa(char* c) {
@@ -475,6 +492,12 @@ static void executa(char* c) {
     Log.printf(" | linhas de dados descartadas na USB: %lu\n", (unsigned long)telemetria_descartes_usb());
     P.saude.ciclo_us_max = 0;
     rastreador_us_zera();
+  }
+  else if (!strcmp(c, "cin"))    cin();
+  else if (!strncmp(c, "mov ", 4)) {
+    float v = 0, w = 0; int ms = 0;
+    if (sscanf(c + 4, "%f %f %d", &v, &w, &ms) == 3 && ms > 0) estados_teste_mov(v, w, (uint16_t)(ms > 3000 ? 3000 : ms));
+    else Log.println(F("! uso: mov V W MS   (ex.: mov 300 0 1000 ou mov 0 360 1000)"));
   }
   else if (!strcmp(c, "go"))     { estados_iniciar(); Log.println(F("# start: contagem de 5 s")); }
   else if (!strcmp(c, "stop"))   { estados_parar();   Log.println(F("# parado")); }
