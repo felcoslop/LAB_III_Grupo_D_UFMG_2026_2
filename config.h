@@ -210,8 +210,11 @@ static const CfgBorda BORDA[] = {
 
 // ============================================================================
 // Motores (driver TB6612FNG). Na bancada o valor de USAR_MOTORES fica em 0.
+// O valor também pode vir da compilação (-DUSAR_MOTORES=1), como o CI faz.
 // ============================================================================
+#ifndef USAR_MOTORES
 #define USAR_MOTORES      0
+#endif
 #define PINO_PWMA         18
 #define PINO_AIN1         19
 #define PINO_AIN2         23
