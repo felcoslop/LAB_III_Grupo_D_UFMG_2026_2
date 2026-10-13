@@ -39,7 +39,21 @@ static void entra(Estado novo) {
 // Os estados de luta são todos os que vêm depois da CONTAGEM na ordem do enum.
 static bool emLuta() { return est >= BUSCA; }
 
-void estados_init()    { pinMode(PINO_LED, OUTPUT); est = ESPERA; tEntrada = millis(); }
+// LED de status. Com PINO_LED -1 (pino ocupado pela chave DIP) a função não faz nada.
+static void led(bool aceso) {
+#if PINO_LED >= 0
+  digitalWrite(PINO_LED, aceso ? HIGH : LOW);
+#else
+  (void)aceso;
+#endif
+}
+
+void estados_init() {
+#if PINO_LED >= 0
+  pinMode(PINO_LED, OUTPUT);
+#endif
+  est = ESPERA; tEntrada = millis();
+}
 void estados_iniciar() { pedidoStart = true; }
 void estados_parar()   { entra(ESPERA); motores_para(); }
 
@@ -61,7 +75,7 @@ void estados_passo() {
     case ESPERA:
       motores_para();
       // LED aceso fixo indica robô pronto; piscando rápido indica que faltam sensores
-      digitalWrite(PINO_LED, P.saude.pronto ? HIGH : (P.t_ms / 100) % 2);
+      led(P.saude.pronto || (P.t_ms / 100) % 2);
       if (P.start || pedidoStart) {
         pedidoStart = false;
         if (P.saude.pronto) entra(CONTAGEM);
@@ -72,7 +86,7 @@ void estados_passo() {
 
     case CONTAGEM:                                   // regra RoboCore: 5 s parado
       motores_para();
-      digitalWrite(PINO_LED, (t / 250) % 2);         // LED piscando devagar durante a contagem
+      led((t / 250) % 2);                            // LED piscando devagar durante a contagem
       if (t >= T_CONTAGEM_MS) entra(BUSCA);
       break;
 
@@ -81,7 +95,7 @@ void estados_passo() {
       // oponente provavelmente está ou, sem pista, para o lado em que os cones varrem os pontos
       // cegos. Depois de T_BUSCA_GIRO_MS girando sem achar nada, o robô avança um pouco para
       // mudar o ponto de vista e recomeça o giro.
-      digitalWrite(PINO_LED, LOW);                   // em luta o LED fica apagado
+      led(false);                                    // em luta o LED fica apagado
       if (P.op.centrado)   { entra(ATAQUE); break; }
       if (P.op.visto)      { entra(MIRA);   break; }
       if (buscaAvanca) {                             // avanço curto de reajuste de posição
