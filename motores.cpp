@@ -1,5 +1,5 @@
 // motores.cpp
-// Controle dos dois motores pelo módulo de ponte H dupla de 10 A (entradas IN1 a IN4). Com
+// Controle dos dois motores pelo módulo HW-956, ponte H dupla de 10 A (entradas IN1 a IN4). Com
 // USAR_MOTORES 0 (bancada), o módulo só guarda o comando, e o resto do código funciona igual
 // sem mexer em nenhum pino.
 //
@@ -12,6 +12,9 @@
 
 #include "motores.h"
 #include "config.h"
+
+static_assert(PWM_MOTOR_HZ >= 100 && PWM_MOTOR_HZ <= 2000,
+              "PWM_MOTOR_HZ fora da faixa do modulo HW-956 (ate 2 kHz)");
 
 static int16_t cmdE = 0, cmdD = 0;   // último comando de cada roda
 

@@ -209,8 +209,13 @@ static const CfgBorda BORDA[] = {
                                    // (a linha de 2,5 cm passa em 25 ms com o robô a 1 m/s)
 
 // ============================================================================
-// Motores: módulo de ponte H dupla de 10 A (3 a 18 V), com as entradas GND, IN1, IN2, IN3 e
-// IN4. O esquema da placa mostra um L298N, mas o módulo usado é este, de transistores MOSFET.
+// Motores: módulo HW-956 (v0.0.2), ponte H dupla de MOSFET de 10 A por canal (15 A de pico,
+// 3 a 18 V), com as entradas GND, IN1, IN2, IN3 e IN4. O esquema da placa mostra um L298N, mas
+// o módulo usado é este. O anúncio do módulo aceita sinal de 3,3 V, limita o PWM a 2 kHz e pede
+// parada antes de inverter o sentido, por causa do pico de corrente. Com o JGB37-520 esse pico,
+// na inversão em velocidade máxima, fica perto de 2,4 A por motor (12,4 V da bateria somados a
+// uns 11,4 V gerados pelo motor, sobre os cerca de 10 ohms do enrolamento), bem abaixo dos 10 A
+// do módulo. Por isso a fuga da borda inverte na hora, sem pausa.
 // O PWM vai no próprio pino IN: para a frente o IN1 recebe o PWM e o IN2 fica em LOW, e para
 // trás o contrário. O módulo aceita PWM de até 2 kHz. Com os dois IN em LOW o motor para.
 // Na bancada USAR_MOTORES fica em 0.
