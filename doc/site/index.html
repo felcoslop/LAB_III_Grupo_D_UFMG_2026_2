@@ -153,7 +153,7 @@ td.num { font-family: var(--fonte-dado); font-size: 13px; white-space: nowrap; }
         <div class="etapa" id="e1"><span class="n">1</span><span class="t">Pedido do estado<small>avanço v e giro w</small></span><span class="v" id="v1">-</span></div>
         <div class="etapa" id="e2"><span class="n">2</span><span class="t">Desaturação<small>o giro fica, o avanço cede se não couber nas rodas</small></span><span class="v" id="v2">-</span></div>
         <div class="etapa" id="e3"><span class="n">3</span><span class="t">Limitador de aceleração<small>6 m/s²; o perfil da borda pula esta etapa</small></span><span class="v" id="v3">-</span></div>
-        <div class="etapa" id="e4"><span class="n">4</span><span class="t">Cinemática inversa<small>vE = v − w·B/2 e vD = v + w·B/2, B = 132 mm</small></span><span class="v" id="v4">-</span></div>
+        <div class="etapa" id="e4"><span class="n">4</span><span class="t">Cinemática inversa<small>vE = v − w·B/2 e vD = v + w·B/2, B = 127,3 mm</small></span><span class="v" id="v4">-</span></div>
         <div class="etapa" id="e5"><span class="n">5</span><span class="t">Feed-forward<small>tensão = kS + kV·v + kA·a, sobre 10,9 V no motor</small></span><span class="v" id="v5">-</span></div>
       </div>
       <div class="rodas">
@@ -197,7 +197,7 @@ td.num { font-family: var(--fonte-dado); font-size: 13px; white-space: nowrap; }
             <tr><td>Corrente livre e travada</td><td class="num">0,1 A e 1,2 A</td></tr>
             <tr><td>Torque travado (o anúncio diz 21 kgf.cm, que não fecha com 1,2 A)</td><td class="num">1,9 kgf.cm</td></tr>
             <tr><td>Queda na ponte H de MOSFET (10 A)</td><td class="num">cerca de 0,2 V</td></tr>
-            <tr><td>Roda StickyMAX S20, bitola</td><td class="num">32 mm, 132 mm</td></tr>
+            <tr><td>Roda StickyMAX S20, bitola</td><td class="num">32 mm, 127,3 mm</td></tr>
             <tr><td>kS, kV, kA por roda</td><td class="num">1,5 V; 19,6 mV/(mm/s); 1,25 mV/(mm/s²)</td></tr>
             <tr><td>Velocidade máxima (11,1 V)</td><td class="num">478 mm/s</td></tr>
             <tr><td>Giro máximo no eixo</td><td class="num">415 °/s</td></tr>
@@ -240,7 +240,7 @@ td.num { font-family: var(--fonte-dado); font-size: 13px; white-space: nowrap; }
 <script>
 // ===================== constantes (as mesmas do config.h e do cinematica.h) =====================
 const C = {
-  B: 132, RAIO: 16, KS: 1.5, KA: 0.00125, VDISP: 10.9, QUEDA: 0.2, TAU: 0.06, ACEL: 6000,
+  B: 127.3, RAIO: 16, KS: 1.5, KA: 0.00125, VDISP: 10.9, QUEDA: 0.2, TAU: 0.06, ACEL: 6000,
   K_MIRA: 6, ANG_CURVA: 40, GIRO_MIRA_MAX: 370, GIRO_BUSCA: 200, VEL_BUSCA: 240,
   GIRO_BORDA: 370, ANG_GIRO_BORDA: 135, T_GIRO_MAX: 900, T_RECUO_EXTRA: 10,
   T_BUSCA_GIRO: 1500, T_BUSCA_AVANCO: 250, CENTRO: 7, ALCANCE: 600, PERDE_MS: 100,

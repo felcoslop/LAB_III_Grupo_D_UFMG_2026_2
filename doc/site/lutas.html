@@ -166,7 +166,10 @@ td.num { font-family: var(--fonte-dado); font-size: 13px; white-space: nowrap; }
 // estado, oponente visto, estimativa x, y, PWM esquerdo, PWM direito, centro do dojô estimado
 // x, y, incerteza e confiável. Distâncias em mm no referencial do dojô (centro na origem).
 const Q = { T: 0, X: 1, Y: 2, TH: 3, OX: 4, OY: 5, OTH: 6, EST: 7, VISTO: 8, EX: 9, EY: 10, PE: 11, PD: 12, AX: 13, AY: 14, AS: 15, AC: 16 };
-const R_DOJO = 385, FAIXA = 25, LADO = 152;
+const R_DOJO = 385, FAIXA = 25;
+// contorno em planta (mm a partir do eixo das rodas): o robô do Grupo D com as medidas do STL
+// (rampa 117,7 mm à frente do eixo, traseira 25 mm atrás, 149 mm de largura) e o oponente de 152 mm
+const CORPO_NOSSO = [117.7, 25, 74.5], CORPO_OP = [76, 76, 76];
 const NOME_ESTR = { rush: "Rush", flank: "Flank", fan_out: "Fan out" };
 const NOME_OP = { parado: "parado", rapido: "rápido", lento: "lento e forte", errante: "errante", pesado: "pesado", espelho: "espelho" };
 const NOME_COR = { claro: "claro", escuro: "escuro" };
@@ -237,10 +240,10 @@ function quadro(tt) {
   return r;
 }
 
-function quadrado(g, X, Y, k, x, y, th, preenche, traco, tracejado) {
-  const h = LADO / 2, c = Math.cos(th), s = Math.sin(th);
+function quadrado(g, X, Y, k, x, y, th, preenche, traco, tracejado, corpo) {
+  const [fr, tr, h] = corpo || CORPO_OP, c = Math.cos(th), s = Math.sin(th);
   g.beginPath();
-  for (const [px, py] of [[h, h], [h, -h], [-h, -h], [-h, h]]) g.lineTo(X(x + px * c - py * s), Y(y + px * s + py * c));
+  for (const [px, py] of [[fr, h], [fr, -h], [-tr, -h], [-tr, h]]) g.lineTo(X(x + px * c - py * s), Y(y + px * s + py * c));
   g.closePath();
   if (preenche) { g.fillStyle = preenche; g.fill(); }
   if (traco) { g.setLineDash(tracejado ? [8, 6] : []); g.strokeStyle = traco; g.lineWidth = 3; g.stroke(); g.setLineDash([]); }
@@ -254,7 +257,7 @@ function desenha() {
   g.beginPath(); g.arc(X(0), Y(0), R_DOJO * k, 0, 2 * Math.PI); g.fillStyle = cor("--faixa"); g.fill();
   g.beginPath(); g.arc(X(0), Y(0), (R_DOJO - FAIXA) * k, 0, 2 * Math.PI); g.fillStyle = cor("--dojo"); g.fill();
   g.strokeStyle = cor("--shikiri"); g.lineWidth = 10 * k;
-  for (const sx of [-55, 55]) { g.beginPath(); g.moveTo(X(sx), Y(-50)); g.lineTo(X(sx), Y(50)); g.stroke(); }
+  for (const sx of [-45, 45]) { g.beginPath(); g.moveTo(X(sx), Y(-50)); g.lineTo(X(sx), Y(50)); g.stroke(); }
   if (!luta) return;
   for (const [px, py, pr] of luta.fora) {
     g.beginPath(); g.arc(X(px), Y(py), pr * k, 0, 2 * Math.PI); g.fillStyle = cor("--pessoa"); g.fill();
@@ -275,7 +278,7 @@ function desenha() {
     g.globalAlpha = 1;
   }
   quadrado(g, X, Y, k, f[Q.OX], f[Q.OY], f[Q.OTH], cor("--oponente"), null);
-  quadrado(g, X, Y, k, f[Q.X], f[Q.Y], f[Q.TH], cor("--robo"), null);
+  quadrado(g, X, Y, k, f[Q.X], f[Q.Y], f[Q.TH], cor("--robo"), null, false, CORPO_NOSSO);
   // frente do robô do Grupo D
   const c = Math.cos(f[Q.TH]), s = Math.sin(f[Q.TH]);
   g.beginPath(); g.moveTo(X(f[Q.X]), Y(f[Q.Y])); g.lineTo(X(f[Q.X] + 110 * c), Y(f[Q.Y] + 110 * s));

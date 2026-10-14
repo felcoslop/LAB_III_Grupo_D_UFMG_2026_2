@@ -63,8 +63,8 @@ static void iaPasso(Mundo& M, IA& ia, double dt, bool liberado) {
   const double vm = vLivre(o.p) * 0.95;
   // borda: os cantos da frente ou de trás do oponente na faixa branca
   double fx, fy, tx, ty;
-  o.paraMundo(o.p.meioX * 0.8, 0, fx, fy);
-  o.paraMundo(-o.p.meioX * 0.8, 0, tx, ty);
+  o.paraMundo(o.p.frente * 0.8, 0, fx, fy);
+  o.paraMundo(-o.p.tras * 0.8, 0, tx, ty);
   bool bordaFrente = std::hypot(fx, fy) > R_DOJO - FAIXA, bordaTras = std::hypot(tx, ty) > R_DOJO - FAIXA;
   if (ia.fase == 0 && (bordaFrente || bordaTras) && M.t - ia.tFase > 0.3) {
     ia.fase = 1; ia.tFase = M.t; ia.vCmd = bordaFrente ? -vm : vm; ia.wCmd = 0;
