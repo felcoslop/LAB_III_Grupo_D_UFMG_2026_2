@@ -66,6 +66,7 @@ td.n{font-family:var(--mono);text-align:right}
   <span id="pSaude" class="pill">ToF -/-</span>
   <span id="pEstado" class="pill">estado: -</span>
   <span id="pBorda" class="pill">borda -</span>
+  <span id="pLuta" class="pill" title="estrategia (chave DIP 1 a 3), perfil do oponente (DIP 4) e localizacao no dojo">luta -</span>
   <span id="pRede" class="pill" title="taxa de pacotes e perdas na USB">dados -</span>
   <span style="flex:1"></span>
   <button id="bConn" class="pri">Conectar USB</button>
@@ -196,7 +197,7 @@ const S = {
         {n:"BTE",x:-75,y:34,alt:2.7,lim:600,preto:0,branco:0,nvs:false,abaixo:true},{n:"BTD",x:-60,y:-34,alt:2.7,lim:600,preto:0,branco:0,nvs:false,abaixo:true} ],
   bmask: 0, bcru: 0, bmv: [], bTempo: 0,
   v: [-1,-1,-1,-1,-1], r: [-1,-1,-1,-1,-1],
-  tgt: {visto:false}, acao: 0, lado: 0, estado: 0, saude: 0, alcance: 542, tD: 0,
+  tgt: {visto:false}, acao: 0, lado: 0, estado: 0, saude: 0, alcance: 600, tD: 0, arena: null, luta: null,
   jan: [], trail: [], reg: null,
   bayes: false, opLado: 152, alcPreto: 550, mapa: null
 };
@@ -239,7 +240,8 @@ function linha(l) {
     case "R": { const i = +p[1]; S.bg[i] = {n: p[2], x: +p[3], y: +p[4], alt: +p[5], lim: +p[6], preto: +p[7], branco: +p[8], nvs: p[9] === "1", abaixo: p[10] !== "0"};
                 if (i === 0) S.bg.length = 1; montaBorda(); cena3d(); return; }
     case "Q": return dadosBorda(p.slice(1).map(Number));
-    case "K": S.alcance = +p[1] || 542; return;
+    case "K": S.alcance = +p[1] || 600; return;
+    case "A": return dadosLuta(p.slice(1).map(Number));
     case "X": S.bayes = p[1] === "1"; S.opLado = +p[2] || 152; S.alcPreto = +p[3] || 550; return;
     case "M": return dadosMapa(p);
     case "H": return;
@@ -275,6 +277,20 @@ function dados(n) {
   if (S.tgt.visto) S.trail.push({x: S.tgt.cx, y: S.tgt.cy, t: performance.now()});
   S.reg = regiao();
   painel();
+}
+
+// ============================== ESTRATÉGIA E LOCALIZAÇÃO ==============================
+// A,estrategia,escuro,dip,arenaValida,arenaConfiavel,cx,cy,sigma,aproximacao,contato,descartes
+const ESTRATEGIAS = ["RUSH", "FLANK", "FAN OUT"];
+function dadosLuta(n) {
+  if (n.length < 11) return;
+  S.luta = {estr: n[0], escuro: n[1] === 1, dip: n[2], aprox: n[8], contato: n[9] === 1, desc: n[10]};
+  S.arena = n[3] === 1 ? {ok: n[4] === 1, cx: n[5], cy: n[6], sig: n[7]} : null;
+  const d = S.luta.dip, bits = [0, 1, 2, 3].map(i => (d >> i) & 1).join("");
+  let txt = `${ESTRATEGIAS[S.luta.estr] || "?"} · ${S.luta.escuro ? "escuro" : "claro"} · DIP ${bits}`;
+  if (S.arena) txt += ` · centro a ${(Math.hypot(S.arena.cx, S.arena.cy) / 10).toFixed(0)} ± ${(S.arena.sig / 10).toFixed(0)} cm`;
+  if (S.luta.desc) txt += ` · ${S.luta.desc} de fora`;
+  $("pLuta").textContent = txt; $("pLuta").className = "pill " + (S.arena && S.arena.ok ? "on" : "");
 }
 
 // ============================== MAPA DE PROBABILIDADE (rastreador) ==============================
@@ -536,6 +552,15 @@ function desenha2d() {
         x2.fillStyle = `rgba(255,${(150 - lv).toFixed(0)},40,${(fade * (0.03 + 0.72 * Math.pow(lv / 63, 1.5))).toFixed(3)})`; x2.fill();
       }
     }
+  }
+  // dojô estimado pela localização (arena.cpp): círculo de 77 cm com a faixa branca, centrado onde o
+  // filtro acha que fica o centro do dojô; tracejado enquanto a incerteza ainda é grande
+  if (S.arena) {
+    const a = S.arena, ax = PX(a.cx, a.cy), ay = PY(a.cx, a.cy);
+    x2.setLineDash(a.ok ? [] : [6, 6]); x2.lineWidth = Math.max(1.5, 25 * E2); x2.strokeStyle = a.ok ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.25)";
+    x2.beginPath(); x2.arc(ax, ay, (385 - 12.5) * E2, 0, 7); x2.stroke(); x2.setLineDash([]); x2.lineWidth = 1;
+    x2.fillStyle = "rgba(255,255,255,.6)"; x2.beginPath(); x2.arc(ax, ay, 3, 0, 7); x2.fill();
+    x2.font = "10px system-ui"; x2.fillText(`centro do dojô ±${a.sig.toFixed(0)} mm`, ax + 6, ay - 6);
   }
   // alcance: maior distância possível até o oponente dentro do dohyo (mais longe que isso é ignorado)
   x2.setLineDash([3, 6]); x2.strokeStyle = "rgba(111,182,255,.45)"; x2.lineWidth = 1.2;
@@ -1159,7 +1184,7 @@ function iniciarDemo() {
   demo = true; $("status").textContent = "demo"; $("status").className = "pill demo"; $("bDemo").textContent = "Parar demo";
   S.ok = S.geo.map(() => true); S.cal = S.geo.map(() => ({g: 1, o: 0, nvs: false}));
   S.bg.forEach(g => { g.nvs = true; g.preto = 3000; g.branco = 450; g.lim = Math.round(450 + 0.35 * 2550); });
-  S.bayes = true; S.opLado = 152; S.alcPreto = 550; S.alcance = 542; fz.ja = false; fz.lado = 0; dObj.presente = true; rtInit();
+  S.bayes = true; S.opLado = 152; S.alcPreto = 550; S.alcance = 600; fz.ja = false; fz.lado = 0; dObj.presente = true; rtInit();
   Object.assign(rob, {x: 0, y: 0, h: 0}); Object.assign(dm, {avanca: false, t: 0, w: 0, v: 0});
   $("bOp").style.display = ""; $("bOp").textContent = "Tirar oponente"; $("lMexe").style.display = "";
   log("[demo] oponente quadrado PRETO simulado (lado informado), com o mesmo rastreador do firmware. Arraste no radar 2D para mover.", "u");
