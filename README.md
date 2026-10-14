@@ -214,8 +214,8 @@ As três estratégias da proposta do Grupo D [GRUPO D, 2026] ficam nas vias 1 a 
 | DIP 1 | DIP 2 | DIP 3 | Estratégia | Busca sem pista | Chegada no oponente |
 |---|---|---|---|---|---|
 | ligada | desligada | desligada | Rush | giro no eixo para o lado do rumo, com avanços curtos | mira em curva e ataque com o torque todo |
-| desligada | ligada | desligada | Flank | igual ao Rush | espiral que fecha na lateral do oponente |
-| desligada | desligada | ligada | Fan out | leque: o rumo oscila 45° para cada lado e o robô avança devagar | igual ao Rush |
+| desligada | ligada | desligada | Flank | igual ao Rush | na largada, arco largo, mirando 75° ao lado do oponente mesmo com ele vindo rápido; depois, espiral que fecha na lateral dele |
+| desligada | desligada | ligada | Fan out | leque: o rumo oscila 45° para cada lado e o robô avança devagar | zigue-zague (estado LEQUE): o rumo vai 30° para cada lado do oponente, trocando a cada 200 ms, e perto dele o ataque é direto |
 
 | DIP 4 | Perfil | Sensores | Rastreador |
 |---|---|---|---|
@@ -224,7 +224,9 @@ As três estratégias da proposta do Grupo D [GRUPO D, 2026] ficam nas vias 1 a 
 
 O perfil escuro troca velocidade e limpeza da medida por sensibilidade. Um robô preto e fosco devolve pouca luz ao VL53L0X, e no perfil claro ele some antes do fim do dojô; com mais tempo de medida e um limite de sinal menor, o sensor enxerga mais longe, ao custo de uma medida a cada 33 ms e de mais leituras falsas, que o rastreador absorve com o modelo de ruído do perfil. Nas lutas simuladas contra oponentes escuros e furtivos (240 lutas, Rush, com e sem a DIP 4), o perfil escuro baixou o tempo até achar um oponente furtivo parado de 1,0 s para 0,5 s e o tempo até vencer o oponente errante escuro de 8,6 s para 4,4 s; as 240 lutas terminaram em vitória nos dois perfis.
 
-No Flank, com o oponente à vista a mais de 24 cm e sem investida, o robô mira 35° ao lado dele; com o desvio constante, o caminho vira uma espiral que termina na lateral do oponente. O lado é o que tem mais espaço até a borda, pela localização no dojô. A 18 cm do oponente, com ele aberto mais de 75°, depois de 1,5 s ou se ele investir, o robô ataca direto. No Fan out, o leque só avança com pelo menos 20 cm livres à frente.
+No dojô de 77 cm, cada robô vê o outro assim que os 5 s acabam, e antes das aberturas as três estratégias faziam a mesma coisa na largada: a investida do outro robô cancelava o flanco, e o leque só valia na busca sem pista. Agora cada uma tem a sua abertura, com o oponente a até 60° da frente quando os 5 s acabam. O Rush vai direto. O Flank sai num arco largo, mirando 75° ao lado do oponente por até 0,7 s, mesmo com ele vindo rápido, e vira para ele quando o oponente fica a 75° da frente. O lado do arco é o que tem mais espaço até a borda pela localização, quando ela já é confiável. O Fan out chega em zigue-zague (estado LEQUE) e ataca direto a 14 cm. No combate com o mesmo firmware nos dois robôs (360 lutas, 30 largadas por combinação), o Rush venceu 60, perdeu 8 e empatou 52 de 120 lutas; o Fan out, 58, 8 e 54; o Flank, 50, 22 e 48. O arco tira o robô da linha da investida, mas o adversário com o mesmo firmware vira para ele e às vezes encontra a lateral exposta. O ângulo do arco saiu de uma comparação com o Flank largando de frente (40 lutas por versão): com 60° e 1 s, 30 derrotas; com 75° e 0,7 s, 12; com 80°, 5, mas numa luta do `teste/sim` o arco deixou o robô na borda de frente para uma pessoa, e ele passou 4,7 s mirando nela, acima do limite de 3 s do CI. Nas lutas do `teste/sim`, o Flank venceu as 48 lutas contra o parado, o pesado e o rápido.
+
+Depois da largada, no Flank, com o oponente à vista a mais de 24 cm e sem investida, o robô mira 35° ao lado dele; com o desvio constante, o caminho vira uma espiral que termina na lateral do oponente. O lado é o que tem mais espaço até a borda, pela localização no dojô. A 18 cm do oponente, com ele aberto mais de 75°, depois de 1,5 s ou se ele investir, o robô ataca direto. No Fan out, o leque só avança com pelo menos 20 cm livres à frente.
 
 Algumas regras valem nas três estratégias. Um oponente que vem de frente a mais de 300 mm/s (investida) é recebido de frente, e o robô empurra com o torque todo: o JGB37-520 tem redução de 18,8:1, e um robô rápido costuma ter pouco torque, então oferecer a lateral numa curva é o pior caso. Com o oponente colado na frente, o ToF pode perder a leitura por estar perto demais, e o ataque continua por 400 ms sem confirmação. Com o oponente colado atrás (versão de 7 sensores), o robô empurra de ré em vez de girar 180° na frente dele. Uma leitura abaixo de 15 mm, o mínimo do VL53L0X, conta como oponente encostado naquele lado: o rastreador recebe essa posição, e o robô vira para ele em vez de perseguir outra coisa. E a busca sem pista começa voltando para o meio do dojô, quando a localização mostra o robô a mais de 15 cm do centro.
 
@@ -322,20 +324,26 @@ A carga em cada apoio sai do equilíbrio de momentos com o peso, a aceleração 
 
 ### Resultado
 
-Na bateria de 360 lutas (3 estratégias, adversário preto e branco, 1000 e 319 rpm, 30 largadas sorteadas cada, estratégia do adversário sorteada), o Grupo D venceu 163, perdeu 40 e empatou 157, sem nenhuma queda própria.
+Na bateria de 360 lutas (3 estratégias, adversário preto e branco, 1000 e 319 rpm, 30 largadas sorteadas cada, estratégia do adversário sorteada), o Grupo D venceu 168, perdeu 38 e empatou 154, sem nenhuma queda própria.
 
 | Adversário | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| 1000 rpm | 151 | 23 | 6 |
-| 319 rpm, igual | 12 | 17 | 151 |
+| 1000 rpm | 157 | 21 | 2 |
+| 319 rpm, igual | 11 | 17 | 152 |
+
+| Estratégia do Grupo D | Vitórias | Derrotas | Empates |
+|---|---|---|---|
+| Rush | 60 | 8 | 52 |
+| Flank | 50 | 22 | 48 |
+| Fan out | 58 | 8 | 54 |
 
 | Largada do Grupo D | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| de frente para o adversário | 83 | 0 | 61 |
-| de lado | 50 | 10 | 48 |
-| de costas | 30 | 30 | 48 |
+| de frente para o adversário | 75 | 13 | 56 |
+| de lado | 54 | 4 | 50 |
+| de costas | 39 | 21 | 48 |
 
-O motor de 1000 rpm tem um terço do torque: travado, ele empurra com uns 7,4 N (0,6 kgf.cm em cada roda de 16 mm de raio), abaixo dos cerca de 8 N que os pneus do Grupo D aguentam com 77% dos 980 g em cima deles. O empurrão de frente anda devagar e leva o adversário para fora em 13,3 s, em média; as derrotas vêm do primeiro choque, com o Grupo D largando de lado ou de costas e o adversário chegando rápido na lateral ou na traseira dele. Contra o de 319 rpm, os robôs encostam 0,4 s depois dos 5 s parados e ficam empurrando de frente até o fim dos 90 s, porque os dois têm o mesmo limite de tração. A estratégia da chave mudou o resultado em só 5 das 120 combinações de largada, cor e motor, porque cada robô vê o outro assim que os 5 s acabam e vai direto para o ataque. O motor mais quente chegou a 22,1 K acima do ambiente no modelo térmico do firmware, longe do limite de 60 K.
+O motor de 1000 rpm tem um terço do torque: travado, ele empurra com uns 7,4 N (0,6 kgf.cm em cada roda de 16 mm de raio), abaixo dos cerca de 8 N que os pneus do Grupo D aguentam com 77% dos 980 g em cima deles. O empurrão de frente anda devagar e leva o adversário para fora em 12,2 s, em média; as derrotas vêm de choques em que o adversário chega rápido na lateral ou na traseira do Grupo D. Contra o de 319 rpm, os robôs encostam 0,5 s depois dos 5 s parados e ficam empurrando de frente até o fim dos 90 s, porque os dois têm o mesmo limite de tração. O arco do Flank perde mais que o Rush e o Fan out: o adversário com o mesmo firmware vira para ele e às vezes encontra a lateral exposta. De costas, o robô gasta o começo da luta girando e pode receber o adversário na traseira, que é o ponto fraco. O motor mais quente chegou a 22 K acima do ambiente no modelo térmico do firmware, longe do limite de 60 K.
 
 Com as rodas atrás e o centro de massa 26,9 mm à frente do eixo, 23% do peso fica na ponta da rampa, que arrasta no dojô e não traciona; com o centro de massa sobre o eixo, esse peso iria para os pneus e o empurrão máximo subiria uns 30%. A rampa do outro robô que entra por baixo da frente levanta só a ponta e não tira peso dos pneus. A lateral e a traseira são os pontos fracos: ali a rampa do outro tira o peso do pneu mais próximo. O par de sensores de borda "de trás" fica 54 mm à frente do eixo, então, andando de ré, a roda chega à borda antes do sensor.
 
@@ -541,11 +549,13 @@ stateDiagram-v2
         [*] --> BUSCA
         BUSCA --> MIRA: oponente visto
         BUSCA --> ATAQUE: oponente centrado
-        BUSCA --> FLANCO: Flank, oponente longe
+        BUSCA --> FLANCO: Flank, oponente longe ou largada
+        BUSCA --> LEQUE: Fan out, oponente à vista
         BUSCA --> ATAQUE_RE: oponente colado atrás
         MIRA --> ATAQUE: centrado
         MIRA --> BUSCA: perdido
         FLANCO --> ATAQUE: perto, aberto ou investida
+        LEQUE --> ATAQUE: perto ou aberto
         ATAQUE --> MIRA: fora do centro
         ATAQUE --> BUSCA: perdido
         ATAQUE_RE --> MIRA: saiu de trás
@@ -567,7 +577,7 @@ stateDiagram-v2
     LUTA --> ESPERA: stop
 ```
 
-No diagrama, LUTA agrupa BUSCA, MIRA, FLANCO, ATAQUE, ATAQUE_RE e DESTRAVA. A saída de GIRO_BORDA cai em ATAQUE_RE, FLANCO, ATAQUE, MIRA ou BUSCA, conforme a posição do oponente, e a saída de AVANCO_BORDA cai em BUSCA. O comando `stop` leva qualquer estado para ESPERA.
+No diagrama, LUTA agrupa BUSCA, MIRA, FLANCO, LEQUE, ATAQUE, ATAQUE_RE e DESTRAVA. A saída de GIRO_BORDA cai em ATAQUE_RE, FLANCO, LEQUE, ATAQUE, MIRA ou BUSCA, conforme a posição do oponente, e a saída de AVANCO_BORDA cai em BUSCA. O comando `stop` leva qualquer estado para ESPERA.
 
 Na BUSCA, longe do centro do dojô, o robô volta para o meio procurando no caminho. Perto do centro, no Rush e no Flank, o robô gira no eixo a 200 graus/s para o lado do rumo; depois de 1,5 s girando sem pista (rumo PROCURAR), avança a 240 mm/s por 0,25 s para mudar o ponto de vista e volta a girar. No Fan out, o rumo oscila em leque. Quando o rumo é PROVÁVEL e o oponente deve estar bem à frente (até 12°), o robô avança em vez de girar. Com `MODO_DEFENSIVO 1`, o robô só gira e mira, sem avançar.
 
