@@ -302,7 +302,7 @@ python teste/sim/roda_lutas.py teste/sim/luta --dips 1,2,4 --fora --perfil-pela-
 
 A pasta `teste/combate` coloca dois robôs com o mesmo firmware no mesmo dojô: o do Grupo D e um adversário igual, com motores de 1000 rpm ou de 319 rpm. Cada módulo do firmware entra duas vezes no mesmo programa, uma no namespace `fa` e outra no `fb` (`fw_modulo.cpp`), sem nenhuma linha do firmware mudar, e o Arduino de mentira (`hal_combate.cpp`) atende o robô da vez com o relógio, a chave DIP, o botão de start, os quatro TCRT5000, os sete VL53L0X e o PWM da ponte H. O mesmo código vira um executável para a bateria de lutas e um módulo WebAssembly para a página [Combate Grupo D](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/combate.html), compilado com o Zig 0.14 [ZIG SOFTWARE FOUNDATION, 2025].
 
-A página mostra a luta em 3D com as peças do STL do projeto mecânico (base, corpo, suporte da eletrônica, abraçadeiras, JGB37-520, cubos e pneus), numa sala em Belo Horizonte às 20h00 de 2 de setembro, só com a lâmpada de LED do teto acesa. Na tela entram a estratégia do Grupo D, a cor e os motores do adversário, a estratégia dele e a posição na largada; o placar mostra o estado de cada firmware, e a telemetria mostra velocidade, PWM, corrente, bateria e o peso em cada apoio.
+A página mostra a luta em 3D com as peças do STL do projeto mecânico (base, corpo, suporte da eletrônica, abraçadeiras, JGB37-520, cubos e pneus), numa sala em Belo Horizonte às 20h00 de 2 de setembro, só com a lâmpada de LED do teto acesa. Na tela entram a estratégia do Grupo D, a cor e os motores do adversário, a estratégia dele e a posição na largada; o placar mostra o estado de cada firmware, e a telemetria mostra velocidade, PWM, corrente, bateria e o peso em cada apoio. A camada de detecção mostra só o que o firmware do Grupo D enxerga, como no painel: o cone de cada VL53L0X com a calota na distância medida, o mapa de probabilidade do rastreador, a caixa vermelha do oponente na posição estimada e um círculo embaixo de cada TCRT5000. No controle manual, as setas (ou W A S D) dirigem o robô do Grupo D ou o adversário depois dos 5 s parados.
 
 ### Física
 
@@ -311,10 +311,10 @@ A página mostra a luta em 3D com as peças do STL do projeto mecânico (base, c
 | Massa | 980 g em cada robô | pedido da equipe |
 | Centro de massa | 26,9 mm à frente do eixo, 24 mm acima do chão | balanço de massa do projeto mecânico |
 | Apoios | pneus com 77% do peso, ponta da rampa com 23% | estática com a ponta a 117,7 mm do eixo |
-| Pneu StickyMAX S20 na madeira laminada | atrito 1,10 parado e 0,95 escorregando | estimativa; medir com o robô de lado no dojô inclinado |
+| Pneu StickyMAX S20 na madeira laminada | atrito 1,10, parado ou patinando | estimativa; borracha macia não perde atrito ao patinar [GROSCH, 1963]; medir com o robô de lado no dojô inclinado |
 | PLA arrastando no dojô e PLA contra PLA | 0,35 e 0,30 | estimativa |
 | JGB37-520, 319 rpm | 18,8:1, 1,9 kgf.cm e 1,2 A travado | [RCDRONE, s.d.] |
-| JGB37-520, 1000 rpm | 10:1 na linha de 10000 rpm, 1,6 kgf.cm e 2,4 A travado | [RCDRONE, s.d.] |
+| JGB37-520, 1000 rpm | o mesmo motor com redução de 6:1, 0,6 kgf.cm e 1,2 A travado | [RCDRONE, s.d.] |
 | Bateria 3S | 12,0 a 12,5 V sem carga, 0,15 ohm com o BMS e os fios | estimativa |
 | Dojô | 77 cm, 2,5 cm de altura, faixa de 2,5 cm, Shikiri de 1 x 10 cm afastadas 10 cm | [ROBOCORE, s.d.a] |
 
@@ -322,16 +322,22 @@ A carga em cada apoio sai do equilíbrio de momentos com o peso, a aceleração 
 
 ### Resultado
 
-Na bateria de 360 lutas (3 estratégias, adversário preto e branco, 1000 e 319 rpm, 30 largadas sorteadas cada, estratégia do adversário sorteada), 290 lutas terminaram empatadas por tempo, o Grupo D venceu 24 e perdeu 46, sem nenhuma queda própria.
+Na bateria de 360 lutas (3 estratégias, adversário preto e branco, 1000 e 319 rpm, 30 largadas sorteadas cada, estratégia do adversário sorteada), o Grupo D venceu 163, perdeu 40 e empatou 157, sem nenhuma queda própria.
 
 | Adversário | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| 1000 rpm | 12 | 30 | 138 |
-| 319 rpm, igual | 12 | 16 | 152 |
+| 1000 rpm | 151 | 23 | 6 |
+| 319 rpm, igual | 12 | 17 | 151 |
 
-Os robôs encostam um no outro 0,4 s depois dos 5 s parados (mediana). Nos empates, ficam empurrando de frente até o fim dos 90 s: com o mesmo peso e o mesmo pneu, os dois chegam ao mesmo limite de tração. As lutas decididas acabam no primeiro choque, em 1,2 s de mediana (a mais longa durou 3,9 s), e o adversário de 1000 rpm, que chega a 1,5 m/s, ganha mais desses choques. A estratégia da chave mudou o resultado em só 8 das 120 combinações de largada, cor e motor, porque cada robô vê o outro assim que os 5 s acabam e vai direto para o ataque. O motor mais quente chegou a 21,5 K acima do ambiente no modelo térmico do firmware, longe do limite de 60 K.
+| Largada do Grupo D | Vitórias | Derrotas | Empates |
+|---|---|---|---|
+| de frente para o adversário | 83 | 0 | 61 |
+| de lado | 50 | 10 | 48 |
+| de costas | 30 | 30 | 48 |
 
-Com as rodas atrás e a ponta da rampa 117,7 mm à frente do eixo, a rampa do outro robô que entra por baixo da frente levanta só a ponta e não tira peso dos pneus. A lateral e a traseira são os pontos fracos: ali a rampa do outro tira o peso do pneu mais próximo. O par de sensores de borda "de trás" fica 54 mm à frente do eixo, então, andando de ré, a roda chega à borda antes do sensor.
+O motor de 1000 rpm tem um terço do torque: travado, ele empurra com uns 7,4 N (0,6 kgf.cm em cada roda de 16 mm de raio), abaixo dos cerca de 8 N que os pneus do Grupo D aguentam com 77% dos 980 g em cima deles. O empurrão de frente anda devagar e leva o adversário para fora em 13,3 s, em média; as derrotas vêm do primeiro choque, com o Grupo D largando de lado ou de costas e o adversário chegando rápido na lateral ou na traseira dele. Contra o de 319 rpm, os robôs encostam 0,4 s depois dos 5 s parados e ficam empurrando de frente até o fim dos 90 s, porque os dois têm o mesmo limite de tração. A estratégia da chave mudou o resultado em só 5 das 120 combinações de largada, cor e motor, porque cada robô vê o outro assim que os 5 s acabam e vai direto para o ataque. O motor mais quente chegou a 22,1 K acima do ambiente no modelo térmico do firmware, longe do limite de 60 K.
+
+Com as rodas atrás e o centro de massa 26,9 mm à frente do eixo, 23% do peso fica na ponta da rampa, que arrasta no dojô e não traciona; com o centro de massa sobre o eixo, esse peso iria para os pneus e o empurrão máximo subiria uns 30%. A rampa do outro robô que entra por baixo da frente levanta só a ponta e não tira peso dos pneus. A lateral e a traseira são os pontos fracos: ali a rampa do outro tira o peso do pneu mais próximo. O par de sensores de borda "de trás" fica 54 mm à frente do eixo, então, andando de ré, a roda chega à borda antes do sensor.
 
 No computador:
 
@@ -733,6 +739,8 @@ DEDE, Fırat Faris. **Sumo Robot Blackbook**: robot sumo strategies, tactics to 
 ESPRESSIF SYSTEMS. **Arduino core for the ESP32**. [S.l.]: Espressif Systems, [s.d.a]. Disponível em: https://github.com/espressif/arduino-esp32. Acesso em: 13 out. 2026.
 
 ESPRESSIF SYSTEMS. **Set Flash Voltage**: espefuse, esptool documentation (ESP32). [S.l.]: Espressif Systems, [s.d.b]. Disponível em: https://docs.espressif.com/projects/esptool/en/latest/esp32/espefuse/set-flash-voltage-cmd.html. Acesso em: 14 out. 2026.
+
+GROSCH, K. A. The relation between the friction and visco-elastic properties of rubber. **Proceedings of the Royal Society of London A**, v. 274, n. 1356, p. 21-39, 1963.
 
 GRUPO D. **Slides sobre máquinas de estados**: estratégias Rush, Flank e Fan out. Belo Horizonte: UFMG, ELE635 Laboratório de Sistemas III, 2026. Apresentação.
 
