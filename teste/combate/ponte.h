@@ -16,8 +16,11 @@ struct FwLeitura {
   int   destravas;
   float aquecimento;              // elevação estimada da temperatura do motor mais quente (K)
   bool  limiteTermico;
-  uint16_t bordaMascara;
+  uint16_t bordaMascara;          // sensores de borda confirmados no branco
+  uint16_t bordaCru;              // sensores de borda lendo branco agora, ainda sem confirmação
   uint16_t tofMascara;            // ToF vendo o oponente
+  int16_t  tof[8];                // leitura de cada ToF em mm (-1 sem nada), como no painel
+  float    opExiste, opConfianca; // rastreador: chance de existir oponente e de ele estar na estimativa
 };
 
 struct FwApi {
@@ -27,6 +30,8 @@ struct FwApi {
   const char* (*nomeEstado)(int e);
   int         (*nEstados)();
   const char* (*nomeEstrategia)(int e);
+  uint16_t    (*mapa)(char* buf, uint16_t n);   // mapa comprimido do rastreador, o mesmo do painel
+  int         mapaNb, mapaNr, mapaR0, mapaDr;   // direções, anéis, raio do primeiro anel e largura (mm)
 };
 
 extern const FwApi fw_api_a;   // robô do Grupo D

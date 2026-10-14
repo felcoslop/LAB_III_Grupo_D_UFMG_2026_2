@@ -21,6 +21,16 @@ static double      tLib = -1;
 static uint64_t    proxEstat = 0;
 static std::vector<Evento> ev;
 static size_t      evLidos = 0;
+static bool        manualOn[2] = {false, false};
+static double      manualDuty[2][2] = {{0, 0}, {0, 0}};
+
+void manual(int k, bool ativo, double dE, double dD) {
+  if (k < 0 || k > 1) return;
+  manualOn[k] = ativo;
+  manualDuty[k][0] = std::max(-1.0, std::min(1.0, dE));
+  manualDuty[k][1] = std::max(-1.0, std::min(1.0, dD));
+}
+bool manualAtivo(int k) { return k >= 0 && k <= 1 && manualOn[k]; }
 static const double DT_FIS = 0.000125;
 
 const FwApi& api(int k) { return k == 0 ? fw_api_a : fw_api_b; }
@@ -163,6 +173,12 @@ bool passo(double ms) {
       api(k).loop();
       M->r[k].dutyE = dutyMotor(k, true);
       M->r[k].dutyD = dutyMotor(k, false);
+      if (manualOn[k]) {
+        // o operador também respeita os 5 s parados depois do próprio start
+        bool livre = apertou[k] && us >= tBotao[k] + 50000 + 5000000;
+        M->r[k].dutyE = livre ? manualDuty[k][0] : 0;
+        M->r[k].dutyD = livre ? manualDuty[k][1] : 0;
+      }
     }
     // física até o próximo loop
     for (int q = 0; q < 8; q++) { M->passo(DT_FIS); us += 125; }

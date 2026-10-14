@@ -9,6 +9,8 @@ namespace FW_NS {
 #include "cinematica.h"
 #include "motores.h"
 #include "chave.h"
+#include "oponente.h"
+#include "rastreador.h"
 }
 #include "ponte.h"
 
@@ -37,11 +39,16 @@ static void le(FwLeitura& l) {
   l.aquecimento = cinematica_aquecimento_k();
   l.limiteTermico = cinematica_limite_termico();
   l.bordaMascara = P.borda.mascara;
+  l.bordaCru = P.borda.cru;
   l.tofMascara = P.op.mascara;
+  for (uint8_t i = 0; i < 8; i++) l.tof[i] = i < N_TOF ? tof_mm(i) : -1;
+  l.opExiste = P.op.existe;
+  l.opConfianca = P.op.confianca;
 }
 static const char* nomeEstado(int e) { return estado_nome((Estado)e); }
 static int nEstados() { return N_ESTADOS; }
 static const char* nomeEstrategia(int e) { return estrategia_nome((Estrategia)e); }
 }  // namespace FW_NS
 
-const FwApi FW_API = {FW_NS::init, FW_NS::loop, FW_NS::le, FW_NS::nomeEstado, FW_NS::nEstados, FW_NS::nomeEstrategia};
+const FwApi FW_API = {FW_NS::init, FW_NS::loop, FW_NS::le, FW_NS::nomeEstado, FW_NS::nEstados, FW_NS::nomeEstrategia,
+                      FW_NS::rastreador_mapa, MAPA_NB, MAPA_NR, MAPA_R0, MAPA_DR};

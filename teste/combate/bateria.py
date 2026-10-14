@@ -58,8 +58,10 @@ def agregados(lutas):
     por_motor = {}
     for m in sorted({d["motor_b"] for d in lutas}):
         ls = [d for d in lutas if d["motor_b"] == m]
+        tv = [d["tempo"] for d in ls if d["vencedor"] == 0]
         por_motor[str(m)] = {"v": sum(d["vencedor"] == 0 for d in ls), "d": sum(d["vencedor"] == 1 for d in ls),
-                             "e": sum(d["vencedor"] == -1 for d in ls), "n": len(ls)}
+                             "e": sum(d["vencedor"] == -1 for d in ls), "n": len(ls),
+                             "tv": round(statistics.mean(tv), 1) if tv else 0.0}
     # mesma semente, cor e motor com estratégias diferentes: o resultado mudou?
     grupos = {}
     for d in lutas:
