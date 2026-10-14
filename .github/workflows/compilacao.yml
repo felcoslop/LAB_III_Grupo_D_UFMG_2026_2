@@ -4,7 +4,8 @@
 # linha 3.x do core da Espressif, com 5 e com 7 sensores de oponente, com os motores desligados
 # como na bancada e também ligados), os testes da cinemática, da máquina de estados e do PWM
 # dos motores rodando no computador, e a conferência de que o painel_sumo.html foi gerado a
-# partir do doc/painel_src.html atual.
+# partir do doc/painel_src.html atual e de que a página do simulador (doc/site) usa as mesmas
+# constantes do config.h.
 name: Compilação
 
 on:
@@ -101,7 +102,7 @@ jobs:
           done
 
   painel:
-    name: Painel gerado a partir do fonte
+    name: Painel e página do simulador
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -116,3 +117,5 @@ jobs:
             echo "::error::painel_sumo.html desatualizado: rode python doc/gera_painel.py e faça o commit"
             exit 1
           }
+      - name: Página do simulador com as constantes do config.h
+        run: python doc/confere_site.py

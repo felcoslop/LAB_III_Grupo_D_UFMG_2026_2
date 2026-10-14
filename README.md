@@ -6,6 +6,7 @@
 ![Disciplina](https://img.shields.io/badge/UFMG-ELE635-8a1538)
 ![Status](https://img.shields.io/badge/status-bancada%20de%20teste-orange)
 [![Compilação](https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2/actions/workflows/compilacao.yml/badge.svg)](https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2/actions/workflows/compilacao.yml)
+[![Simulador](https://img.shields.io/badge/simulador-GitHub%20Pages-2ea44f)](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/)
 
 Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **Grupo D**, desenvolvido na disciplina ELE635 Laboratório de Sistemas III da UFMG. O ESP32 lê cinco ou sete sensores de distância VL53L0X e quatro sensores de linha TCRT5000, estima onde está o oponente com um filtro bayesiano em grade e decide o movimento com uma máquina de estados. Um painel web, que abre direto no navegador e conversa com o robô pela USB, mostra sensores, mapa de probabilidade, rumo e estado em 2D e 3D.
 
@@ -127,6 +128,12 @@ flowchart LR
     EST2 --> RAS["rastreador<br/>gira o mapa junto"]
     EST2 --> GIR["GIRO_BORDA<br/>mede os 135 graus"]
 ```
+
+### Simulador na web
+
+A página [https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/) roda no navegador as mesmas contas do `cinematica.cpp` e da máquina de estados: o dojô aparece visto de cima, o oponente pode ser arrastado com o mouse e o botão Rodar mostra, a cada instante, o pedido do estado, a desaturação, o limitador, a cinemática inversa, o feed-forward e o PWM de cada roda, junto com o caminho do robô e a fuga da borda. Embaixo, a página refaz a conta da distância de parada para qualquer tensão de bateria e qualquer atrito. O código da página fica em `doc/site/index.html`; o workflow `pages.yml` publica a página no GitHub Pages a cada mudança na `main`, e o CI roda o `doc/confere_site.py` em todo pull request para garantir que as constantes da página continuam iguais às do `config.h`.
+
+[![Simulador da cinemática no navegador, com o robô empurrando o oponente para fora do dojô](doc/img/simulador_cinematica.jpg)](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/)
 
 ### Modelo do motor
 
@@ -466,7 +473,8 @@ sumo_esp32/
   debug.h / .cpp            comandos, calibração e stream para o painel
   painel_sumo.html          painel completo para abrir no computador
   .github/workflows/
-    compilacao.yml          CI: compilação do firmware, testes no computador e conferência do painel
+    compilacao.yml          CI: compilação do firmware, testes no computador e conferência do painel e da página
+    pages.yml               publicação da página do simulador no GitHub Pages
   teste/
     teste_cinematica.cpp    testes da cinemática das rodas (g++ no computador)
     teste_estados.cpp       testes da máquina de estados com a cinemática
@@ -477,6 +485,8 @@ sumo_esp32/
     gera_painel.py          gera o painel_sumo.html
     gera_bancada.py         gera o gabarito_bancada.pdf
     gera_guia.py            gera o guia de montagem (5 ou 7 sensores)
+    confere_site.py         confere as constantes da página do simulador com o config.h
+    site/index.html         página do simulador da cinemática (GitHub Pages)
     gabarito_bancada.pdf    gabarito 1:1 da bancada
     guia_montagem_sensores.pdf  gabarito do robô, ligação e conferência
     guia_montagem_sensores_7.pdf  o mesmo para 7 sensores, com bancada, pinagem e cobertura
@@ -486,7 +496,7 @@ sumo_esp32/
 
 ## Integração contínua
 
-O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados, e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/stub`), o `cinematica.cpp`, o `estados.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de 135 graus na recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x). Um terceiro teste gera o painel de novo a partir do `doc/painel_src.html` e falha se o `painel_sumo.html` versionado estiver diferente. As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem.
+O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados, e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/stub`), o `cinematica.cpp`, o `estados.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de 135 graus na recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x). Um terceiro teste gera o painel de novo a partir do `doc/painel_src.html` e falha se o `painel_sumo.html` versionado estiver diferente, e confere se as constantes da página do simulador (`doc/site/index.html`) são as mesmas do `config.h`. O workflow `pages.yml` publica essa página no GitHub Pages a cada push na `main` que mexa em `doc/site`. As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem.
 
 ## Equipe
 
