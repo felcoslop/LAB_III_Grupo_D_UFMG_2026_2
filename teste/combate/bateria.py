@@ -79,6 +79,11 @@ def agregados(lutas):
         "aquec_max": round(max(d["aquec_a"] for d in lutas), 1),
         "estrategia_mudou": sum(1 for v in grupos.values() if len(v) > 1), "grupos": len(grupos),
         "por_largada": por_largada(lutas),
+        "por_estrategia": {e: {"v": sum(d["vencedor"] == 0 for d in lutas if d["estr_a"] == e),
+                               "d": sum(d["vencedor"] == 1 for d in lutas if d["estr_a"] == e),
+                               "e": sum(d["vencedor"] == -1 for d in lutas if d["estr_a"] == e),
+                               "n": sum(d["estr_a"] == e for d in lutas)}
+                           for e in sorted({d["estr_a"] for d in lutas})},
     }
 
 
