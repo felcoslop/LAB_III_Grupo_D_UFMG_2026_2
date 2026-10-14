@@ -1389,7 +1389,7 @@ function dados(n) {
 }
 
 // ============================== ESTRATÉGIA E LOCALIZAÇÃO ==============================
-// A,estrategia,escuro,dip,arenaValida,arenaConfiavel,cx,cy,sigma,aproximacao,contato,descartes
+// A,estrategia,escuro,dip,arenaValida,arenaConfiavel,cx,cy,sigma,aproximacao,contato,descartes,travado,destravas,aquecimento
 const ESTRATEGIAS = ["RUSH", "FLANK", "FAN OUT"];
 function dadosLuta(n) {
   if (n.length < 11) return;
@@ -1399,6 +1399,12 @@ function dadosLuta(n) {
   let txt = `${ESTRATEGIAS[S.luta.estr] || "?"} · ${S.luta.escuro ? "escuro" : "claro"} · DIP ${bits}`;
   if (S.arena) txt += ` · centro a ${(Math.hypot(S.arena.cx, S.arena.cy) / 10).toFixed(0)} ± ${(S.arena.sig / 10).toFixed(0)} cm`;
   if (S.luta.desc) txt += ` · ${S.luta.desc} de fora`;
+  if (n.length >= 14) {
+    if (n[11] === 1) txt += " · EMPURRÃO TRAVADO";
+    else if (n[11] === 2) txt += " · GIRO PRESO";
+    if (n[12]) txt += ` · ${n[12]} destrava${n[12] > 1 ? "s" : ""}`;
+    if (n[13] >= 5) txt += ` · motor +${n[13]} K`;
+  }
   $("pLuta").textContent = txt; $("pLuta").className = "pill " + (S.arena && S.arena.ok ? "on" : "");
 }
 
