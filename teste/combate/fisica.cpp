@@ -9,13 +9,13 @@ namespace cb {
 static inline double sq(double v) { return v * v; }
 static const double KGFCM = 0.0980665;   // 1 kgf.cm em N.m
 
-// Tabela do JGB37-520 de 12 V (RCDrone): a linha de 6000 rpm com redução de 18,8:1 dá 319 rpm,
-// 0,1 A livre, 1,2 A e 1,9 kgf.cm travado; a linha de 10000 rpm com redução de 10:1 dá
-// 1000 rpm, 0,15 A livre, 2,4 A e 1,6 kgf.cm travado. A inércia no eixo da roda soma a do rotor
-// (cerca de 2,5 g.cm² num motor do tamanho 520) multiplicada pelo quadrado da redução e a do
-// cubo com o pneu.
+// Tabela do JGB37-520 de 12 V (RCDrone), linha de 6000 rpm: com redução de 18,8:1 dá 319 rpm,
+// 0,1 A livre, 1,2 A e 1,9 kgf.cm travado; com 6,25:1 dá 960 rpm e 0,6 kgf.cm. O motor de
+// 1000 rpm é o mesmo motor com redução de 6:1, e o torque cai na mesma proporção da redução
+// (1,9 x 6 / 18,8 = 0,6 kgf.cm). A inércia no eixo da roda soma a do rotor (cerca de 2,5 g.cm²
+// num motor do tamanho 520) multiplicada pelo quadrado da redução e a do cubo com o pneu.
 Motor motor319()  { return {"JGB37-520 319 rpm", 12.0, 319, 0.10, 1.2, 1.9 * KGFCM, 2.5e-7 * 18.8 * 18.8 + 1.5e-6}; }
-Motor motor1000() { return {"JGB37-520 1000 rpm", 12.0, 1000, 0.15, 2.4, 1.6 * KGFCM, 2.5e-7 * 10.0 * 10.0 + 1.5e-6}; }
+Motor motor1000() { return {"JGB37-520 1000 rpm", 12.0, 1000, 0.10, 1.2, 0.6 * KGFCM, 2.5e-7 * 6.0 * 6.0 + 1.5e-6}; }
 
 double kappaRampa(double mu) {
   double a = ANG_RAMPA * M_PI / 180;

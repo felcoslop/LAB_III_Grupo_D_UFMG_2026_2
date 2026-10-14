@@ -40,7 +40,7 @@ struct Motor {
   double jRoda;                                             // inércia no eixo da roda (kg.m²)
 };
 Motor motor319();     // JGB37-520 12 V, 319 rpm, redução 18,8:1, linha de 6000 rpm
-Motor motor1000();    // JGB37-520 12 V, 1000 rpm, redução 10:1, linha de 10000 rpm
+Motor motor1000();    // JGB37-520 12 V, 1000 rpm, redução 6:1, a mesma linha de 6000 rpm
 
 struct Param {
   double massa  = 0.98;
@@ -48,9 +48,13 @@ struct Param {
   double hCg    = 0.024;    // altura do centro de massa
   double izz    = 2.5e-3;   // inércia de giro no centro de massa (kg.m²)
   Motor  motor;
-  double muEst  = 1.10;     // pneu de elastômero macio na madeira laminada, parado
-  double muDin  = 0.95;     // e escorregando
-  double vStrib = 0.03;     // m/s, transição entre os dois
+  // Pneu de elastômero macio na madeira laminada. Borracha macia não perde atrito ao patinar
+  // como um material duro: o atrito dela sobe com a velocidade de escorregamento até um pico
+  // que, para borracha de transição vítrea bem abaixo da temperatura ambiente, fica acima de
+  // 1 m/s (GROSCH, 1963). Por isso o valor escorregando é o mesmo do valor parado.
+  double muEst  = 1.10;     // parado
+  double muDin  = 1.10;     // escorregando
+  double vStrib = 0.03;     // m/s, transição entre os dois (só vale com muDin diferente de muEst)
   double cRol   = 0.015;    // resistência ao rolamento do pneu macio
   double muPla  = 0.35;     // ponta da rampa (PLA) arrastando no dojô
   double muPP   = 0.30;     // PLA contra PLA no contato entre os robôs

@@ -20,7 +20,7 @@ struct Config {
   int      posA     = -1;      // rumo do Grupo D na largada: -1 sorteado, 0 de frente para o adversário,
   int      posB     = -1;      // 1 e 2 de lado, 3 de costas (posB: o mesmo para o adversário)
   double   tRound   = 90;      // segundos de luta depois dos 5 s parados
-  double   muEst    = 1.10, muDin = 0.95;   // pneu no dojô
+  double   muEst    = 1.10, muDin = 1.10;   // pneu no dojô, parado e escorregando
   bool     pessoas  = true;    // operadores e juiz em volta do dojô
   double   massa    = 0.98;
 };
@@ -55,6 +55,10 @@ const Estatistica& estatistica();
 void          leFirmware(int robo, FwLeitura& l);
 const FwApi&  api(int robo);
 int           eventos(const Evento** lista);   // eventos do Log desde a última chamada
+// Controle manual de um robô: com ativo, o PWM de cada roda (-1 a 1) substitui o do firmware
+// depois dos 5 s parados daquele robô. O firmware continua rodando, com os sensores e o Log.
+void          manual(int robo, bool ativo, double dutyE, double dutyD);
+bool          manualAtivo(int robo);
 const char*   nomeMotivo(int m);
 
 }  // namespace cb

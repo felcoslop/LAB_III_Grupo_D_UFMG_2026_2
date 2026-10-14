@@ -11,7 +11,7 @@
 //   -p N        rumo do Grupo D na largada: 0 de frente para o adversário, 1 e 2 de lado, 3 de costas
 //               (padrão sorteado)
 //   -P N        o mesmo para o adversário
-//   -u MU       atrito do pneu parado (o escorregando fica 0,15 abaixo)
+//   -u MU       atrito do pneu (parado e escorregando)
 //   -t S        segundos de luta depois dos 5 s parados (padrão 90)
 //   -r ARQ      grava o rastro da luta em JSON (um quadro a cada 20 ms)
 //   -v          mostra o Log dos dois firmwares
@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
     else if (a == "-m") c.b1000 = atoi(prox()) != 319;
     else if (a == "-p") c.posA = atoi(prox());
     else if (a == "-P") c.posB = atoi(prox());
-    else if (a == "-u") { c.muEst = atof(prox()); c.muDin = c.muEst - 0.15; }
+    else if (a == "-u") { c.muEst = atof(prox()); c.muDin = c.muEst; }
     else if (a == "-t") c.tRound = atof(prox());
     else if (a == "-r") rastro = prox();
     else if (a == "-v") verboso = true;
