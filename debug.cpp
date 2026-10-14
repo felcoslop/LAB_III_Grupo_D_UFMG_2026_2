@@ -13,6 +13,8 @@
 #include "cinematica.h"
 #include "estados.h"
 #include "rastreador.h"
+#include "arena.h"
+#include "chave.h"
 #include <Wire.h>
 
 static char     linha[48];          // comando que está sendo digitado
@@ -44,6 +46,9 @@ static void ajuda() {
   Log.println(F("# cin                modelo das rodas: velocidade, giro, feed-forward e parada"));
   Log.println(F("# mov V W MS         teste parado: V mm/s e W graus/s por MS ms (ate 3000)"));
   Log.println(F("# pwm E D MS         teste dos fios: E% e D% de PWM (-100 a 100) por MS ms"));
+  Log.println(F("# estrategia rush|flank|fan|chave   escolhe a estrategia (chave = segue a DIP)"));
+  Log.println(F("# perfil claro|escuro|chave         perfil do oponente (chave = segue a DIP 4)"));
+  Log.println(F("# arena              localizacao no dojo: centro, incerteza e espaco livre"));
   Log.println(F("# go | stop          inicia (5 s) / para a maquina de estados"));
   Log.println(F("# s1 | s0            liga/desliga stream para o painel (HTML)"));
   Log.println(F("# ============================================"));
@@ -56,8 +61,13 @@ static void lista() {
   for (uint8_t i = 0; i < N_TOF; i++)
     Log.printf("# %-4s  GPIO%-2d  0x%02X %4d %4d %4d  %6.3f %+6.1f  %-6s  %s\n", TOF[i].nome, TOF[i].xshut,
                   TOF[i].endereco, TOF[i].x, TOF[i].y, TOF[i].ang, tof_cal_ganho(i), tof_cal_offset(i),
-                  tof_cal_gravada(i) ? "ESP32" : "config", tof_ok(i) ? "OK" : "FALHOU");
+                  tof_cal_gravada(i) ? "ESP32" : "config",
+                  !tof_ok(i) ? "FALHOU" : ((tof_obstruidos() >> i) & 1 ? "OBSTRUIDO (le menos de 15 mm parado)" : "OK"));
   Log.printf("# sensor central (decide ataque): %s\n", tof_centro() >= 0 ? TOF[tof_centro()].nome : "-");
+  uint8_t b = chave_bits();
+  Log.printf("# chave DIP: %d%d%d%d -> estrategia %s, oponente %s (sensores no perfil %s)%s\n", b & 1, (b >> 1) & 1,
+             (b >> 2) & 1, (b >> 3) & 1, estrategia_nome(chave_estrategia()), chave_escuro() ? "ESCURO" : "CLARO",
+             tof_perfil_escuro() ? "ESCURO" : "CLARO", chave_conflito() ? " | ! mais de uma estrategia ligada" : "");
   Log.printf("# %u de %u OK -> %s\n", P.saude.tof_ok, P.saude.tof_total,
                 P.saude.pronto ? "PRONTO para lutar" : "NAO inicia (minimo TOF_MINIMO_PARA_LUTAR)");
 #if USAR_BORDA
@@ -77,6 +87,7 @@ static void lista() {
 static void scan() {
   Log.println(F("# varrendo I2C..."));
   uint8_t n = 0;
+  tof_i2c_pega();                       // o I2C fica reservado enquanto a varredura roda
   for (uint8_t a = 1; a < 127; a++) {
     Wire.beginTransmission(a);
     if (Wire.endTransmission() == 0) {
@@ -87,6 +98,7 @@ static void scan() {
       n++;
     }
   }
+  tof_i2c_solta();
   Log.printf("# %u dispositivo(s)\n", n);
 }
 
@@ -245,8 +257,9 @@ static void imprimeVer() {
 #endif
   static const char* RM[] = {"-", "ATACAR", "MIRAR", "PROVAVEL", "PROCURAR"};   // mesma ordem do RumoModo
   Log.printf(" | rumo %s %+4.0f", RM[P.rumo.modo < 5 ? P.rumo.modo : 0], P.rumo.angulo);
-  Log.printf(" | %-10s | mot %4d %4d | rodas %+4.0f %+4.0f mm/s | ToF %u/%u\n", estado_nome(estado_atual()),
-                motores_esq(), motores_dir(), cinematica_roda_esq(), cinematica_roda_dir(),
+  if (P.arena.valida) Log.printf(" | centro %+4.0f %4.0fmm (+-%3.0f)%s", P.arena.ang, P.arena.dist, P.arena.sigma, P.arena.confiavel ? "" : "?");
+  Log.printf(" | %-10s %s | mot %4d %4d | rodas %+4.0f %+4.0f mm/s | ToF %u/%u\n", estado_nome(estado_atual()),
+                estrategia_nome(estados_estrategia()), motores_esq(), motores_dir(), cinematica_roda_esq(), cinematica_roda_dir(),
                 P.saude.tof_ok, P.saude.tof_total);
 }
 
@@ -384,6 +397,8 @@ static void calBorda() {
 //     sigma*10,confianca*100,existe*100,rumoModo,rumoAng*10,buscaGanho*100
 //     (cx e cy são o centro do oponente; rumoModo: 0 nada, 1 atacar, 2 mirar, 3 provável, 4 procurar)
 //   Q,bordaConfirmada,bordaCru,mv0..mv3
+//   A,estrategia,escuro,dip,arenaValida,arenaConfiavel,cx,cy,sigma,aproximacao,contato,descartes
+//     (estrategia: 0 Rush, 1 Flank, 2 Fan out; cx e cy: centro do dojô no referencial do robô, mm)
 //   M,40,19,140,40,<mapa>       a cada MAPA_MS (formato explicado no rastreador.h)
 static void streamCabecalho() {
   for (uint8_t i = 0; i < N_TOF; i++) {
@@ -440,6 +455,23 @@ static void streamDados() {
   for (uint8_t i = 0; i < N_BORDA; i++) Log.printf(",%u", borda_mv(i));
   Log.println();
 #endif
+  bool ativa = estado_atual() != ESPERA;
+  Log.printf("A,%u,%u,%u,%u,%u,%d,%d,%d,%d,%u,%u\n", (unsigned)(ativa ? estados_estrategia() : chave_estrategia()),
+             (ativa ? estados_escuro() : chave_escuro()) ? 1 : 0, chave_bits(), P.arena.valida ? 1 : 0, P.arena.confiavel ? 1 : 0,
+             (int)lroundf(P.arena.cx), (int)lroundf(P.arena.cy), (int)lroundf(P.arena.sigma), (int)lroundf(P.op.aproximacao),
+             P.op.contato ? 1 : 0, tof_descartes());
+}
+
+// Comando arena: localização no dojô e espaço livre em 8 direções.
+static void arena() {
+  if (!P.arena.valida) { Log.println(F("# arena: a localizacao comeca no start (go)")); return; }
+  Log.printf("# centro do dojo a %.0f mm, %+.0f graus (incerteza %.0f mm, %s) | leituras de fora descartadas: %u\n",
+             P.arena.dist, P.arena.ang, P.arena.sigma, P.arena.confiavel ? "confiavel" : "ainda incerta", tof_descartes());
+  Log.print("# espaco ate a borda:");
+  for (int a = 0; a < 360; a += 45) Log.printf(" %+d:%.0f", a > 180 ? a - 360 : a, arena_livre(a > 180 ? a - 360 : a));
+  Log.println(" mm");
+  Log.printf("# passo do filtro: %lu us, pior %lu us desde o start (%d particulas a cada %d ms, no nucleo %d)\n",
+             (unsigned long)arena_us(), (unsigned long)arena_us_max(), ARENA_N, ARENA_PASSO_MS, xPortGetCoreID());
 }
 
 // Comando cin: números do modelo das rodas (cinematica.h), calculados a partir do config.h.
@@ -488,13 +520,29 @@ static void executa(char* c) {
     Log.printf("# ciclo atual %lu us | pior %lu us (%.0f Hz no pior caso)\n", (unsigned long)P.saude.ciclo_us,
                   (unsigned long)P.saude.ciclo_us_max, P.saude.ciclo_us_max ? 1e6 / P.saude.ciclo_us_max : 0.0);
     Log.printf("# fusao: %s", oponente_bayes() ? "rastreador bayesiano" : "simples");
-    if (oponente_bayes()) Log.printf(" | passo %lu us, pior %lu us (a cada %d ms)", (unsigned long)rastreador_us(),
-                                     (unsigned long)rastreador_us_max(), TOF_TIMING_US / 1000);
+    if (oponente_bayes()) Log.printf(" | passo %lu us, pior %lu us (a cada %d ms, no nucleo %d)", (unsigned long)rastreador_us(),
+                                     (unsigned long)rastreador_us_max(), (tof_perfil_escuro() ? ESCURO_TIMING_US : TOF_TIMING_US) / 1000,
+                                     SENSORES_NUCLEO);
     Log.printf(" | linhas de dados descartadas na USB: %lu\n", (unsigned long)telemetria_descartes_usb());
     P.saude.ciclo_us_max = 0;
     rastreador_us_zera();
   }
   else if (!strcmp(c, "cin"))    cin();
+  else if (!strcmp(c, "arena"))  arena();
+  else if (!strncmp(c, "estrategia ", 11) || !strncmp(c, "perfil ", 7)) {
+    bool estr = c[0] == 'e';
+    const char* v = c + (estr ? 11 : 7);
+    if (estado_atual() != ESPERA) Log.println(F("! pare o robo antes (stop): a escolha fica travada durante a luta"));
+    else if (estr) {
+      int8_t e = !strcmp(v, "rush") ? RUSH : !strcmp(v, "flank") ? FLANK : !strncmp(v, "fan", 3) ? FAN_OUT : -1;
+      if (e < 0 && strcmp(v, "chave")) Log.println(F("! uso: estrategia rush|flank|fan|chave"));
+      else { chave_forca_estrategia(e); Log.printf("# estrategia: %s%s\n", estrategia_nome(chave_estrategia()), e < 0 ? " (chave DIP)" : " (comando)"); }
+    } else {
+      int8_t e = !strcmp(v, "claro") ? 0 : !strcmp(v, "escuro") ? 1 : -1;
+      if (e < 0 && strcmp(v, "chave")) Log.println(F("! uso: perfil claro|escuro|chave"));
+      else { chave_forca_escuro(e); Log.printf("# perfil do oponente: %s%s\n", chave_escuro() ? "ESCURO" : "CLARO", e < 0 ? " (chave DIP 4)" : " (comando)"); }
+    }
+  }
   else if (!strncmp(c, "mov ", 4)) {
     float v = 0, w = 0; int ms = 0;
     if (sscanf(c + 4, "%f %f %d", &v, &w, &ms) == 3 && ms > 0) estados_teste_mov(v, w, (uint16_t)(ms > 3000 ? 3000 : ms));

@@ -9,8 +9,22 @@
 #include "percepcao.h"
 
 uint8_t  tof_init();                  // ligação dos sensores um por um pelo XSHUT e troca de endereço; o retorno é quantos responderam
-uint8_t  tof_reinicia_falhos();       // nova tentativa nos que falharam (bloqueia uns 120 ms por sensor)
-void     tof_atualiza();              // leitura sem bloqueio, chamada em toda volta do loop
+                                      // (no fim, a tarefa dos sensores começa no núcleo SENSORES_NUCLEO)
+uint8_t  tof_reinicia_falhos();       // nova tentativa nos que falharam (bloqueia uns 20 ms por sensor)
+void     tof_atualiza();              // sem a tarefa do núcleo 0, faz a leitura e o passo do rastreador no loop
+void     tof_libera_manutencao(bool sim);   // nova tentativa automática nos sensores que caíram (só parado)
+void     tof_perfil(bool escuro);     // perfil do oponente pedido pela chave DIP 4 (aplicado pela tarefa)
+bool     tof_perfil_escuro();         // perfil já aplicado nos sensores
+void     oponente_borda_tras(bool branco);  // borda de trás no branco: os ToF de trás ignoram o que fica além dela
+void     tof_i2c_pega();              // reserva do I2C para comandos do terminal (scan, init)
+void     tof_i2c_solta();
+uint16_t tof_descartes();             // leituras descartadas por cair fora do dojô (contador)
+// Sensores com leitura abaixo de TOF_MIN_MM nos últimos janela_ms (bit i = TOF[i]): algo
+// encostado no robô daquele lado. O rastreador não usa essa leitura (fica abaixo do mínimo do
+// VL53L0X), mas ela indica contato, e com contato o movimento das rodas não é confiável.
+uint16_t tof_colados(uint16_t janela_ms);
+// Sensores com leitura colada antes da luta (obstrução): o aviso aparece no comando "tof"
+uint16_t tof_obstruidos();
 bool     tof_ok(uint8_t i);           // true quando o sensor i está respondendo
 uint16_t tof_mascara_ok();            // bit i ligado quando TOF[i] está OK
 int16_t  tof_mm(uint8_t i);           // leitura corrigida e filtrada em mm (-1 quando não tem nada)

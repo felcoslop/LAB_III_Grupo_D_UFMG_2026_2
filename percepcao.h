@@ -10,6 +10,7 @@
 
 #pragma once
 #include <Arduino.h>
+#include "arena.h"
 
 // Informação sobre o oponente, preenchida pelo oponente.cpp (com ajuda do rastreador.cpp).
 struct Oponente {
@@ -27,6 +28,9 @@ struct Oponente {
   float    existe;         // de 0 a 1: chance de existir oponente no alcance (arena vazia fica perto de 0)
   float    busca_ang;      // sem ver o oponente: giro em graus que leva os sensores aos pontos cegos
   float    busca_ganho;    // de 0 a 1: parte do mapa que esse giro consegue cobrir
+  float    aproximacao;    // velocidade com que o oponente vem na direção do robô (mm/s, positivo chegando)
+  bool     contato;        // oponente colado na frente (ou visto colado há menos de T_SEGURA_CONTATO_MS)
+  uint16_t colados;        // ToF com algo encostado (leitura abaixo do mínimo) nos últimos 150 ms, bit i = TOF[i]
 };
 
 // Rumo é a direção que o robô deve seguir agora, e corresponde à seta do painel.
@@ -70,6 +74,7 @@ struct Percepcao {
   Oponente op;
   Rumo     rumo;           // direção a seguir (oponente ou busca)
   Borda    borda;
+  Arena    arena;          // onde fica o centro do dojô visto do robô (arena.cpp)
   Saude    saude;
   bool     start;          // botão de início apertado (evento que dura uma volta do loop)
 };
@@ -78,4 +83,4 @@ extern Percepcao P;      // a variável fica no percepcao.cpp e é lida por esta
 
 void percepcao_init();
 void percepcao_atualiza();     // uma chamada por volta do loop, antes da máquina de estados
-void percepcao_manutencao();   // função usada só com o robô parado, para religar sensores que falharam
+void percepcao_manutencao(bool parado);   // com o robô parado, libera a nova tentativa nos sensores que falharam

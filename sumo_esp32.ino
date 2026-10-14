@@ -37,6 +37,6 @@ void loop() {
   percepcao_atualiza();    // passo 1: a percepção lê todos os sensores e monta a struct P
   estados_passo();         // passo 2: a máquina de estados decide e comanda os motores
   // com o robô parado (e fora dos testes mov e pwm), o código tenta religar sensor que caiu
-  if (estado_atual() == ESPERA && !estados_teste_ativo()) percepcao_manutencao();
+  percepcao_manutencao(estado_atual() == ESPERA && !estados_teste_ativo());
   debug_passo();           // passo 3: o debug trata os comandos e envia os dados para o painel pela USB
 }

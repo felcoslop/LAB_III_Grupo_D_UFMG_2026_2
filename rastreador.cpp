@@ -4,9 +4,10 @@
 // oponente estar naquela célula, e a soma de todas as células é 1. Tudo o que depende só
 // da geometria (o que cada sensor deveria ler para cada célula) é calculado uma vez no
 // rastreador_init; durante a luta sobram multiplicações com tabelas, sem trigonometria.
-// O filtro custa alguns ms por passo, então ele roda numa tarefa do FreeRTOS no núcleo 0
-// (RASTREADOR_NUCLEO), enquanto o loop do robô continua no núcleo 1. O oponente.cpp entrega
-// as medidas pelo rastreador_passo e lê o resultado pelo rastreador_estimativa.
+// O filtro custa alguns ms por passo e roda dentro da tarefa dos sensores, no núcleo 0
+// (SENSORES_NUCLEO), logo depois da leitura dos ToF; o loop do robô continua no núcleo 1 e lê o
+// resultado pelo rastreador_estimativa. Sem a tarefa (SENSORES_NUCLEO -1, ou no computador), o
+// passo roda dentro do próprio loop.
 
 #include "rastreador.h"
 #include "config.h"
@@ -27,7 +28,7 @@ static const float MEIO_CONE = 12.5f;                // VL53L0X: cone de 25 grau
 static const float RE   = OPONENTE_LADO_MM * 0.526f; // centro até a face "vista"
 static const float RP   = OPONENTE_LADO_MM * 0.7071f;// centro até o canto (meia diagonal)
 static const float RL   = OPONENTE_LADO_MM * 0.46f;  // folga mínima até o corpo do robô
-static const float C0   = 0.02f / TOF_ALCANCE_MM;    // chance de leitura estranha (reflexo ou ruído)
+static float      C0   = 0.02f / TOF_ALCANCE_MM;    // chance de leitura estranha (reflexo ou ruído)
 static const float MISTURA = 0.003f;                 // 0,3% espalhado no mapa para reencontrar o oponente se o mapa errar
 // Existência, por passo de 20 ms. Na simulação a arena vazia fica com existe perto de 0,03,
 // uma leitura falsa isolada chega no máximo a 0,07, o oponente de verdade é confirmado em
@@ -56,25 +57,30 @@ static float     swp[NB];                   // rascunho da busca (cobertura acum
 static float     ext[NB + 2 * PAD];         // anel estendido com as pontas repetidas (convolução circular)
 static float     kern[2 * PAD + 2];         // núcleo gaussiano da convolução
 
+static float     cosB[NB], sinB[NB];        // direção do centro de cada coluna, para a arena
+
+// Perfil do oponente: o claro usa os valores medidos na bancada; o escuro troca o alcance do
+// modelo de detecção, a chance máxima de ver o alvo, as leituras falsas e o ruído (config.h).
+static float      pAlcance = ALCANCE_PRETO_MM, pdMax = 0.95f, ruidoFator = 1.0f;
+static bool       perfilEscuro = false;
+
 static Estimativa est;                      // estimativa atual (só a tarefa escreve)
 static float      rExiste = 0;              // probabilidade de o oponente estar no alcance
 static uint32_t   passos = 0;               // contador de passos, usado para mandar o mapa a cada 5
 
-// ==================== troca de dados entre o loop (núcleo 1) e a tarefa (núcleo 0) ====================
+// ==================== troca de dados entre a tarefa dos sensores (núcleo 0) e o loop (núcleo 1) ====================
 // A trava (spinlock) protege as variáveis lidas pelos dois núcleos ao mesmo tempo.
-#if defined(ARDUINO_ARCH_ESP32) && RASTREADOR_NUCLEO >= 0
+#if defined(ARDUINO_ARCH_ESP32)
 #include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
 static portMUX_TYPE trava = portMUX_INITIALIZER_UNLOCKED;
 #define TRAVA()    portENTER_CRITICAL(&trava)
 #define DESTRAVA() portEXIT_CRITICAL(&trava)
-static TaskHandle_t tarefa = nullptr;
 #else
 #define TRAVA()
 #define DESTRAVA()
 #endif
 
-// pacote de medidas que o loop deixa para a tarefa processar
+// pacote de medidas de um passo
 struct Entrada {
   int16_t z[N_TOF];
   bool    novo[N_TOF];
@@ -84,6 +90,8 @@ struct Entrada {
   bool    conhecido;
   bool    tem;            // existem medidas esperando
   bool    zera;           // pedido para recomeçar o mapa
+  bool    arena;          // localização recebida: posições fora do dojô perdem probabilidade
+  Arena   ar;             // hipóteses do centro do dojô (referencial do robô, mm)
 };
 static Entrada    pend;                         // escrito pelo loop
 static Estimativa estPub;                       // publicado pela tarefa
@@ -107,12 +115,14 @@ float rastreador_alcance_sensor(uint8_t i) {
 static inline float dirCentro(int b) { return -180.0f + DB * 0.5f + DB * b; }
 static inline float anelCentro(int r) { return R0 + DR * r; }
 
-// Probabilidade de o ToF enxergar um robô preto a e mm (o preto devolve pouca luz).
+// Probabilidade de o ToF enxergar um robô preto a e mm (o preto devolve pouca luz). No perfil
+// claro, a curva é a medida na bancada (ALCANCE_PRETO_MM); no escuro, o alcance é maior e a
+// chance máxima é menor, porque o alvo preto pisca mais mesmo perto.
 static float pd(float e) {
-  const float P = ALCANCE_PRETO_MM;
-  if (e <= 0.7f * P) return 0.95f;
-  float v = 0.95f - 0.85f * (e - 0.7f * P) / (0.45f * P);
-  return v < 0.05f ? 0.05f : (v > 0.95f ? 0.95f : v);
+  const float P = pAlcance;
+  if (e <= 0.7f * P) return pdMax;
+  float v = pdMax - (pdMax - 0.1f) * (e - 0.7f * P) / (0.45f * P);
+  return v < 0.05f ? 0.05f : (v > pdMax ? pdMax : v);
 }
 
 // Leitura esperada do sensor i com o centro do oponente em (cx, cy); o retorno -1 indica
@@ -141,6 +151,33 @@ static float esperado(uint8_t i, float cx, float cy, float Rv, bool* dentro) {
     e = dd * cosf(delta) - (h > 0 ? sqrtf(h) : 0.0f);
   }
   return e < 5.0f ? 5.0f : e;
+}
+
+// Tabelas do modelo do sensor, que dependem do perfil do oponente.
+static void montaTabelas() {
+  // Tabela sem leitura: no meio do cone (must) o oponente quase certamente seria visto; na
+  // borda do cone a chance é menor; longe e preto ele pode passar despercebido (pd baixo).
+  for (int k = 0; k < 256; k++) {
+    float d = pd(4.0f * k);
+    Lno[k]       = k == Q_INVIS ? 1.0f : (1.0f - 0.4f * d) * 0.98f + 0.002f;
+    Lno[256 + k] = k == Q_INVIS ? 1.0f : (1.0f - d) * 0.98f + 0.002f;
+  }
+  // Tabela com leitura: o ruído do ToF cresce com a distância (sg = 12 mm + 3%)
+  for (int k = 0; k < 255; k++) {
+    float e = 4.0f * k, sg = (12.0f + 0.03f * e) * ruidoFator;
+    invSgK[k] = 1.0f / sg;
+    ampK[k] = pd(e) / (sg * 2.5066283f);
+  }
+}
+
+// Troca de perfil, chamada pela tarefa dos sensores (o mesmo núcleo que roda o filtro).
+void rastreador_perfil(bool escuro) {
+  perfilEscuro = escuro;
+  pAlcance   = escuro ? ESCURO_ALCANCE_MM : ALCANCE_PRETO_MM;
+  pdMax      = escuro ? ESCURO_PD_MAX : 0.95f;
+  ruidoFator = escuro ? ESCURO_RUIDO_FATOR : 1.0f;
+  C0         = 0.02f / TOF_ALCANCE_MM * (escuro ? ESCURO_FALSA_FATOR : 1.0f);
+  if (p) montaTabelas();
 }
 
 // liberação da memória quando algum malloc falha
@@ -197,20 +234,9 @@ bool rastreador_init() {
   }
   if (nLivre < 1) nLivre = 1;
 
-  // Tabela sem leitura: no meio do cone (must) o oponente quase certamente seria visto; na
-  // borda do cone a chance é menor; longe e preto ele pode passar despercebido (pd baixo).
-  for (int k = 0; k < 256; k++) {
-    float d = pd(4.0f * k);
-    Lno[k]       = k == Q_INVIS ? 1.0f : (1.0f - 0.4f * d) * 0.98f + 0.002f;
-    Lno[256 + k] = k == Q_INVIS ? 1.0f : (1.0f - d) * 0.98f + 0.002f;
-  }
-  // Tabela com leitura: o ruído do ToF cresce com a distância (sg = 12 mm + 3%)
-  for (int k = 0; k < 255; k++) {
-    float e = 4.0f * k, sg = 12.0f + 0.03f * e;
-    invSgK[k] = 1.0f / sg;
-    ampK[k] = pd(e) / (sg * 2.5066283f);
-  }
+  montaTabelas();
   for (int r = 0; r < NR; r++) grausPorMm[r] = K_GRAU / anelCentro(r);
+  for (int b = 0; b < NB; b++) { cosB[b] = cosf(dirCentro(b) * K_RAD); sinB[b] = sinf(dirCentro(b) * K_RAD); }
   for (int b = 0; b < NB; b++) {                    // parte de cada direção que cai em ±CENTRO_DEG
     float a0 = dirCentro(b) - DB / 2, a1 = a0 + DB;
     float lo = a0 > -CENTRO_DEG ? a0 : -CENTRO_DEG, hi = a1 < CENTRO_DEG ? a1 : CENTRO_DEG;
@@ -225,12 +251,6 @@ bool rastreador_init() {
   zeraMapa();
   memset(&pend, 0, sizeof(pend));
   estPub = est;
-#if defined(ARDUINO_ARCH_ESP32) && RASTREADOR_NUCLEO >= 0
-  // tarefa de prioridade baixa no outro núcleo, que fica livre porque o firmware não usa o rádio
-  extern void rastreadorTarefa(void*);
-  if (xTaskCreatePinnedToCore(rastreadorTarefa, "rastreador", 4096, nullptr, 1, &tarefa, RASTREADOR_NUCLEO) != pdPASS)
-    tarefa = nullptr;                             // sem tarefa o filtro roda no próprio loop
-#endif
   return true;
 }
 
@@ -238,7 +258,7 @@ bool rastreador_init() {
 // índice de anel refletido nas pontas, para a probabilidade não escapar da grade
 static inline int reflete(int r) { return r < 0 ? -r - 1 : (r >= NR ? 2 * NR - r - 1 : r); }
 
-static void predicao(float giro, bool conhecido, float avanco, float dt) {
+static void predicao(float giro, bool conhecido, float avanco, float dt, const Entrada& in) {
   // deslocamento máximo do oponente em relação ao robô neste passo
   float sp = (OP_VEL_MAX_MMS + fabsf(avanco)) * dt;
 
@@ -296,8 +316,27 @@ static void predicao(float giro, bool conhecido, float avanco, float dt) {
   // parte (c), regra: célula dentro do corpo do robô vale zero; o total serve para normalizar
   float tot = 0;
   for (int c = 0; c < NC; c++) { if (!livre[c]) p[c] = 0; tot += p[c]; }
+  // Parte (d), arena: com a localização do dojô (arena.cpp), a posição em que o centro do
+  // oponente cairia fora do dojô em praticamente todas as hipóteses perde a probabilidade, e a
+  // parte perdida sai da chance de existir oponente: um oponente fora do dojô já perdeu a luta.
+  // Assim pessoas, juiz e parede em volta do dojô não viram oponente, mesmo com leituras firmes.
+  // O limite de cada direção vem do arena_limite, o mesmo critério do descarte das leituras.
+  if (in.arena && tot > 1e-30f) {
+    float fora = 0;
+    for (int b = 0; b < NB; b++) {
+      const float lim = arena_limite(in.ar, cosB[b], sinB[b]);
+      for (int r = NR - 1; r >= 0 && anelCentro(r) > lim; r--) {
+        float& c = p[r * NB + b];
+        fora += c; c *= 0.02f;
+      }
+    }
+    float tira = fora * 0.98f;
+    rExiste *= 1.0f - tira / tot;
+    tot -= tira;
+    if (rExiste < 1e-4f) rExiste = 1e-4f;
+  }
   if (!(tot > 1e-30f)) { zeraMapa(); return; }
-  // Parte (d), existência: o oponente pode sumir (sair do alcance ou ser tirado) ou
+  // Parte (e), existência: o oponente pode sumir (sair do alcance ou ser tirado) ou
   // aparecer em qualquer lugar livre. O mapa p[] continua sendo "onde está, se estiver".
   const float fica = rExiste * (1.0f - P_SOME), nasce = (1.0f - rExiste) * P_APARECE, rn = fica + nasce;
   const float a = (1.0f - MISTURA) * fica / rn / tot, u = (MISTURA * fica + nasce) / rn / nLivre;
@@ -453,10 +492,11 @@ static void processa(const Entrada& in) {
     uint32_t t0 = micros();
     float dt = in.dt < 0.005f ? 0.005f : (in.dt > 0.1f ? 0.1f : in.dt);
     float giro = in.dt > 0 ? in.angGiro / in.dt : 0;
-    predicao(giro, in.conhecido, in.avanco, dt);
+    predicao(giro, in.conhecido, in.avanco, dt, in);
     correcao(in.z, in.novo);
     estima(in.z);
     busca();
+    est.passo = passos + 1;
     uint32_t us = micros() - t0;
     static char m[MAPA_NB * MAPA_NR + 4];
     uint16_t n = (passos++ % 5 == 0) ? fazMapa(m, sizeof(m)) : 0;      // mapa do painel a cada 5 passos
@@ -483,48 +523,32 @@ static Entrada pegaPendente() {
   return in;
 }
 
-#if defined(ARDUINO_ARCH_ESP32) && RASTREADOR_NUCLEO >= 0
-// laço infinito da tarefa: ela dorme até o loop avisar que chegaram medidas
-void rastreadorTarefa(void*) {
-  for (;;) {
-    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);       // a tarefa dorme até o aviso do rastreador_passo
-    Entrada in = pegaPendente();
-    if (in.tem || in.zera) processa(in);
-  }
-}
-static inline bool temTarefa() { return tarefa != nullptr; }
-static inline void acorda() { xTaskNotifyGive(tarefa); }
-#else
-static inline bool temTarefa() { return false; }
-static inline void acorda() {}
-#endif
-
-// O oponente.cpp chama esta função a cada 20 ms: as medidas vão para o pacote e a tarefa acorda.
+// O oponente.cpp chama esta função a cada medida nova dos ToF (20 ms no perfil claro), dentro da
+// tarefa dos sensores, e o passo roda na hora.
 void rastreador_passo(const int16_t* z, const bool* novo, float giro_dps, bool giroConhecido,
-                      float avanco_mms, float dt) {
+                      float avanco_mms, float dt, const Arena* arena) {
   if (!p) return;
   TRAVA();
   for (uint8_t i = 0; i < N_TOF; i++) {
     if (novo[i]) { pend.novo[i] = true; pend.z[i] = z[i]; }     // medida nova
     else if (!pend.novo[i]) pend.z[i] = z[i];                   // sem medida nova fica a última leitura, só para conferir a máscara
   }
-  // se a tarefa atrasar, os giros e os tempos vão somando até o próximo passo
   pend.angGiro += giro_dps * dt;
   pend.dt += dt;
   pend.conhecido = giroConhecido;
   if (fabsf(avanco_mms) > fabsf(pend.avanco)) pend.avanco = avanco_mms;
+  pend.arena = arena != nullptr;
+  if (pend.arena) pend.ar = *arena;
   pend.tem = true;
   DESTRAVA();
-  if (temTarefa()) acorda();
-  else processa(pegaPendente());
+  processa(pegaPendente());
 }
 
 // pedido para recomeçar o mapa (usado quando os sensores são iniciados de novo)
 void rastreador_zera() {
   if (!p) return;
   TRAVA(); pend.zera = true; DESTRAVA();
-  if (temTarefa()) acorda();
-  else processa(pegaPendente());
+  processa(pegaPendente());
 }
 
 // leituras protegidas pela trava, chamadas pelo oponente.cpp e pelo debug.cpp
@@ -532,7 +556,7 @@ Estimativa rastreador_estimativa() { TRAVA(); Estimativa e = estPub; DESTRAVA();
 uint32_t rastreador_us()      { TRAVA(); uint32_t v = usUlt; DESTRAVA(); return v; }
 uint32_t rastreador_us_max()  { TRAVA(); uint32_t v = usMax; DESTRAVA(); return v; }
 void     rastreador_us_zera() { TRAVA(); usMax = 0; DESTRAVA(); }
-bool     rastreador_paralelo(){ return temTarefa(); }
+bool     rastreador_escuro()  { return perfilEscuro; }
 
 // ==================== mapa para o painel (blocos de 3 direções por 2 anéis) ====================
 // cópia do último mapa comprimido pronto (usada pelo debug.cpp no stream)

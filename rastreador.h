@@ -22,6 +22,7 @@
 #pragma once
 #include <Arduino.h>
 #include "config.h"
+#include "arena.h"
 
 // grade polar: 120 direções de 3 graus e anéis de 20 mm, de 150 mm até o alcance
 #define RAST_NB  120
@@ -33,8 +34,12 @@ void  rastreador_zera();     // mapa de volta para "pode estar em qualquer lugar
 // z[i]: leitura corrigida do sensor i em mm (-1 sem nada); novo[i]: medida nova desde o último passo
 // giro_dps: giro do robô (positivo é esquerda); giroConhecido indica que o valor veio dos motores
 // avanco_mms: velocidade do robô para a frente (só aumenta a incerteza da distância)
+// arena: localização no dojô (arena.h), para o mapa descartar posições fora do dojô (nullptr:
+// sem descarte)
 void  rastreador_passo(const int16_t* z, const bool* novo, float giro_dps, bool giroConhecido,
-                       float avanco_mms, float dt);
+                       float avanco_mms, float dt, const Arena* arena);
+void  rastreador_perfil(bool escuro);   // modelo do sensor para oponente claro ou escuro (config.h)
+bool  rastreador_escuro();
 
 // Resultado de cada passo do filtro, lido pelo oponente.cpp
 struct Estimativa {
@@ -50,12 +55,12 @@ struct Estimativa {
   float    buscaAng;     // giro em graus que faz os cones varrerem mais probabilidade
                          // (na prática, olhar os pontos cegos onde ele pode estar)
   float    buscaGanho;   // parte do mapa que esse giro vai cobrir (0 a 1)
+  uint32_t passo;        // contador de passos do filtro (muda a cada estimativa nova)
 };
 Estimativa rastreador_estimativa();   // última estimativa pronta (cópia protegida entre os núcleos)
 // Maior leitura do sensor i que ainda cai dentro do círculo de raio TOF_ALCANCE_MM em volta do
 // centro do robô (exemplo: FC na ponta da frente, 542 - 87 = 455 mm). Mais longe vira "nada".
 float    rastreador_alcance_sensor(uint8_t i);
-bool     rastreador_paralelo();       // true quando o filtro roda em uma tarefa no outro núcleo
 uint32_t rastreador_us();       // duração do último passo em microssegundos
 uint32_t rastreador_us_max();   // pior passo desde o último rastreador_us_zera()
 void     rastreador_us_zera();
