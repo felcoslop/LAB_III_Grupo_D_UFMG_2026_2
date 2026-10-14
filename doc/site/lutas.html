@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Lutas simuladas com o firmware de verdade do robô sumô do Grupo D (UFMG, Lab. de Sistemas III): estratégias Rush, Flank e Fan out contra oponentes de vários tipos.">
+<title>Lutas Simuladas do Sumô</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Mesmo visual da página da cinemática (index.html): dojô visto de cima à esquerda e a leitura
+   do firmware à direita. Os dados vêm dos rastros em lutas/, gerados pelo simulador no CI. */
+:root {
+  --papel: #eef1ef; --painel: #f8faf9; --tinta: #15191c; --tinta2: #4c5760; --linha: #c9d1cd;
+  --dojo: #121416; --faixa: #f4f4f0; --mesa: #d9ddd9; --shikiri: #7a4a2a;
+  --rodaE: #2a6fdb; --rodaD: #d07a12; --borda: #cf2e2e; --ok: #1f8a4c;
+  --robo: #2f8f5b; --oponente: #b03a3a; --pessoa: #8a949b; --arena: #2a6fdb; --rastro: rgba(47, 143, 91, 0.55);
+  --fonte-titulo: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --fonte-texto: "Source Sans 3", "Segoe UI", Roboto, sans-serif;
+  --fonte-dado: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --papel: #121618; --painel: #1a1f22; --tinta: #e6ebe8; --tinta2: #9aa6ad; --linha: #2c3438;
+    --dojo: #050607; --faixa: #e9e9e2; --mesa: #2a3033; --shikiri: #9a6a4a; --rodaE: #5b95f0; --rodaD: #f0a03a;
+    --borda: #f05a5a; --ok: #3fbf74; --robo: #4cc184; --oponente: #e06a6a; --pessoa: #6d777e; --arena: #6fa4f5;
+    --rastro: rgba(76, 193, 132, 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --papel: #121618; --painel: #1a1f22; --tinta: #e6ebe8; --tinta2: #9aa6ad; --linha: #2c3438;
+  --dojo: #050607; --faixa: #e9e9e2; --mesa: #2a3033; --shikiri: #9a6a4a; --rodaE: #5b95f0; --rodaD: #f0a03a;
+  --borda: #f05a5a; --ok: #3fbf74; --robo: #4cc184; --oponente: #e06a6a; --pessoa: #6d777e; --arena: #6fa4f5;
+  --rastro: rgba(76, 193, 132, 0.5);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--papel); color: var(--tinta); font-family: var(--fonte-texto); font-size: 15px; line-height: 1.5; margin: 0; padding-inline: 16px; padding-block: 20px 48px; }
+.pagina { max-width: 1160px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 600; letter-spacing: 0.01em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.05; }
+h2 { font-size: 26px; }
+p { margin: 0; max-width: 70ch; }
+a { color: var(--arena); }
+.rotulo { font-family: var(--fonte-titulo); font-size: 13px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--tinta2); }
+.dado { font-family: var(--fonte-dado); font-variant-numeric: tabular-nums; }
+header { display: grid; gap: 10px; }
+.sub { color: var(--tinta2); }
+.bancada { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .bancada { grid-template-columns: minmax(0, 1fr); } }
+.palco, .leitura, .cartao { background: var(--painel); border: 1px solid var(--linha); border-radius: 10px; padding: 12px; display: grid; gap: 10px; min-width: 0; }
+.leitura { padding: 14px; gap: 14px; }
+canvas { width: 100%; height: auto; aspect-ratio: 1 / 1; display: block; border-radius: 6px; }
+.controles { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.controles input[type="range"] { flex: 1 1 160px; accent-color: var(--tinta); }
+button, select { font: 600 14px var(--fonte-texto); color: var(--tinta); background: var(--papel); border: 1px solid var(--linha); border-radius: 6px; padding: 7px 10px; }
+button { cursor: pointer; }
+button:hover, select:hover { border-color: var(--tinta2); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--rodaE); outline-offset: 2px; }
+button.primario { background: var(--tinta); color: var(--papel); border-color: var(--tinta); min-width: 84px; }
+.escolhas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; background: var(--painel); border: 1px solid var(--linha); border-radius: 10px; padding: 12px; }
+@media (max-width: 640px) { .escolhas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.escolhas label { display: grid; gap: 4px; font-size: 13px; color: var(--tinta2); }
+.estado-linha { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; justify-content: space-between; }
+.chip { font-family: var(--fonte-titulo); font-size: 22px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 12px; border-radius: 999px; border: 2px solid currentColor; color: var(--tinta); }
+.chip.borda { color: var(--borda); }
+.relogio { font-family: var(--fonte-dado); font-size: 20px; }
+.linhas { display: grid; border-top: 1px solid var(--linha); }
+.linhas div { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--linha); font-size: 14px; }
+.linhas span:last-child { font-family: var(--fonte-dado); font-size: 13px; text-align: right; }
+.rodas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.roda { display: grid; gap: 4px; }
+.roda .nome { font-family: var(--fonte-titulo); font-size: 15px; font-weight: 600; }
+.roda.e .nome { color: var(--rodaE); } .roda.d .nome { color: var(--rodaD); }
+.barra { position: relative; height: 14px; background: var(--papel); border: 1px solid var(--linha); border-radius: 3px; overflow: hidden; }
+.barra::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--tinta2); }
+.barra i { position: absolute; top: 0; bottom: 0; }
+.roda.e .barra i { background: var(--rodaE); } .roda.d .barra i { background: var(--rodaD); }
+.legenda { display: grid; gap: 6px; font-size: 13px; color: var(--tinta2); }
+.legenda span { display: flex; gap: 8px; align-items: center; }
+.legenda i { width: 22px; height: 0; border-top: 3px solid; flex: none; }
+.dica { font-size: 13px; color: var(--tinta2); }
+.aviso { font-size: 14px; color: var(--borda); }
+.secao { display: grid; gap: 14px; }
+.tabela { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--linha); }
+th { font-family: var(--fonte-titulo); font-size: 15px; font-weight: 600; letter-spacing: 0.03em; }
+td.num { font-family: var(--fonte-dado); font-size: 13px; white-space: nowrap; }
+.fontes { font-size: 13.5px; color: var(--tinta2); display: grid; gap: 4px; }
+.fontes a { color: var(--tinta2); }
+</style>
+</head>
+<body>
+<div class="pagina">
+  <header>
+    <span class="rotulo">Grupo D · ELE635 Lab. de Sistemas III · software in the loop</span>
+    <h1>Lutas Simuladas com o Firmware</h1>
+    <p class="sub">Cada luta abaixo roda o código do ESP32 de verdade (percepção, ToF, rastreador, localização no dojô, borda, máquina de estados, cinemática e motores) compilado junto com um mundo simulado: física das rodas, sensores com ruído, um oponente com inteligência própria e pessoas paradas em volta do dojô. O GitHub Actions gera estes rastros a cada mudança na <code>main</code>, então a página mostra sempre o firmware atual.</p>
+  </header>
+
+  <div class="escolhas">
+    <label>Estratégia (DIP 1 a 3)<select id="sEstr"></select></label>
+    <label>Oponente<select id="sOp"></select></label>
+    <label>Cor do oponente (DIP 4)<select id="sCor"></select></label>
+    <label>Largada<select id="sSem"></select></label>
+  </div>
+
+  <section class="bancada" aria-label="Luta">
+    <div class="palco">
+      <canvas id="tela" width="900" height="900" aria-label="Dojô visto de cima com os dois robôs"></canvas>
+      <div class="controles">
+        <button id="tocar" class="primario" type="button">Pausar</button>
+        <input id="linha" type="range" min="0" max="1" step="0.01" value="0" aria-label="Instante da luta">
+        <select id="vel" aria-label="Velocidade">
+          <option value="0.25">0,25x</option>
+          <option value="0.5">0,5x</option>
+          <option value="1" selected>1x</option>
+          <option value="2">2x</option>
+        </select>
+      </div>
+      <p class="dica">O tempo zero é o fim dos 5 s parados da regra. Os robôs começam como manda a CoRA: cada um na sua metade, atrás da linha Shikiri, virado para qualquer lado.</p>
+    </div>
+
+    <div class="leitura" aria-live="polite">
+      <div class="estado-linha">
+        <span id="chip" class="chip">-</span>
+        <span id="relogio" class="relogio">-</span>
+      </div>
+      <div class="linhas">
+        <div><span>Resultado</span><span id="res">-</span></div>
+        <div><span>Oponente na estimativa</span><span id="opv">-</span></div>
+        <div><span>Localização no dojô</span><span id="arena">-</span></div>
+      </div>
+      <div class="rodas">
+        <div class="roda e"><span class="nome">Roda esquerda</span><div class="barra"><i id="be"></i></div><span class="dado" id="te" style="font-size:13px">PWM 0</span></div>
+        <div class="roda d"><span class="nome">Roda direita</span><div class="barra"><i id="bd"></i></div><span class="dado" id="td" style="font-size:13px">PWM 0</span></div>
+      </div>
+      <div class="legenda">
+        <span><i style="border-color:var(--robo)"></i>robô do Grupo D e o caminho dos últimos 3 s</span>
+        <span><i style="border-color:var(--oponente)"></i>oponente (15,2 x 15,2 cm) e, tracejado, onde o firmware acha que ele está</span>
+        <span><i style="border-color:var(--arena);border-top-style:dashed"></i>dojô onde a localização acha que ele está (filtro de partículas)</span>
+        <span><i style="border-color:var(--pessoa)"></i>pessoas paradas fora do dojô, que o robô não pode perseguir</span>
+      </div>
+      <p id="erro" class="aviso" hidden></p>
+    </div>
+  </section>
+
+  <section class="secao" id="secPlacar" aria-label="Placar" hidden>
+    <h2>Placar da bateria do CI</h2>
+    <p class="sub" id="placarTxt">-</p>
+    <div class="cartao"><div class="tabela"><table id="placar"></table></div></div>
+  </section>
+
+  <section class="fontes" aria-label="Fontes">
+    <span class="rotulo">Mais</span>
+    <span><a href="./">Simulador da cinemática</a>, com as mesmas contas do firmware rodando no navegador. Código, testes e o simulador de lutas (<code>teste/sim</code>): <a href="https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2" target="_blank" rel="noopener">repositório do Grupo D no GitHub</a>.</span>
+    <span>Estratégias: proposta do Grupo D (Rush, Flank e Fan out) e Sumo Robot Blackbook, capítulos 10 e 11. Localização: THRUN, S.; BURGARD, W.; FOX, D. Probabilistic Robotics. MIT Press, 2005.</span>
+  </section>
+</div>
+
+<script>
+// Quadro do rastro (teste/sim/luta.cpp, gravaRastro): t, x, y, rumo, oponente x, y, rumo,
+// estado, oponente visto, estimativa x, y, PWM esquerdo, PWM direito, centro do dojô estimado
+// x, y, incerteza e confiável. Distâncias em mm no referencial do dojô (centro na origem).
+const Q = { T: 0, X: 1, Y: 2, TH: 3, OX: 4, OY: 5, OTH: 6, EST: 7, VISTO: 8, EX: 9, EY: 10, PE: 11, PD: 12, AX: 13, AY: 14, AS: 15, AC: 16 };
+const R_DOJO = 385, FAIXA = 25, LADO = 152;
+const NOME_ESTR = { rush: "Rush", flank: "Flank", fan_out: "Fan out" };
+const NOME_OP = { parado: "parado", rapido: "rápido", lento: "lento e forte", errante: "errante", pesado: "pesado", espelho: "espelho" };
+const NOME_COR = { claro: "claro", escuro: "escuro" };
+const FUGA = ["RECUO", "GIRO_BORDA", "AVANCO_BORDA", "SAIDA_LATERAL"];
+const $ = id => document.getElementById(id);
+const fmt = (x, d = 1) => x.toFixed(d).replace(".", ",").replace("-", "−");
+const cor = nome => getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
+
+let indice = null, luta = null, t = 0, tocando = true, tAnt = null;
+const cache = new Map();
+
+function opcoes(sel, valores, nomes) {
+  sel.innerHTML = "";
+  for (const v of valores) { const o = document.createElement("option"); o.value = v; o.textContent = nomes ? (nomes[v] || v) : v; sel.appendChild(o); }
+}
+function unicos(campo) { return [...new Set(indice.lutas.map(l => l[campo]))]; }
+
+async function carregaIndice() {
+  try {
+    const r = await fetch("lutas/indice.json", { cache: "no-cache" });
+    if (!r.ok) throw new Error(r.status);
+    indice = await r.json();
+  } catch (e) {
+    $("erro").hidden = false;
+    $("erro").textContent = "Rastros não encontrados. A página precisa ser aberta pelo GitHub Pages, que gera a pasta lutas/ com o simulador.";
+    return;
+  }
+  opcoes($("sEstr"), unicos("estrategia"), NOME_ESTR);
+  opcoes($("sOp"), unicos("oponente"), NOME_OP);
+  opcoes($("sCor"), unicos("cor"), NOME_COR);
+  const sem = unicos("semente");
+  opcoes($("sSem"), sem, Object.fromEntries(sem.map((s, i) => [s, "largada " + (i + 1)])));
+  for (const id of ["sEstr", "sOp", "sCor", "sSem"]) $(id).addEventListener("change", escolhe);
+  escolhe();
+  carregaPlacar();
+}
+
+async function escolhe() {
+  const l = indice.lutas.find(x => x.estrategia === $("sEstr").value && x.oponente === $("sOp").value &&
+                                   x.cor === $("sCor").value && String(x.semente) === $("sSem").value);
+  if (!l) return;
+  if (!cache.has(l.arquivo)) {
+    const r = await fetch("lutas/" + l.arquivo);
+    cache.set(l.arquivo, await r.json());
+  }
+  luta = cache.get(l.arquivo);
+  const q = luta.quadros;
+  luta.t0 = Math.max(q[0][Q.T], luta.liberado - 0.4);
+  luta.t1 = q[q.length - 1][Q.T];
+  $("linha").min = luta.t0; $("linha").max = luta.t1; $("linha").step = 0.02;
+  t = luta.t0; tocando = true; $("tocar").textContent = "Pausar";
+  const txt = { 1: "vitória", "-1": "derrota (empurrado)", "-2": "queda própria", 0: "empate" }[luta.resultado];
+  $("res").textContent = txt + (luta.resultado !== 0 ? " em " + fmt(luta.tempo, 2) + " s" : "");
+  desenha();
+}
+
+// quadro no instante t, com interpolação linear entre os dois quadros vizinhos
+function quadro(tt) {
+  const q = luta.quadros;
+  let a = 0, b = q.length - 1;
+  if (tt <= q[0][Q.T]) return q[0];
+  if (tt >= q[b][Q.T]) return q[b];
+  while (b - a > 1) { const m = (a + b) >> 1; if (q[m][Q.T] <= tt) a = m; else b = m; }
+  const f = (tt - q[a][Q.T]) / (q[b][Q.T] - q[a][Q.T]);
+  const r = q[a].slice();
+  for (const k of [Q.X, Q.Y, Q.OX, Q.OY, Q.EX, Q.EY]) r[k] = q[a][k] + (q[b][k] - q[a][k]) * f;
+  for (const k of [Q.TH, Q.OTH]) { let d = q[b][k] - q[a][k]; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; r[k] = q[a][k] + d * f; }
+  return r;
+}
+
+function quadrado(g, X, Y, k, x, y, th, preenche, traco, tracejado) {
+  const h = LADO / 2, c = Math.cos(th), s = Math.sin(th);
+  g.beginPath();
+  for (const [px, py] of [[h, h], [h, -h], [-h, -h], [-h, h]]) g.lineTo(X(x + px * c - py * s), Y(y + px * s + py * c));
+  g.closePath();
+  if (preenche) { g.fillStyle = preenche; g.fill(); }
+  if (traco) { g.setLineDash(tracejado ? [8, 6] : []); g.strokeStyle = traco; g.lineWidth = 3; g.stroke(); g.setLineDash([]); }
+}
+
+function desenha() {
+  const tela = $("tela"), g = tela.getContext("2d"), W = tela.width, H = tela.height;
+  // vista até 41 cm além da borda; pessoas mais longe ficam fora do quadro
+  const k = (W / 2 - 16) / 800, X = x => W / 2 + x * k, Y = y => H / 2 - y * k;
+  g.fillStyle = cor("--mesa"); g.fillRect(0, 0, W, H);
+  g.beginPath(); g.arc(X(0), Y(0), R_DOJO * k, 0, 2 * Math.PI); g.fillStyle = cor("--faixa"); g.fill();
+  g.beginPath(); g.arc(X(0), Y(0), (R_DOJO - FAIXA) * k, 0, 2 * Math.PI); g.fillStyle = cor("--dojo"); g.fill();
+  g.strokeStyle = cor("--shikiri"); g.lineWidth = 10 * k;
+  for (const sx of [-55, 55]) { g.beginPath(); g.moveTo(X(sx), Y(-50)); g.lineTo(X(sx), Y(50)); g.stroke(); }
+  if (!luta) return;
+  for (const [px, py, pr] of luta.fora) {
+    g.beginPath(); g.arc(X(px), Y(py), pr * k, 0, 2 * Math.PI); g.fillStyle = cor("--pessoa"); g.fill();
+  }
+  const f = quadro(t);
+  // caminho dos últimos 3 s
+  g.beginPath(); g.strokeStyle = cor("--rastro"); g.lineWidth = 3;
+  for (const q of luta.quadros) { if (q[Q.T] < t - 3 || q[Q.T] > t) continue; g.lineTo(X(q[Q.X]), Y(q[Q.Y])); }
+  g.stroke();
+  // dojô estimado pela localização
+  if (f[Q.AS] >= 0) {
+    const ca = cor("--arena");
+    g.setLineDash([10, 8]); g.strokeStyle = ca; g.lineWidth = 2; g.globalAlpha = f[Q.AC] ? 0.95 : 0.45;
+    g.beginPath(); g.arc(X(f[Q.AX]), Y(f[Q.AY]), R_DOJO * k, 0, 2 * Math.PI); g.stroke(); g.setLineDash([]);
+    g.beginPath(); g.arc(X(f[Q.AX]), Y(f[Q.AY]), Math.max(4, f[Q.AS] * k), 0, 2 * Math.PI); g.stroke();
+    g.beginPath(); g.moveTo(X(f[Q.AX] - 25), Y(f[Q.AY])); g.lineTo(X(f[Q.AX] + 25), Y(f[Q.AY]));
+    g.moveTo(X(f[Q.AX]), Y(f[Q.AY] - 25)); g.lineTo(X(f[Q.AX]), Y(f[Q.AY] + 25)); g.stroke();
+    g.globalAlpha = 1;
+  }
+  quadrado(g, X, Y, k, f[Q.OX], f[Q.OY], f[Q.OTH], cor("--oponente"), null);
+  quadrado(g, X, Y, k, f[Q.X], f[Q.Y], f[Q.TH], cor("--robo"), null);
+  // frente do robô do Grupo D
+  const c = Math.cos(f[Q.TH]), s = Math.sin(f[Q.TH]);
+  g.beginPath(); g.moveTo(X(f[Q.X]), Y(f[Q.Y])); g.lineTo(X(f[Q.X] + 110 * c), Y(f[Q.Y] + 110 * s));
+  g.strokeStyle = cor("--faixa"); g.lineWidth = 4; g.stroke();
+  if (f[Q.VISTO]) {
+    g.beginPath(); g.arc(X(f[Q.EX]), Y(f[Q.EY]), 60 * k, 0, 2 * Math.PI);
+    g.setLineDash([6, 5]); g.strokeStyle = cor("--oponente"); g.lineWidth = 3; g.stroke(); g.setLineDash([]);
+  }
+  // leitura
+  const nome = luta.estados[f[Q.EST]] || "?";
+  $("chip").textContent = nome;
+  $("chip").className = "chip" + (FUGA.includes(nome) ? " borda" : "");
+  $("relogio").textContent = fmt(t - luta.liberado, 2) + " s";
+  $("opv").textContent = f[Q.VISTO] ? "visto" : "não visto";
+  $("arena").textContent = f[Q.AS] < 0 ? "antes do start" : (f[Q.AC] ? "confiável" : "incerta") + ", ±" + Math.round(f[Q.AS]) + " mm";
+  for (const [lado, v] of [["e", f[Q.PE]], ["d", f[Q.PD]]]) {
+    const el = $("b" + lado), fr = Math.abs(v) / 255 * 50;
+    el.style.left = (v >= 0 ? 50 : 50 - fr) + "%"; el.style.width = fr + "%";
+    $("t" + lado).textContent = "PWM " + v;
+  }
+  $("linha").value = t;
+}
+
+function passo(agora) {
+  if (tAnt !== null && luta && tocando) {
+    t += Math.min(0.1, (agora - tAnt) / 1000) * parseFloat($("vel").value);
+    if (t >= luta.t1) { t = luta.t1; tocando = false; $("tocar").textContent = "Repetir"; }
+    desenha();
+  }
+  tAnt = agora;
+  requestAnimationFrame(passo);
+}
+
+async function carregaPlacar() {
+  let p;
+  try { const r = await fetch("lutas/placar.json", { cache: "no-cache" }); if (!r.ok) return; p = await r.json(); } catch (e) { return; }
+  const est = [...new Set(p.grupos.map(g => g.estrategia))], ops = [...new Set(p.grupos.map(g => g.oponente))];
+  const cores = [...new Set(p.grupos.map(g => g.cor))];
+  let h = "<thead><tr><th>Estratégia</th><th>Oponente</th>" + cores.map(c => "<th>" + (NOME_COR[c] || c) + "</th>").join("") + "</tr></thead><tbody>";
+  for (const e of est) for (const o of ops) {
+    h += "<tr><td>" + (NOME_ESTR[e.replace(" ", "_")] || e) + "</td><td>" + (NOME_OP[o] || o) + "</td>";
+    for (const c of cores) {
+      const g = p.grupos.find(x => x.estrategia === e && x.oponente === o && x.cor === c);
+      h += "<td class='num'>" + (g ? g.vitorias + " de " + g.lutas + (g.quedas ? ", " + g.quedas + " queda(s)" : "") : "-") + "</td>";
+    }
+    h += "</tr>";
+  }
+  $("placar").innerHTML = h + "</tbody>";
+  $("placarTxt").textContent = "Vitórias em " + p.sementes + " largadas sorteadas por combinação, com pessoas em volta do dojô" +
+    " e o perfil escuro (DIP 4) ligado contra o oponente escuro. Queda própria é o robô sair do dojô sem ser empurrado.";
+  $("secPlacar").hidden = false;
+}
+
+$("tocar").addEventListener("click", () => {
+  if (!luta) return;
+  if (t >= luta.t1) t = luta.t0;
+  tocando = !tocando; $("tocar").textContent = tocando ? "Pausar" : "Tocar";
+});
+$("linha").addEventListener("input", e => { t = parseFloat(e.target.value); desenha(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", desenha);
+desenha();
+carregaIndice();
+requestAnimationFrame(passo);
+</script>
+</body>
+</html>

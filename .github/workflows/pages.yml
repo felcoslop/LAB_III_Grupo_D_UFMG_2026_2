@@ -1,6 +1,8 @@
-# Publicação da página do simulador da cinemática (doc/site) no GitHub Pages.
-# A página roda no navegador as mesmas contas do firmware e fica no endereço
-# https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/ depois de cada mudança na main.
+# Publicação das páginas do simulador (doc/site) no GitHub Pages, no endereço
+# https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/ depois de cada mudança na main:
+#   - index.html: cinemática das rodas, com as mesmas contas do firmware rodando no navegador;
+#   - lutas.html: lutas simuladas com o firmware de verdade (teste/sim), cujos rastros e placar
+#     este workflow gera na hora, então a página acompanha qualquer mudança no código.
 # O GitHub Pages precisa estar ligado em Settings > Pages com a fonte "GitHub Actions"
 # (o publicar.sh do pacote de publicação faz isso pela API).
 name: Página do simulador
@@ -8,9 +10,6 @@ name: Página do simulador
 on:
   push:
     branches: [main]
-    paths:
-      - "doc/site/**"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -27,7 +26,7 @@ jobs:
   publica:
     name: Publicação no GitHub Pages
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -39,6 +38,15 @@ jobs:
       # a página só sai se as constantes ainda baterem com o config.h
       - name: Conferência das constantes
         run: python doc/confere_site.py
+      # lutas.html: rastros de 72 lutas (3 estratégias, 4 oponentes, 2 cores, 3 largadas) e o
+      # placar de uma bateria maior, tudo com pessoas em volta do dojô
+      - name: Simulador de luta
+        run: bash teste/sim/compila.sh
+      - name: Rastros e placar das lutas
+        run: |
+          python teste/sim/gera_rastros.py teste/sim/luta doc/site/lutas
+          python teste/sim/roda_lutas.py teste/sim/luta --sementes 10 --dips 1,2,4 --fora --perfil-pela-cor \
+            --json doc/site/lutas/placar.json
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
