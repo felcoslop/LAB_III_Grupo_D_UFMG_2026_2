@@ -35,6 +35,8 @@ static Estrategia estrategia = RUSH;   // travada no start
 static bool     escuro = false;        // perfil do oponente, travado no start
 static int8_t   ladoFlanco = 1;        // +1 passa pela esquerda do oponente, -1 pela direita
 static uint32_t tFimFlanco = 0;        // fim do último flanco (o flanco só volta depois de um tempo)
+static bool     aberturaFlanco = false; // FLANCO da abertura do Flank: arco largo, sem esperar a investida acabar
+static uint32_t tFimLeque = 0;         // fim do último zigue-zague do Fan out
 static float    fanGiro = 0;           // giro acumulado no leque (graus)
 static int8_t   fanSentido = 1;
 static uint32_t tAntPasso = 0;
@@ -55,7 +57,7 @@ static int16_t  movE = 0, movD = 0;
 static uint32_t movFim = 0, movIni = 0;
 
 static const char* NOMES[N_ESTADOS] = {"ESPERA", "CONTAGEM", "BUSCA", "MIRA", "ATAQUE", "FLANCO", "ATAQUE_RE",
-                                       "DESTRAVA", "RECUO", "GIRO_BORDA", "AVANCO_BORDA", "SAIDA_LATERAL"};
+                                       "DESTRAVA", "RECUO", "GIRO_BORDA", "AVANCO_BORDA", "SAIDA_LATERAL", "LEQUE"};
 
 const char* estado_nome(Estado e) { return e < N_ESTADOS ? NOMES[e] : "?"; }
 Estado      estado_atual()        { return est; }
@@ -67,7 +69,8 @@ uint16_t    estados_destravas()   { return destravas; }
 static void entra(Estado novo) {
   if (novo == est) return;
   Log.printf("# estado: %s -> %s\n", NOMES[est], NOMES[novo]);
-  if (est == FLANCO) tFimFlanco = P.t_ms;
+  if (est == FLANCO) { tFimFlanco = P.t_ms; aberturaFlanco = false; }
+  if (est == LEQUE) tFimLeque = P.t_ms;
   est = novo;
   tEntrada = P.t_ms;
   if (novo == BUSCA) { buscaAvanca = false; tBusca = P.t_ms; fanGiro = 0; }
@@ -154,17 +157,29 @@ static bool investida() {
 // O flanco só vale na estratégia Flank, com o oponente visto longe o bastante e à frente, sem
 // investida e depois de um tempo do último flanco. O lado é o que tem mais espaço até a borda;
 // sem localização, o lado que pede menos giro.
-static bool podeFlanquear() {
-  if (estrategia != FLANK || !P.op.visto || investida()) return false;
-  if (P.t_ms - tFimFlanco < 2000 && tFimFlanco) return false;
-  float d = P.op.dist_mm > 0 ? P.op.dist_mm : P.rumo.dist_mm - OPONENTE_LADO_MM / 2;
-  if (d < FLANCO_FECHA_MM + 60 || fabsf(P.op.angulo) > FLANCO_ABRE_DEG - 15) return false;
+static bool escolheLadoFlanco() {
   if (P.arena.confiavel) {
     float le = arena_livre(P.op.angulo + FLANCO_DESVIO_DEG), ld = arena_livre(P.op.angulo - FLANCO_DESVIO_DEG);
     if (le < FLANCO_LIVRE_MIN_MM && ld < FLANCO_LIVRE_MIN_MM) return false;
     ladoFlanco = le >= ld ? 1 : -1;
   } else ladoFlanco = P.op.angulo >= 0 ? -1 : 1;
   return true;
+}
+static bool podeFlanquear() {
+  if (estrategia != FLANK || !P.op.visto || investida()) return false;
+  if (P.t_ms - tFimFlanco < 2000 && tFimFlanco) return false;
+  float d = P.op.dist_mm > 0 ? P.op.dist_mm : P.rumo.dist_mm - OPONENTE_LADO_MM / 2;
+  if (d < FLANCO_FECHA_MM + 60 || fabsf(P.op.angulo) > FLANCO_ABRE_DEG - 15) return false;
+  return escolheLadoFlanco();
+}
+
+// O zigue-zague do Fan out vale com o oponente à vista, longe e na frente, sem investida e
+// depois de um tempo do último.
+static float distOponente() { return P.op.dist_mm > 0 ? P.op.dist_mm : P.rumo.dist_mm - OPONENTE_LADO_MM / 2; }
+static bool podeLeque() {
+  if (estrategia != FAN_OUT || !P.op.visto || investida()) return false;
+  if (tFimLeque && P.t_ms - tFimLeque < 2000) return false;
+  return distOponente() > LEQUE_FECHA_MM + 120 && fabsf(P.op.angulo) <= ABERTURA_ANG_MAX_DEG;
 }
 
 // Oponente colado atrás (só com os 7 sensores, que veem atrás): girar 180 graus na frente dele
@@ -220,8 +235,17 @@ static void iniciaDestrava() {
 static void decideComOponente() {
   if (atrasColado())        entra(ATAQUE_RE);
   else if (podeFlanquear()) entra(FLANCO);
+  else if (podeLeque())     entra(LEQUE);
   else if (P.op.centrado)   entra(ATAQUE);
   else                      entra(MIRA);
+}
+
+// Abertura: o que cada estratégia faz quando os 5 s acabam com o oponente à vista (config.h).
+static void abertura() {
+  bool naFrente = fabsf(P.op.angulo) <= ABERTURA_ANG_MAX_DEG && !atrasColado();
+  if (estrategia == FLANK && naFrente && escolheLadoFlanco()) { entra(FLANCO); aberturaFlanco = true; }
+  else if (estrategia == FAN_OUT && naFrente)                entra(LEQUE);
+  else                                                       decideComOponente();
 }
 
 // Tamanho do giro depois da borda. Com a localização confiável o robô gira até ficar de frente
@@ -299,12 +323,16 @@ static void busca(float dt) {
 // o desvio constante, o caminho vira uma espiral que fecha na lateral do oponente; perto dele,
 // ou com ele aberto demais, o robô ataca direto.
 static void flanco(uint32_t t) {
-  float d = P.op.dist_mm > 0 ? P.op.dist_mm : P.rumo.dist_mm - OPONENTE_LADO_MM / 2;
-  if (d <= FLANCO_FECHA_MM || fabsf(P.op.angulo) >= FLANCO_ABRE_DEG || t >= T_FLANCO_MAX_MS || investida()) {
+  float d = distOponente();
+  // na abertura o arco segue até passar do lado do oponente, mesmo com ele vindo rápido
+  bool fim = aberturaFlanco
+      ? (P.op.contato || d <= CONTATO_MM || fabsf(P.op.angulo) >= FLANCO_ABRE_DEG || t >= T_ABERTURA_FLANCO_MS)
+      : (d <= FLANCO_FECHA_MM || fabsf(P.op.angulo) >= FLANCO_ABRE_DEG || t >= T_FLANCO_MAX_MS || investida());
+  if (fim) {
     if (P.op.centrado) entra(ATAQUE); else entra(MIRA);
     return;
   }
-  float alvo = P.op.angulo + ladoFlanco * FLANCO_DESVIO_DEG;
+  float alvo = P.op.angulo + ladoFlanco * (aberturaFlanco ? ABERTURA_FLANCO_DEG : FLANCO_DESVIO_DEG);
   float w = constrain(K_MIRA * alvo, -(float)GIRO_MIRA_MAX_DPS, (float)GIRO_MIRA_MAX_DPS);
   float c = cosf(alvo * (float)DEG_TO_RAD);
   cinematica_comanda(VEL_MAX_MMS * (c > 0.35f ? c : 0.35f), w);
@@ -388,7 +416,7 @@ void estados_passo() {
       if (t >= T_CONTAGEM_MS) {
         comecaLuta();
         entra(BUSCA);
-        if (P.op.visto) decideComOponente();          // abertura: quem já está à vista é atacado na hora
+        if (P.op.visto) abertura();                   // quem já está à vista recebe a abertura da estratégia
       }
       break;
 
@@ -402,6 +430,7 @@ void estados_passo() {
       if (!P.op.visto)    { if (P.op.contato) { entra(ATAQUE); break; } entra(BUSCA); break; }
       if (atrasColado())  { entra(ATAQUE_RE); break; }
       if (podeFlanquear()) { entra(FLANCO); break; }
+      if (podeLeque())     { entra(LEQUE); break; }
       if (P.op.centrado)  { entra(ATAQUE); break; }
       mira(P.op.angulo);                             // curva até ANG_MIRA_CURVA, giro no eixo acima disso
       break;
@@ -410,6 +439,21 @@ void estados_passo() {
       if (!P.op.visto) { entra(BUSCA); break; }
       flanco(t);
       break;
+
+    case LEQUE: {                                    // Fan out: chegada em zigue-zague
+      if (!P.op.visto) { entra(BUSCA); break; }
+      if (atrasColado()) { entra(ATAQUE_RE); break; }
+      if (P.op.contato || distOponente() <= LEQUE_FECHA_MM || fabsf(P.op.angulo) > LEQUE_ANG_MAX_DEG || t >= T_LEQUE_MAX_MS) {
+        if (P.op.centrado) entra(ATAQUE); else entra(MIRA);
+        break;
+      }
+      int8_t lado = ((t / T_LEQUE_MEIO_MS) % 2) ? -1 : 1;
+      float alvo = P.op.angulo + lado * LEQUE_DESVIO_DEG;
+      float w = constrain(K_MIRA * alvo, -(float)GIRO_MIRA_MAX_DPS, (float)GIRO_MIRA_MAX_DPS);
+      float c = cosf(alvo * (float)DEG_TO_RAD);
+      cinematica_comanda(VEL_MAX_MMS * LEQUE_VEL * (c > 0.35f ? c : 0.35f), w);
+      break;
+    }
 
     case ATAQUE_RE: {                                // empurrão de ré com o oponente colado atrás
       // Colado na traseira, o ToF de trás também pode perder a leitura: o empurrão continua por

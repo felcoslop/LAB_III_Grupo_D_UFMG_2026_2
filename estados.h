@@ -18,6 +18,7 @@ enum Estado : uint8_t {
   GIRO_BORDA,    // giro para o centro do dojô sem deixar de vigiar o oponente
   AVANCO_BORDA,  // borda atrás (robô sendo empurrado): o robô avança enquanto vê branco e mais uma folga
   SAIDA_LATERAL, // borda em um lado inteiro: curva para dentro apoiada na roda de dentro
+  LEQUE,         // estratégia Fan out: chegada no oponente em zigue-zague, com o rumo indo de um lado para o outro
   N_ESTADOS      // quantidade de estados, usada no tamanho do vetor de nomes
 };
 
