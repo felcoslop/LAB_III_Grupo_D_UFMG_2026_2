@@ -297,6 +297,7 @@ void tof_libera_manutencao(bool sim) { manutencaoLiberada = sim; }
 void tof_perfil(bool escuro) { escuroPedido = escuro; }
 bool tof_perfil_escuro() { return escuroAtual; }
 
+bool oponente_borda_tras_recente() { return trasBrancoJa && millis() - tTrasBranco < T_TRAS_BRANCO_MS; }
 void oponente_borda_tras(bool branco) {
   if (branco) { tTrasBranco = millis(); trasBrancoJa = true; }
 }

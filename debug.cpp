@@ -397,7 +397,8 @@ static void calBorda() {
 //     sigma*10,confianca*100,existe*100,rumoModo,rumoAng*10,buscaGanho*100
 //     (cx e cy são o centro do oponente; rumoModo: 0 nada, 1 atacar, 2 mirar, 3 provável, 4 procurar)
 //   Q,bordaConfirmada,bordaCru,mv0..mv3
-//   A,estrategia,escuro,dip,arenaValida,arenaConfiavel,cx,cy,sigma,aproximacao,contato,descartes
+//   A,estrategia,escuro,dip,arenaValida,arenaConfiavel,cx,cy,sigma,aproximacao,contato,descartes,
+//     travado,destravas,aquecimento (travado: 0 livre, 1 empurrao travado, 2 giro preso; aquecimento em K)
 //     (estrategia: 0 Rush, 1 Flank, 2 Fan out; cx e cy: centro do dojô no referencial do robô, mm)
 //   M,40,19,140,40,<mapa>       a cada MAPA_MS (formato explicado no rastreador.h)
 static void streamCabecalho() {
@@ -456,10 +457,11 @@ static void streamDados() {
   Log.println();
 #endif
   bool ativa = estado_atual() != ESPERA;
-  Log.printf("A,%u,%u,%u,%u,%u,%d,%d,%d,%d,%u,%u\n", (unsigned)(ativa ? estados_estrategia() : chave_estrategia()),
+  Log.printf("A,%u,%u,%u,%u,%u,%d,%d,%d,%d,%u,%u,%u,%u,%d\n", (unsigned)(ativa ? estados_estrategia() : chave_estrategia()),
              (ativa ? estados_escuro() : chave_escuro()) ? 1 : 0, chave_bits(), P.arena.valida ? 1 : 0, P.arena.confiavel ? 1 : 0,
              (int)lroundf(P.arena.cx), (int)lroundf(P.arena.cy), (int)lroundf(P.arena.sigma), (int)lroundf(P.op.aproximacao),
-             P.op.contato ? 1 : 0, tof_descartes());
+             P.op.contato ? 1 : 0, tof_descartes(), estados_travado(), estados_destravas(),
+             (int)lroundf(cinematica_aquecimento_k()));
 }
 
 // Comando arena: localização no dojô e espaço livre em 8 direções.
@@ -485,6 +487,9 @@ static void cin() {
                 DIST_PARADA_MM, BORDA_FAIXA_MM + BORDA_ATE_RODA_MM);
   Log.printf("# estimativa agora: %+.0f mm/s, %+.0f graus/s (motores %s)\n", cinematica_v_mms(), cinematica_w_dps(),
                 USAR_MOTORES ? "ligados" : "desligados");
+  Log.printf("# aquecimento estimado dos motores: %.0f K acima do ambiente (limite de %.0f%% do PWM a partir de %.0f K)%s\n",
+                cinematica_aquecimento_k(), MOTOR_PWM_QUENTE * 100, MOTOR_QUENTE_K,
+                cinematica_limite_termico() ? " | LIMITE LIGADO" : "");
 }
 
 // Interpretação de uma linha de comando. Uma cópia com as letras originais é guardada para os

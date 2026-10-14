@@ -50,5 +50,11 @@ float cinematica_w_dps();         // giro estimado do robô
 float cinematica_giro();          // giro acumulado (graus) desde o último cinematica_zera_odometria()
 float cinematica_dist();          // avanço acumulado (mm) desde o último cinematica_zera_odometria()
 void  cinematica_zera_odometria();
+// Aquecimento estimado de cada motor (elevação em kelvin sobre o ambiente). A máquina de estados
+// avisa quando as rodas estão travadas (empurrão em contato ou giro preso), porque aí a roda não
+// gira e a corrente é a de partida; fora disso a corrente sai da velocidade estimada.
+void  cinematica_rodas_travadas(bool travadas);
+float cinematica_aquecimento_k();  // a maior das duas elevações
+bool  cinematica_limite_termico(); // true com o PWM das manobras normais limitado a MOTOR_PWM_QUENTE
 float cinematica_roda_esq();      // velocidade estimada de cada roda (mm/s), para o debug
 float cinematica_roda_dir();

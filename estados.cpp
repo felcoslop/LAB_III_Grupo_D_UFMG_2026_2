@@ -39,6 +39,14 @@ static float    fanGiro = 0;           // giro acumulado no leque (graus)
 static int8_t   fanSentido = 1;
 static uint32_t tAntPasso = 0;
 static uint32_t tReVisto = 0;          // última vez com o oponente colado atrás
+static uint32_t tEmpurra = 0;          // começo do empurrão em contato atual (0 sem empurrão)
+static bool     avisouEmpurrao = false;
+static uint32_t tGiroRef = 0;          // janela da conferência do giro preso (0 fora da mira)
+static float    angGiroRef = 0, giroRef = 0;
+static uint16_t destravas = 0;         // manobras DESTRAVA nesta luta
+static int8_t   ladoDestrava = 1;      // lado do oponente na manobra (+1 esquerda)
+static bool     destravaComRe = true;  // ré com espaço atrás; sem espaço, avanço reto
+static uint32_t tReBateu = 0;          // última DESTRAVA de ré que terminou na borda de trás
 // movimento de teste do comando "mov", só em ESPERA (Blackbook, capítulo 11: medir as primitivas)
 static bool     movAtivo = false;
 static bool     movBruto = false;      // true no teste pwm: PWM direto, sem passar pela cinemática
@@ -47,12 +55,13 @@ static int16_t  movE = 0, movD = 0;
 static uint32_t movFim = 0, movIni = 0;
 
 static const char* NOMES[N_ESTADOS] = {"ESPERA", "CONTAGEM", "BUSCA", "MIRA", "ATAQUE", "FLANCO", "ATAQUE_RE",
-                                       "RECUO", "GIRO_BORDA", "AVANCO_BORDA", "SAIDA_LATERAL"};
+                                       "DESTRAVA", "RECUO", "GIRO_BORDA", "AVANCO_BORDA", "SAIDA_LATERAL"};
 
 const char* estado_nome(Estado e) { return e < N_ESTADOS ? NOMES[e] : "?"; }
 Estado      estado_atual()        { return est; }
 Estrategia  estados_estrategia()  { return estrategia; }
 bool        estados_escuro()      { return escuro; }
+uint16_t    estados_destravas()   { return destravas; }
 
 // Troca de estado. Toda troca aparece no log e reinicia os tempos usados pelos estados.
 static void entra(Estado novo) {
@@ -84,6 +93,11 @@ void estados_init() {
   pinMode(PINO_LED, OUTPUT);
 #endif
   est = ESPERA; tEntrada = millis(); tAntPasso = millis();
+}
+
+uint8_t estados_travado() {
+  if (est == DESTRAVA) return 2;
+  return tEmpurra && P.t_ms - tEmpurra >= T_TRAVA_MS ? 1 : 0;
 }
 void estados_iniciar() { pedidoStart = true; }
 void estados_parar()   { entra(ESPERA); movAtivo = false; cinematica_para(); }
@@ -158,6 +172,48 @@ static bool podeFlanquear() {
 static float erroRe() { float e = P.op.angulo - 180.0f; if (e < -180) e += 360; return e; }
 static bool atrasColado() {
   return P.op.visto && fabsf(erroRe()) <= ANG_RE_DEG && P.rumo.dist_mm > 0 && P.rumo.dist_mm <= DIST_RE_MM;
+}
+
+// ToF colados (leitura abaixo do mínimo) na frente ou atrás: oponente encostado naquele lado
+static uint16_t colados(bool frente) {
+  uint16_t m = 0;
+  for (uint8_t i = 0; i < N_TOF; i++)
+    if ((frente && fabsf(TOF[i].ang) <= 30) || (!frente && fabsf(TOF[i].ang) >= 140)) m |= (1u << i);
+  return P.op.colados & m;
+}
+
+// Empurrão em contato: atacando (de frente ou de ré) com o oponente encostado no lado do ataque.
+static bool empurrando() {
+  if (est == ATAQUE) return P.op.contato || colados(true);
+  if (est == ATAQUE_RE) return colados(false) || (atrasColado() && P.rumo.dist_mm <= OPONENTE_LADO_MM / 2 + CONTATO_MM + 20);
+  return false;
+}
+
+// Giro preso: na mira com o oponente aberto (giro no eixo ou curva fechada), a cinemática estima
+// que o robô girou GIRO_TRAVA_DEG em T_GIRO_TRAVA_MS e o ângulo do oponente melhorou menos que
+// GIRO_TRAVA_GANHO_DEG. Com o oponente encostado na lateral, a quina dele segura a do robô e o
+// giro não acontece; sem contato, o oponente que gira junto (ou foge girando) também aparece
+// assim, e a manobra curta não atrapalha.
+static bool giroPreso() {
+  if (est != MIRA || !P.op.visto || fabsf(P.op.angulo) <= ANG_MIRA_CURVA) { tGiroRef = 0; return false; }
+  if (!tGiroRef) { tGiroRef = P.t_ms; angGiroRef = fabsf(P.op.angulo); giroRef = cinematica_giro(); return false; }
+  if (P.t_ms - tGiroRef < T_GIRO_TRAVA_MS) return false;
+  bool preso = fabsf(cinematica_giro() - giroRef) >= GIRO_TRAVA_DEG && angGiroRef - fabsf(P.op.angulo) < GIRO_TRAVA_GANHO_DEG;
+  tGiroRef = P.t_ms; angGiroRef = fabsf(P.op.angulo); giroRef = cinematica_giro();
+  return preso;
+}
+
+// Começo da manobra DESTRAVA. A quina do oponente segura a quina da frente do robô; uns 8 cm
+// para trás ou para a frente já soltam as duas. Com espaço atrás (sem branco atrás há pouco, nenhuma
+// ré anterior batendo na borda nos últimos 5 s e, com a localização confiável, mais de
+// DESTRAVA_LIVRE_MM até a borda), o robô dá ré; sem espaço, avança reto, para dentro do dojô.
+static void iniciaDestrava() {
+  destravas++;
+  ladoDestrava = P.op.angulo >= 0 ? 1 : -1;
+  destravaComRe = !P.borda.tras && !oponente_borda_tras_recente() && !(tReBateu && P.t_ms - tReBateu < 5000) &&
+                  (!P.arena.confiavel || arena_livre(180) > DESTRAVA_LIVRE_MM);
+  Log.printf("# giro preso pelo oponente a %+.0f graus: %s\n", P.op.angulo, destravaComRe ? "re curta" : "avanco curto");
+  entra(DESTRAVA);
 }
 
 // Escolha de estado com o oponente visto (comum à busca, à mira e ao fim do giro da borda).
@@ -257,6 +313,7 @@ static void flanco(uint32_t t) {
 // Começo da luta: estratégia e perfil travados e localização iniciada com o oponente visto
 // durante a contagem (ele está parado na outra metade do dojô).
 static void comecaLuta() {
+  destravas = 0; tEmpurra = 0; tGiroRef = 0; avisouEmpurrao = false;
   arena_inicia(P.op.visto, P.op.x, P.op.y);
   arena_le(P.arena);
   Log.printf("# luta: estrategia %s, oponente %s%s\n", estrategia_nome(estrategia), escuro ? "ESCURO" : "CLARO",
@@ -274,7 +331,24 @@ void estados_passo() {
   // oponente) leva de novo à fuga.
   bool emFuga = est == RECUO || est == AVANCO_BORDA || est == SAIDA_LATERAL ||
                 (est == GIRO_BORDA && P.borda.frente && P.borda.tras);
-  if (emLuta() && !emFuga && P.borda.detectada) { decideFuga(); t = 0; }
+  if (emLuta() && !emFuga && P.borda.detectada) {
+    if (est == DESTRAVA && destravaComRe && P.borda.tras) tReBateu = P.t_ms | 1;
+    decideFuga(); t = 0;
+  }
+
+  // Travamentos. O empurrão em contato não é interrompido (nas lutas simuladas, soltar no meio
+  // dele entregou a luta), mas aparece no log e no painel e faz o modelo térmico contar a roda
+  // parada. O giro preso vira a manobra DESTRAVA.
+  bool emp = emLuta() && empurrando();
+  if (emp) { if (!tEmpurra) tEmpurra = P.t_ms; }
+  else { tEmpurra = 0; avisouEmpurrao = false; }
+  if (emp && !avisouEmpurrao && P.t_ms - tEmpurra >= T_TRAVA_MS) {
+    avisouEmpurrao = true;
+    Log.printf("# empurrao travado ha %u ms (motor %.0f K acima do ambiente)\n", (unsigned)(P.t_ms - tEmpurra), cinematica_aquecimento_k());
+  }
+  bool preso = emLuta() && giroPreso();
+  cinematica_rodas_travadas((emp && P.t_ms - tEmpurra >= 300) || est == DESTRAVA || preso);
+  if (preso) { iniciaDestrava(); t = 0; }
 
   switch (est) {
     case ESPERA:
@@ -361,6 +435,12 @@ void estados_passo() {
       // não escorregar para fora do centro (até CENTRO_DEG o giro pedido é pequeno)
       cinematica_comanda(VEL_MAX_MMS, P.op.visto ? K_MIRA * P.op.angulo : 0);
 #endif
+      break;
+
+    case DESTRAVA:                                   // solta a quina presa e volta a mirar
+      if (t < (destravaComRe ? T_DESTRAVA_RE_MS : T_DESTRAVA_AVANCO_MS))
+        cinematica_comanda(destravaComRe ? -VEL_MAX_MMS : VEL_MAX_MMS, 0);
+      else { entra(BUSCA); if (P.op.visto) decideComOponente(); }
       break;
 
     case RECUO: {                                    // o robô recua enquanto a frente vê branco

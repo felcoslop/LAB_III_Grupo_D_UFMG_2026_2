@@ -36,6 +36,8 @@ int digitalRead(int pino) {
 static bool perfilEscuro = false;
 void tof_perfil(bool escuro) { perfilEscuro = escuro; }
 bool tof_perfil_escuro() { return perfilEscuro; }
+static bool trasRecente = false;
+bool oponente_borda_tras_recente() { return trasRecente; }
 
 static int falhas = 0;
 static void confere(bool ok, const char* oque, double valor) {
@@ -199,6 +201,28 @@ int main() {
   confere(pwmE < -200 && pwmD < -200, "ATAQUE_RE: as duas rodas para tras", pwmE);
   oponente(true, 120, 300); passo(10);
   confere(estado_atual() == MIRA, "oponente saiu de tras: volta a MIRA", estado_atual());
+
+  // giro preso: oponente encostado na lateral a +60 graus, a mira gira e o ângulo não muda
+  luta(); oponente(true, 60, 10); passo(T_GIRO_TRAVA_MS + 100);
+  confere(estado_atual() == DESTRAVA, "giro preso pelo oponente na lateral: DESTRAVA", estado_atual());
+  confere(estados_travado() == 2 && estados_destravas() == 1, "giro preso: travamento 2 e uma manobra contada", estados_destravas());
+  passo(20);
+  confere(pwmE < -200 && pwmD < -200, "DESTRAVA com espaco atras: re reta", pwmE);
+  passo(T_DESTRAVA_RE_MS);
+  confere(estado_atual() == MIRA, "fim da DESTRAVA: volta a mirar", estado_atual());
+  oponente(true, 20, 300); passo(200);
+  confere(estado_atual() != DESTRAVA, "oponente mudando de angulo: nada de DESTRAVA", estado_atual());
+  // sem espaço atrás (borda de trás vista há pouco): avanço reto
+  luta(); oponente(true, 60, 10); trasRecente = true; passo(T_GIRO_TRAVA_MS + 100);
+  confere(estado_atual() == DESTRAVA, "giro preso perto da borda de tras: DESTRAVA", estado_atual());
+  passo(20);
+  confere(pwmE > 200 && pwmD > 200, "DESTRAVA sem espaco atras: avanco reto", pwmE);
+  trasRecente = false;
+  // empurrão em contato longo: o robô continua empurrando, só o travamento 1 aparece
+  luta(); oponente(true, 0, 30); passo(100);
+  oponente(false, 0); P.op.contato = true; passo(T_TRAVA_MS + 100);
+  confere(estado_atual() == ATAQUE && pwmE > 200 && estados_travado() == 1, "empurrao em contato longo: continua no ATAQUE (travamento 1)", pwmE);
+  P.op.contato = false; passo(4);
 
   // Flank (DIP 2): oponente longe e na frente vira FLANCO, com o rumo desviado para um lado
   dip = 0x02; luta();

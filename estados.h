@@ -13,6 +13,7 @@ enum Estado : uint8_t {
   ATAQUE,        // oponente centrado: o robô empurra com o torque todo
   FLANCO,        // estratégia Flank: curva para chegar pela lateral do oponente
   ATAQUE_RE,     // oponente colado atrás: o robô empurra de ré, sem gastar tempo girando na frente dele
+  DESTRAVA,      // giro preso pelo oponente encostado: o robô solta a quina e volta a mirar
   RECUO,         // borda na frente: o robô recua enquanto vê branco e mais uma folga
   GIRO_BORDA,    // giro para o centro do dojô sem deixar de vigiar o oponente
   AVANCO_BORDA,  // borda atrás (robô sendo empurrado): o robô avança enquanto vê branco e mais uma folga
@@ -31,3 +32,6 @@ Estado      estado_atual();
 const char* estado_nome(Estado e);
 Estrategia  estados_estrategia();     // estratégia em uso (travada no start)
 bool        estados_escuro();         // perfil de oponente em uso (travado no start)
+// Travamento: 0 livre, 1 empurrão em contato há mais de T_TRAVA_MS, 2 giro preso (DESTRAVA)
+uint8_t     estados_travado();
+uint16_t    estados_destravas();      // manobras DESTRAVA nesta luta

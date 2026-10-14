@@ -76,6 +76,30 @@ int main() {
   parado(); roda(1, 0, 40);
   confere(pwmE == 0 && pwmD == 0, "1 mm/s: roda freada", pwmE);
 
+  // aquecimento dos motores: roda livre quase não aquece; travado no máximo, uns 0,3 K/s no começo
+  parado(); roda(VEL_MAX_MMS, 0, 30000);
+  confere(cinematica_aquecimento_k() < 3, "30 s andando no maximo: motor menos de 3 K acima do ambiente", cinematica_aquecimento_k());
+  cinematica_rodas_travadas(true);
+  roda(VEL_MAX_MMS, 0, 90000);
+  confere(cinematica_aquecimento_k() > 15 && cinematica_aquecimento_k() < 30, "90 s travado no maximo (round inteiro): 15 a 30 K", cinematica_aquecimento_k());
+  confere(!cinematica_limite_termico() && pwmE == 255, "um round travado nao liga o limite termico", pwmE);
+  // 10 min travado: o limite liga perto de MOTOR_QUENTE_K, segura a temperatura e alterna com a folga
+  float maxK = 0; bool ligou = false, pwmLimitado = true;
+  for (int s = 0; s < 600; s++) {
+    roda(VEL_MAX_MMS, 0, 1000);
+    if (cinematica_aquecimento_k() > maxK) maxK = cinematica_aquecimento_k();
+    if (cinematica_limite_termico()) { ligou = true; if (pwmE > (int)(MOTOR_PWM_QUENTE * 255) + 1) pwmLimitado = false; }
+  }
+  confere(ligou, "10 min travado: limite termico ligado em algum momento", maxK);
+  confere(maxK < MOTOR_QUENTE_K + 1, "10 min travado: elevacao nunca passa do limite", maxK);
+  confere(pwmLimitado, "com o limite: PWM das manobras normais no maximo 70%", pwmE);
+  while (!cinematica_limite_termico()) roda(VEL_MAX_MMS, 0, 1000);
+  roda(-VEL_MAX_MMS, 0, 10, PERFIL_BORDA);
+  confere(pwmE == -255, "com o limite: fuga da borda continua com PWM 255", pwmE);
+  cinematica_rodas_travadas(false);
+  roda(0, 0, 600000);
+  confere(!cinematica_limite_termico(), "parado por 10 min: o limite sai", cinematica_aquecimento_k());
+
   printf("\n%s: %d falha(s)\n", falhas ? "ERRO" : "OK", falhas);
   return falhas ? 1 : 0;
 }
