@@ -141,6 +141,9 @@ details .texto { display: grid; gap: 8px; margin-top: 8px; max-width: 75ch; }
 details .texto p { margin: 0; }
 .fonte { font-size: 0.8rem; color: var(--suave); }
 [hidden] { display: none !important; }
+.manche { display: grid; grid-template-columns: repeat(3, 56px); grid-auto-rows: 48px; gap: 6px; justify-content: start; touch-action: none; user-select: none; }
+.manche button { font-size: 1.2rem; color: var(--fg); background: var(--chip); border: 1px solid var(--linha); border-radius: 8px; cursor: pointer; }
+.manche button[aria-pressed="true"] { background: var(--a); color: #fff; border-color: var(--a); }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
 </style>
 
@@ -148,7 +151,7 @@ details .texto p { margin: 0; }
   <header class="topo">
     <div>
       <h1>Combate Grupo D</h1>
-      <p class="local" id="local">Belo Horizonte, 2 de setembro, 20h00. Sala fechada, só a lâmpada de LED do teto acesa, 25 °C. Os dois robôs rodam o mesmo firmware (branch travamento), compilado para WebAssembly.</p>
+      <p class="local" id="local">Belo Horizonte, 2 de setembro, 20h00. Sala fechada, só a lâmpada de LED do teto acesa, 25 °C. Os dois robôs rodam o mesmo firmware do Grupo D, compilado para WebAssembly.</p>
     </div>
   </header>
 
@@ -169,8 +172,8 @@ details .texto p { margin: 0; }
           <button type="button" data-cam="robo" aria-pressed="false">Atrás do Grupo D</button>
         </div>
         <div class="camadas" role="group" aria-label="Camadas">
-          <button type="button" id="camSensores" aria-pressed="true">Sensores</button>
-          <button type="button" id="camEstimativa" aria-pressed="false">O que o firmware estima</button>
+          <button type="button" id="camSensores" aria-pressed="true">Detecção do Grupo D</button>
+          <button type="button" id="camEstimativa" aria-pressed="false">Localização no dojô</button>
         </div>
       </div>
       <div class="tele">
@@ -222,6 +225,19 @@ details .texto p { margin: 0; }
             <button type="button" data-v="3" aria-pressed="false">De costas</button>
           </div>
           <p class="nota">O adversário larga virado para um lado sorteado.</p>
+        </div>
+        <div class="grupo">
+          <h3>Controle manual</h3>
+          <div class="segmentos" id="selManual">
+            <button type="button" data-v="0" aria-pressed="true">Desligado</button>
+            <button type="button" data-v="1" aria-pressed="false">Meu robô</button>
+            <button type="button" data-v="2" aria-pressed="false">Adversário</button>
+          </div>
+          <p class="nota" id="notaManual">Os dois robôs seguem o firmware.</p>
+          <div class="manche" id="manche" hidden>
+            <span></span><button type="button" data-k="cima" aria-label="Para a frente">▲</button><span></span>
+            <button type="button" data-k="esq" aria-label="Para a esquerda">◀</button><button type="button" data-k="baixo" aria-label="Para trás">▼</button><button type="button" data-k="dir" aria-label="Para a direita">▶</button>
+          </div>
         </div>
         <div class="acoes">
           <button type="button" class="primario" id="btNova">Nova luta</button>
@@ -280,7 +296,7 @@ window.BATERIA = /*BATERIA*/;
 "use strict";
 const $ = (id) => document.getElementById(id);
 const R_DOJO = 0.385, FAIXA = 0.025, ALT_DOJO = 0.025;
-const QC = 8, QR = 40;
+const QC = 8, QR = 56;
 const fmt = (v, n = 1) => Number.isFinite(v) ? v.toFixed(n).replace(".", ",") : "–";
 
 // ==================== WebAssembly: os dois firmwares e a física ====================
@@ -427,9 +443,16 @@ const matPneu = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9
 const matPcbTof = new THREE.MeshStandardMaterial({ color: 0x4b2a7a, roughness: 0.5 });
 const matPcbBorda = new THREE.MeshStandardMaterial({ color: 0x1d4f9a, roughness: 0.5 });
 const RODA_Y = 0.01597, RODA_Z = 0.06365;
-// sensores no referencial do corpo (mm), os mesmos do config.h
+// sensores no referencial do corpo (mm), os mesmos do config.h, com as cores do painel
 const TOF = [[80, 72, 90], [96, 33, 20], [97, 0, 0], [96, -33, -20], [80, -72, -90], [-23, 40, 160], [-23, -40, -160]];
+const CORES_TOF = ["#b98cff", "#4fa3ff", "#35d49a", "#ff9f43", "#ff6fae", "#6fe3ff", "#ffd36f"];
 const BORDA = [[94, 66], [94, -66], [54, 66], [54, -66]];
+const ALCANCE_MM = 600, OP_LADO_MM = 152, LENTE_MM = 17.5, MEIO_CONE = 12.5 * Math.PI / 180;
+// alcance de cada ToF como no firmware: a maior leitura que ainda cai no círculo de 600 mm em volta do eixo
+function alcanceSensor([x, y, a]) {
+  const ux = Math.cos(a * Math.PI / 180), uy = Math.sin(a * Math.PI / 180), b = x * ux + y * uy;
+  return -b + Math.sqrt(b * b - (x * x + y * y) + ALCANCE_MM * ALCANCE_MM);
+}
 function adesivo(texto, cor) {
   return texturaCanvas(512, 128, (g, w, h) => {
     g.fillStyle = cor; g.fillRect(0, 0, w, h);
@@ -437,7 +460,7 @@ function adesivo(texto, cor) {
     g.fillText(texto, w / 2, h / 2 + 4);
   });
 }
-function criaRobo(corPla, nome, corEquipe) {
+function criaRobo(corPla, nome, corEquipe, comDeteccao) {
   const raiz = new THREE.Group(), corpo = new THREE.Group();
   raiz.add(corpo);
   const matPla = new THREE.MeshStandardMaterial({ color: corPla, roughness: 0.62, metalness: 0 });
@@ -458,25 +481,78 @@ function criaRobo(corPla, nome, corEquipe) {
     pcb.position.set((x - 3 * Math.cos(a * Math.PI / 180)) / 1000, 0.0175, -(y - 3 * Math.sin(a * Math.PI / 180)) / 1000);
     pcb.rotation.y = a * Math.PI / 180; corpo.add(pcb);
   }
-  // indicadores dos sensores de borda em cima do corpo, na mesma posição em planta (o sensor de
-  // verdade fica embaixo da base): acendem quando o sensor confirma o branco
-  const ledsBorda = BORDA.map(([x, y]) => {
-    const m = new THREE.Mesh(new THREE.CircleGeometry(0.0045, 20), new THREE.MeshBasicMaterial({ color: 0x3a4048 }));
-    m.rotation.x = -Math.PI / 2; m.position.set(Math.min(x, 90) / 1000, 0.0522, -y / 1000); corpo.add(m); return m;
-  });
   const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.015), new THREE.MeshStandardMaterial({ map: adesivo(nome, corEquipe), roughness: 0.6 }));
   tag.rotation.x = -Math.PI / 2; tag.position.set(0.028, 0.0517, 0); corpo.add(tag);
-  // cones dos ToF (alcance usado pelo firmware: 600 mm)
-  const cones = TOF.map(([x, y, a]) => {
-    const g = new THREE.ConeGeometry(Math.tan(12.5 * Math.PI / 180) * 0.45, 0.45, 20, 1, true);
-    g.translate(0, -0.225, 0); g.rotateZ(Math.PI / 2);
-    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: corEquipe, transparent: true, opacity: 0.05, depthWrite: false, side: THREE.DoubleSide }));
-    m.position.set(x / 1000, 0.0175, -y / 1000); m.rotation.y = a * Math.PI / 180; raiz.add(m); return m;
-  });
   cena.add(raiz);
-  return { raiz, corpo, matPla, rodas, cones, ledsBorda, queda: null };
+  const r = { raiz, corpo, matPla, rodas, queda: null, det: null };
+  if (comDeteccao) r.det = criaDeteccao(raiz);
+  return r;
 }
-const robos = [criaRobo(0x1c1d1f, "GRUPO D", "#0d7480"), criaRobo(0x1c1d1f, "ADVERSÁRIO", "#b9541c")];
+
+// Detecção do Grupo D, como no painel: cone de cada VL53L0X com a calota na distância medida, mapa
+// de probabilidade do rastreador no chão, caixa vermelha do oponente na posição estimada e um
+// círculo no chão embaixo de cada TCRT5000 (vermelho com o branco confirmado, branco só na leitura
+// crua). Tudo fica preso ao robô, no referencial dele.
+function criaDeteccao(raiz) {
+  const g = new THREE.Group(); raiz.add(g);
+  const cones = [], calotas = [];
+  TOF.forEach((s, i) => {
+    const [x, y, a] = s, L = alcanceSensor(s) / 1000, cor = new THREE.Color(CORES_TOF[i]);
+    const eixo = new THREE.Group(); eixo.position.set(x / 1000, LENTE_MM / 1000, -y / 1000); eixo.rotation.y = a * Math.PI / 180; g.add(eixo);
+    const geo = new THREE.ConeGeometry(Math.tan(MEIO_CONE) * L, L, 32, 1, true);
+    geo.translate(0, -L / 2, 0); geo.rotateZ(Math.PI / 2);
+    const cone = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.06, depthWrite: false, side: THREE.DoubleSide }));
+    eixo.add(cone); cones.push(cone);
+    const cal = new THREE.Mesh(new THREE.CircleGeometry(1, 28), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.75, depthWrite: false, side: THREE.DoubleSide }));
+    cal.rotation.y = Math.PI / 2; cal.visible = false; eixo.add(cal); calotas.push(cal);
+  });
+  const bordas = BORDA.map(([x, y]) => {
+    const anel = new THREE.Mesh(new THREE.RingGeometry(0.0145, 0.016, 32), new THREE.MeshBasicMaterial({ color: 0xc8ccd0, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false }));
+    const disco = new THREE.Mesh(new THREE.CircleGeometry(0.016, 32), new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.85, depthTest: false, depthWrite: false }));
+    for (const m of [anel, disco]) { m.rotation.x = -Math.PI / 2; m.position.set(x / 1000, 0.0006, -y / 1000); m.renderOrder = 20; g.add(m); }
+    disco.visible = false;
+    return { anel, disco };
+  });
+  const cx = new THREE.BoxGeometry(OP_LADO_MM / 1000, 0.06, OP_LADO_MM / 1000);
+  const caixa = new THREE.Group();
+  const caixaCorpo = new THREE.Mesh(cx, new THREE.MeshBasicMaterial({ color: 0xff4646, transparent: true, opacity: 0.45, depthWrite: false }));
+  caixa.add(caixaCorpo, new THREE.LineSegments(new THREE.EdgesGeometry(cx), new THREE.LineBasicMaterial({ color: 0xff8080 })));
+  caixa.visible = false; g.add(caixa);
+  return { g, cones, calotas, bordas, caixa, caixaCorpo, mapa: null, mapaChave: "", tMapa: 0 };
+}
+// mapa de probabilidade do rastreador: um quadrilátero por célula da grade polar, preso ao robô
+function atualizaMapa(det, texto) {
+  const p = texto.split(","); if (p.length < 5) return;
+  const nb = +p[0], nr = +p[1], r0 = +p[2], dr = +p[3], s = p.slice(4).join(",");
+  const chave = [nb, nr, r0, dr].join(",");
+  if (chave !== det.mapaChave) {
+    if (det.mapa) { det.g.remove(det.mapa); det.mapa.geometry.dispose(); }
+    const pos = [], db = 360 / nb;
+    for (let R = 0; R < nr; R++) for (let m = 0; m < nb; m++) {
+      const ra = (r0 + R * dr) / 1000, rb = (r0 + (R + 1) * dr) / 1000;
+      const b0 = (-180 + m * db) * Math.PI / 180, b1 = (-180 + (m + 1) * db) * Math.PI / 180;
+      const P = (r, b) => [r * Math.cos(b), 0.0012, -r * Math.sin(b)];
+      for (const v of [P(ra, b0), P(rb, b0), P(rb, b1), P(ra, b0), P(rb, b1), P(ra, b1)]) pos.push(...v);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(pos.length / 3 * 4), 4));
+    det.mapa = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    det.mapa.renderOrder = 5; det.g.add(det.mapa); det.mapaChave = chave;
+  }
+  const v = new Uint8Array(nb * nr); let k = 0;
+  for (let i = 0; i < s.length && k < v.length; i++) {
+    const ch = s.charCodeAt(i);
+    if (ch === 33) k += s.charCodeAt(++i) - 48; else v[k++] = Math.max(0, Math.min(63, ch - 48));
+  }
+  const col = det.mapa.geometry.attributes.color;
+  for (let c = 0; c < nb * nr; c++) {
+    const lv = v[c] / 63, a = v[c] >= 3 ? 0.03 + 0.75 * Math.pow(lv, 1.5) : 0;
+    for (let q = 0; q < 6; q++) col.setXYZW(c * 6 + q, 1, (150 - 63 * lv) / 255, 40 / 255, a);
+  }
+  col.needsUpdate = true;
+}
+const robos = [criaRobo(0x1c1d1f, "GRUPO D", "#0d7480", true), criaRobo(0x1c1d1f, "ADVERSÁRIO", "#b9541c", false)];
 // estimativas do firmware: onde o robô acha que o oponente está e onde acha que fica o centro do dojô
 function marcadorEstimativa(cor) {
   const g = new THREE.Group();
@@ -491,7 +567,11 @@ function marcadorEstimativa(cor) {
   cena.add(g, est.centro);
   return est;
 }
-const estimativas = [marcadorEstimativa(0x39adb9), marcadorEstimativa(0xec8a4f)];
+const estimativa = marcadorEstimativa(0x39adb9);
+estimativa.op.visible = false;
+// dojô que a localização do Grupo D estima, com o raio de 385 mm em volta do centro estimado
+const dojoEstimado = new THREE.Mesh(new THREE.RingGeometry(0.381, 0.385, 128), new THREE.MeshBasicMaterial({ color: 0x39adb9, transparent: true, opacity: 0.8, depthWrite: false }));
+dojoEstimado.rotation.x = -Math.PI / 2; estimativa.centro.add(dojoEstimado);
 
 // pessoas fora do dojô (dois operadores e o juiz)
 const pessoas = new THREE.Group(); cena.add(pessoas);
@@ -542,7 +622,7 @@ function redimensiona() {
 new ResizeObserver(redimensiona).observe(vista);
 
 // ==================== controles da tela ====================
-const escolha = { estrA: 0, cor: 0, motor: 1, estrB: -1, pos: 0, vel: 1 };
+const escolha = { estrA: 0, cor: 0, motor: 1, estrB: -1, pos: 0, vel: 1, manual: 0 };
 function segmentos(id, chave, aoMudar) {
   const el = $(id);
   el.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
@@ -553,6 +633,38 @@ function segmentos(id, chave, aoMudar) {
 }
 segmentos("selEstrA", "estrA"); segmentos("selCor", "cor", notaDip); segmentos("selMotor", "motor");
 segmentos("selEstrB", "estrB"); segmentos("selPos", "pos"); segmentos("selVel", "vel");
+segmentos("selManual", "manual", () => {
+  $("manche").hidden = escolha.manual === 0;
+  $("notaManual").textContent = escolha.manual === 0 ? "Os dois robôs seguem o firmware."
+    : `Você dirige ${escolha.manual === 1 ? "o robô do Grupo D" : "o adversário"} com as setas ou W A S D, depois dos 5 s parados. O firmware dele continua lendo os sensores.`;
+});
+// teclas e botões do controle manual
+const teclas = { cima: false, baixo: false, esq: false, dir: false };
+const TECLA = { ArrowUp: "cima", KeyW: "cima", ArrowDown: "baixo", KeyS: "baixo", ArrowLeft: "esq", KeyA: "esq", ArrowRight: "dir", KeyD: "dir" };
+function marcaTecla(k, v) {
+  teclas[k] = v;
+  const b = document.querySelector(`#manche [data-k="${k}"]`); if (b) b.setAttribute("aria-pressed", String(v));
+}
+window.addEventListener("keydown", (e) => {
+  const k = TECLA[e.code]; if (!k || escolha.manual === 0) return;
+  if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  e.preventDefault(); marcaTecla(k, true);
+});
+window.addEventListener("keyup", (e) => { const k = TECLA[e.code]; if (k) marcaTecla(k, false); });
+window.addEventListener("blur", () => Object.keys(teclas).forEach((k) => marcaTecla(k, false)));
+document.querySelectorAll("#manche button").forEach((b) => {
+  const k = b.dataset.k;
+  b.addEventListener("pointerdown", (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); marcaTecla(k, true); });
+  for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(ev, () => marcaTecla(k, false));
+});
+// PWM de cada roda a partir das teclas: frente e trás com tudo, curva tirando de uma roda
+function comandoManual() {
+  const acel = (teclas.cima ? 1 : 0) - (teclas.baixo ? 1 : 0), giro = (teclas.esq ? 1 : 0) - (teclas.dir ? 1 : 0);
+  if (!acel) return [-0.75 * giro, 0.75 * giro];
+  const e = acel - 0.6 * giro * Math.sign(acel), d = acel + 0.6 * giro * Math.sign(acel);
+  const m = Math.max(1, Math.abs(e), Math.abs(d));
+  return [e / m, d / m];
+}
 function notaDip() {
   $("notaDip").textContent = escolha.cor ? "A DIP 4 do Grupo D fica desligada (perfil claro), porque o adversário é branco."
                                          : "A DIP 4 do Grupo D fica ligada (perfil escuro), porque o adversário é preto.";
@@ -590,7 +702,7 @@ const sessao = { v: 0, e: 0, d: 0 };
 const ESTR = ["Rush", "Flank", "Fan out"];
 function novaLuta(repete) {
   if (!repete) semente = 1 + Math.floor(Math.random() * 1e6);
-  W.cb_inicia(semente, escolha.estrA, escolha.estrB, 0, escolha.cor, escolha.motor, escolha.pos, -1, 90, 1.10, 0.95, 1);
+  W.cb_inicia(semente, escolha.estrA, escolha.estrB, 0, escolha.cor, escolha.motor, escolha.pos, -1, 90, 1.10, 1.10, 1);
   const p = new Float32Array(mem.buffer, W.cb_pessoas(), 25);
   const lista = []; for (let i = 0; i < p[0]; i++) lista.push([p[1 + 3 * i], p[2 + 3 * i]]);
   montaPessoas(lista);
@@ -700,9 +812,40 @@ function mostraFim(q) {
   $("sV").textContent = sessao.v; $("sE").textContent = sessao.e; $("sD").textContent = sessao.d;
 }
 
+function atualizaDeteccao(d, o, agoraReal) {
+  const ver = camadas.sensores && o[7] === 0;
+  d.g.visible = ver;
+  if (!ver) return;
+  for (let i = 0; i < 7; i++) {
+    const mm = o[40 + i], vendo = mm > 0;
+    d.cones[i].material.opacity = vendo ? 0.16 : 0.06;
+    d.calotas[i].visible = vendo;
+    if (vendo) { const r = Math.tan(MEIO_CONE) * mm / 1000; d.calotas[i].position.set(mm / 1000, 0, 0); d.calotas[i].scale.set(r, r, 1); }
+  }
+  for (let i = 0; i < 4; i++) {
+    const conf = (o[33] >> i) & 1, cru = (o[48] >> i) & 1;
+    d.bordas[i].disco.visible = !!(conf || cru);
+    d.bordas[i].disco.material.color.setHex(conf ? 0xff3030 : 0xf0f0f0);
+  }
+  // caixa do oponente: vista ou provável (o mapa ainda acha que ele está ali)
+  const provavel = o[19] === 0 && o[49] >= 0.3 && o[50] >= 0.15;
+  d.caixa.visible = o[19] > 0 || provavel;
+  if (d.caixa.visible) {
+    const ang = Math.atan2(o[21], o[20]);
+    d.caixa.position.set(o[20] / 1000, 0.031, -o[21] / 1000); d.caixa.rotation.y = ang;
+    d.caixaCorpo.material.opacity = o[19] > 0 ? 0.45 : 0.12;
+  }
+  if (agoraReal - d.tMapa > 100) { d.tMapa = agoraReal; const t = str(W.cb_mapa(0)); if (t) atualizaMapa(d, t); }
+  if (d.mapa) d.mapa.visible = o[49] > 0.15;
+}
+
 const camAux = new THREE.Vector3();
 function quadroCena(agoraReal, dtReal) {
   if (!W) { controles.update(); renderer.render(cena, camera); return; }
+  // controle manual: o robô escolhido recebe o PWM das teclas, o outro volta para o firmware
+  const [mE, mD] = comandoManual();
+  W.cb_manual(0, escolha.manual === 1 ? 1 : 0, mE, mD);
+  W.cb_manual(1, escolha.manual === 2 ? 1 : 0, mE, mD);
   if (estadoLuta === "rodando" && !pausado) {
     const ms = Math.min(250, dtReal * escolha.vel);
     const t0 = performance.now();
@@ -716,21 +859,18 @@ function quadroCena(agoraReal, dtReal) {
     const r = robos[k];
     poseRobo(r, o, agoraReal);
     const e = nomesEstados[o[10]] || "";
-    $(k ? "estB" : "estA").textContent = o[7] > 0 ? "FORA" : e;
-    // sensores: cone aceso quando o ToF vê o oponente; LED claro quando o sensor de borda vê branco
-    const mask = o[34], bmask = o[33];
-    r.cones.forEach((c, i) => { c.visible = camadas.sensores && o[7] === 0; c.material.opacity = (mask >> i) & 1 ? 0.2 : 0.025; });
-    r.ledsBorda.forEach((l, i) => { l.visible = camadas.sensores; l.material.color.set((bmask >> i) & 1 ? 0xffffff : 0x3a4048); });
-    // estimativas do firmware, no referencial do dojô
-    const est = estimativas[k], c = Math.cos(o[2]), s = Math.sin(o[2]);
-    const ver = camadas.estimativa && q[1] > 0 && q[0] >= q[1];
-    est.op.visible = ver && o[19] > 0;
-    if (est.op.visible) { const ox = o[0] + (c * o[20] - s * o[21]) / 1000, oy = o[1] + (s * o[20] + c * o[21]) / 1000; est.op.position.set(ox, ALT_DOJO + 0.0015, -oy); }
-    est.centro.visible = ver && o[39] > 0;
-    if (est.centro.visible) {
-      const ax = o[0] + (c * o[22] - s * o[23]) / 1000, ay = o[1] + (s * o[22] + c * o[23]) / 1000;
-      est.centro.position.set(ax, ALT_DOJO + 0.001, -ay);
-      const sg = Math.max(0.01, o[24] / 1000); est.sigma.scale.set(sg, sg, sg);
+    $(k ? "estB" : "estA").textContent = o[7] > 0 ? "FORA" : (o[51] > 0 ? "MANUAL" : e);
+    if (r.det) atualizaDeteccao(r.det, o, agoraReal);
+    if (k === 0) {
+      // localização: centro do dojô estimado pelo filtro de partículas, no referencial do dojô
+      const c = Math.cos(o[2]), s = Math.sin(o[2]);
+      estimativa.centro.visible = camadas.estimativa && o[39] > 0 && o[7] === 0;
+      if (estimativa.centro.visible) {
+        const ax = o[0] + (c * o[22] - s * o[23]) / 1000, ay = o[1] + (s * o[22] + c * o[23]) / 1000;
+        estimativa.centro.position.set(ax, ALT_DOJO + 0.001, -ay);
+        const sg = Math.max(0.01, o[24] / 1000); estimativa.sigma.scale.set(sg, sg, sg);
+        dojoEstimado.material.opacity = o[25] > 0 ? 0.85 : 0.35;
+      }
     }
     atualizaTele(TELE[k], o);
   }
