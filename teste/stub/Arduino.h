@@ -35,3 +35,25 @@ public:
     return n > 0 ? write((const uint8_t*)buf, strlen(buf)) : 0;
   }
 };
+
+// Serial de mentira: o teste que usar define o objeto e decide para onde vai o texto.
+class SerialFalso : public Print {
+public:
+  using Print::write;
+  size_t write(uint8_t c) override;
+};
+extern SerialFalso Serial;
+
+// PWM do ESP32 (periférico LEDC). A versão do core vem da compilação (-DESP_ARDUINO_VERSION_MAJOR=3)
+// para o mesmo teste conferir as duas linhas do core; o teste dos motores define as funções.
+#ifndef ESP_ARDUINO_VERSION_MAJOR
+#define ESP_ARDUINO_VERSION_MAJOR 2
+#endif
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+bool ledcAttach(uint8_t pin, uint32_t freq, uint8_t resolution);
+bool ledcWrite(uint8_t pin, uint32_t duty);
+#else
+uint32_t ledcSetup(uint8_t channel, uint32_t freq, uint8_t resolution_bits);
+void ledcAttachPin(uint8_t pin, uint8_t channel);
+void ledcWrite(uint8_t channel, uint32_t duty);
+#endif

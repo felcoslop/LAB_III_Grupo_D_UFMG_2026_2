@@ -212,8 +212,8 @@ static const CfgBorda BORDA[] = {
 // Motores: módulo de ponte H dupla de 10 A (3 a 18 V), com as entradas GND, IN1, IN2, IN3 e
 // IN4. O esquema da placa mostra um L298N, mas o módulo usado é este, de transistores MOSFET.
 // O PWM vai no próprio pino IN: para a frente o IN1 recebe o PWM e o IN2 fica em LOW, e para
-// trás o contrário. O módulo aceita PWM de até 2 kHz, e o analogWrite do ESP32 usa 1 kHz nos
-// cores 2.x e 3.x. Com os dois IN em LOW o motor para. Na bancada USAR_MOTORES fica em 0.
+// trás o contrário. O módulo aceita PWM de até 2 kHz. Com os dois IN em LOW o motor para.
+// Na bancada USAR_MOTORES fica em 0.
 // O valor também pode vir da compilação (-DUSAR_MOTORES=1), como o CI faz.
 // ============================================================================
 #ifndef USAR_MOTORES
@@ -226,6 +226,7 @@ static const CfgBorda BORDA[] = {
 #define INVERTE_ESQ       0      // 1 quando o motor esquerdo gira ao contrário
 #define INVERTE_DIR       0
 #define TROCA_MOTORES     0      // 1 quando o motor da esquerda está ligado na saída do motor B
+#define PWM_MOTOR_HZ      1000   // frequência do PWM nos pinos IN (o módulo aceita até 2000)
 
 // ============================================================================
 // Cinemática das rodas e modelo do acionamento (cinematica.cpp)
