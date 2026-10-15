@@ -11,7 +11,7 @@ ALVO=${1:-nativo}
 DIR=teste/combate
 GEN=$(mktemp -d)
 trap 'rm -rf "$GEN"' EXIT
-MODULOS="percepcao oponente rastreador borda estados cinematica motores telemetria arena chave"
+MODULOS="percepcao oponente rastreador borda estados cinematica motores telemetria arena chave antitrava"
 FLAGS="-std=c++17 -O2 -DGEOMETRIA_BANCADA=0 -DUSAR_MOTORES=1 -DQTD_TOF=7 -I $DIR/stub -I teste/sim/stub -I $DIR -I ."
 FONTES=""
 for ns in fa fb; do

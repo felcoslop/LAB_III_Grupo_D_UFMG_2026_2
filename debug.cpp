@@ -15,6 +15,7 @@
 #include "rastreador.h"
 #include "arena.h"
 #include "chave.h"
+#include "antitrava.h"   // ANTI_TRAVA
 #include <Wire.h>
 
 static char     linha[48];          // comando que está sendo digitado
@@ -49,6 +50,9 @@ static void ajuda() {
   Log.println(F("# estrategia rush|flank|fan|chave   escolhe a estrategia (chave = segue a DIP)"));
   Log.println(F("# perfil claro|escuro|chave         perfil do oponente (chave = segue a DIP 4)"));
   Log.println(F("# arena              localizacao no dojo: centro, incerteza e espaco livre"));
+#if ANTI_TRAVA
+  Log.println(F("# trava [N]          manobra do empurrao travado: 0 nenhuma 1 lateral 2 torque 3 zigue 4 giro 5 pulso"));
+#endif
   Log.println(F("# go | stop          inicia (5 s) / para a maquina de estados"));
   Log.println(F("# s1 | s0            liga/desliga stream para o painel (HTML)"));
   Log.println(F("# ============================================"));
@@ -398,7 +402,8 @@ static void calBorda() {
 //     (cx e cy são o centro do oponente; rumoModo: 0 nada, 1 atacar, 2 mirar, 3 provável, 4 procurar)
 //   Q,bordaConfirmada,bordaCru,mv0..mv3
 //   A,estrategia,escuro,dip,arenaValida,arenaConfiavel,cx,cy,sigma,aproximacao,contato,descartes,
-//     travado,destravas,aquecimento (travado: 0 livre, 1 empurrao travado, 2 giro preso; aquecimento em K)
+//     travado,destravas,aquecimento (travado: 0 livre, 1 empurrao travado, 2 giro preso, 3 manobra do
+//     empurrao travado; aquecimento em K)
 //     (estrategia: 0 Rush, 1 Flank, 2 Fan out; cx e cy: centro do dojô no referencial do robô, mm)
 //   M,40,19,140,40,<mapa>       a cada MAPA_MS (formato explicado no rastreador.h)
 static void streamCabecalho() {
@@ -559,6 +564,14 @@ static void executa(char* c) {
       estados_teste_pwm((int8_t)constrain(e, -100, 100), (int8_t)constrain(d, -100, 100), (uint16_t)(ms > 3000 ? 3000 : ms));
     else Log.println(F("! uso: pwm E D MS   (ex.: pwm 30 0 1000 so a roda esquerda para a frente)"));
   }
+#if ANTI_TRAVA
+  else if (!strcmp(c, "trava") || !strncmp(c, "trava ", 6)) {
+    int m = -1;
+    if (c[5] == ' ' && sscanf(c + 6, "%d", &m) == 1 && m >= 0 && m < MT_N) antitrava_define((uint8_t)m);
+    else if (c[5] == ' ') Log.println(F("! uso: trava N (0 nenhuma, 1 lateral, 2 torque, 3 zigue, 4 giro, 5 pulso)"));
+    Log.printf("# manobra do empurrao travado: %u %s\n", antitrava_manobra(), antitrava_nome(antitrava_manobra()));
+  }
+#endif
   else if (!strcmp(c, "go"))     { estados_iniciar(); Log.println(F("# start: contagem de 5 s")); }
   else if (!strcmp(c, "stop"))   { estados_parar();   Log.println(F("# parado")); }
   else if (!strcmp(c, "s1") || !strcmp(c, "geo") || !strcmp(c, "cfg")) { modoStream = modoStream || !strcmp(c, "s1"); streamCabecalho(); }

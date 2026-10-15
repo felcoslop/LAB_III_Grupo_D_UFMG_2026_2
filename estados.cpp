@@ -22,6 +22,7 @@
 #include "arena.h"
 #include "chave.h"
 #include "oponente.h"
+#include "antitrava.h"   // ANTI_TRAVA: manobras do empurrão travado (experimental)
 
 static Estado   est = ESPERA;
 static uint32_t tEntrada = 0;          // momento em que o estado atual começou
@@ -100,6 +101,9 @@ void estados_init() {
 
 uint8_t estados_travado() {
   if (est == DESTRAVA) return 2;
+#if ANTI_TRAVA
+  if (antitrava_ativa()) return 3;
+#endif
   return tEmpurra && P.t_ms - tEmpurra >= T_TRAVA_MS ? 1 : 0;
 }
 void estados_iniciar() { pedidoStart = true; }
@@ -342,6 +346,9 @@ static void flanco(uint32_t t) {
 // durante a contagem (ele está parado na outra metade do dojô).
 static void comecaLuta() {
   destravas = 0; tEmpurra = 0; tGiroRef = 0; avisouEmpurrao = false;
+#if ANTI_TRAVA
+  antitrava_inicia_luta();
+#endif
   arena_inicia(P.op.visto, P.op.x, P.op.y);
   arena_le(P.arena);
   Log.printf("# luta: estrategia %s, oponente %s%s\n", estrategia_nome(estrategia), escuro ? "ESCURO" : "CLARO",
@@ -361,6 +368,9 @@ void estados_passo() {
                 (est == GIRO_BORDA && P.borda.frente && P.borda.tras);
   if (emLuta() && !emFuga && P.borda.detectada) {
     if (est == DESTRAVA && destravaComRe && P.borda.tras) tReBateu = P.t_ms | 1;
+#if ANTI_TRAVA
+    antitrava_aborta();
+#endif
     decideFuga(); t = 0;
   }
 
@@ -377,6 +387,11 @@ void estados_passo() {
   bool preso = emLuta() && giroPreso();
   cinematica_rodas_travadas((emp && P.t_ms - tEmpurra >= 300) || est == DESTRAVA || preso);
   if (preso) { iniciaDestrava(); t = 0; }
+#if ANTI_TRAVA
+  // caixa do oponente parada no ataque: a manobra comanda as rodas enquanto dura; a borda (acima)
+  // e o giro preso vêm antes e cancelam a manobra
+  if (emLuta() && antitrava_passo(est == ATAQUE)) return;
+#endif
 
   switch (est) {
     case ESPERA:

@@ -33,6 +33,7 @@ Estado      estado_atual();
 const char* estado_nome(Estado e);
 Estrategia  estados_estrategia();     // estratégia em uso (travada no start)
 bool        estados_escuro();         // perfil de oponente em uso (travado no start)
-// Travamento: 0 livre, 1 empurrão em contato há mais de T_TRAVA_MS, 2 giro preso (DESTRAVA)
+// Travamento: 0 livre, 1 empurrão em contato há mais de T_TRAVA_MS, 2 giro preso (DESTRAVA),
+// 3 manobra do empurrão travado em andamento (antitrava.h)
 uint8_t     estados_travado();
 uint16_t    estados_destravas();      // manobras DESTRAVA nesta luta
