@@ -702,7 +702,7 @@ const sessao = { v: 0, e: 0, d: 0 };
 const ESTR = ["Rush", "Flank", "Fan out"];
 function novaLuta(repete) {
   if (!repete) semente = 1 + Math.floor(Math.random() * 1e6);
-  W.cb_inicia(semente, escolha.estrA, escolha.estrB, 0, escolha.cor, escolha.motor, escolha.pos, -1, 90, 1.10, 1.10, 1);
+  W.cb_inicia(semente, escolha.estrA, escolha.estrB, 0, escolha.cor, escolha.motor, escolha.pos, -1, 90, 1.0, 0.4, 1);
   const p = new Float32Array(mem.buffer, W.cb_pessoas(), 25);
   const lista = []; for (let i = 0; i < p[0]; i++) lista.push([p[1 + 3 * i], p[2 + 3 * i]]);
   montaPessoas(lista);

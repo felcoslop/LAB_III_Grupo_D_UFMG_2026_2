@@ -109,7 +109,8 @@ void inicia(const Config& c) {
     Robo& rb = M->r[k];
     rb = Robo();
     rb.p.massa = c.massa;
-    rb.p.muEst = c.muEst; rb.p.muDin = c.muDin;
+    rb.p.muEst *= c.atrito; rb.p.muDin *= c.atrito;
+    rb.p.restit = c.restit;
     rb.p.refl = (k == 0 ? c.brancoA : c.brancoB) ? 0.6 : 0.05;
     rb.p.motor = (k == 1 && c.b1000) ? motor1000() : motor319();
     rb.p.ponta = M->uniforme(0.1e-3, 0.6e-3);           // ponta da rampa impressa
