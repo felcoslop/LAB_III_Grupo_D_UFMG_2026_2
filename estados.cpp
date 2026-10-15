@@ -193,7 +193,7 @@ static bool atrasColado() {
 static uint16_t colados(bool frente) {
   uint16_t m = 0;
   for (uint8_t i = 0; i < N_TOF; i++)
-    if ((frente && fabsf(TOF[i].ang) <= 30) || (!frente && fabsf(TOF[i].ang) >= 140)) m |= (1u << i);
+    if ((frente && abs(TOF[i].ang) <= 30) || (!frente && abs(TOF[i].ang) >= 140)) m |= (1u << i);
   return P.op.colados & m;
 }
 
