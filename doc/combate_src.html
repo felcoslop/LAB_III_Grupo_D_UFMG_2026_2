@@ -215,6 +215,7 @@ details .texto p { margin: 0; }
           <h3>Motores do adversário (JGB37-520, 12 V)</h3>
           <div class="segmentos b" id="selMotor">
             <button type="button" data-v="1" aria-pressed="true">1000 rpm</button>
+            <button type="button" data-v="2" aria-pressed="false">600 rpm</button>
             <button type="button" data-v="0" aria-pressed="false">319 rpm, iguais</button>
           </div>
         </div>
@@ -473,12 +474,12 @@ const matMetal = new THREE.MeshStandardMaterial({ color: 0xb8b1a3, roughness: 0.
 const matPneu = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.92 });
 const matPcbTof = new THREE.MeshStandardMaterial({ color: 0x4b2a7a, roughness: 0.5 });
 const matPcbBorda = new THREE.MeshStandardMaterial({ color: 0x1d4f9a, roughness: 0.5 });
-const RODA_Y = 0.01597, RODA_Z = 0.06365;
+const RODA_Y = 0.016, RODA_Z = 0.0634;
 // sensores no referencial do corpo (mm), os mesmos do config.h, com as cores do painel
-const TOF = [[80, 72, 90], [96, 33, 20], [97, 0, 0], [96, -33, -20], [80, -72, -90], [-23, 40, 160], [-23, -40, -160]];
+const TOF = [[55, 72, 90], [85, 35, 17], [95, 0, 0], [85, -35, -17], [55, -72, -90], [33, 72, 160], [33, -72, -160]];
 const CORES_TOF = ["#b98cff", "#4fa3ff", "#35d49a", "#ff9f43", "#ff6fae", "#6fe3ff", "#ffd36f"];
-const BORDA = [[94, 66], [94, -66], [54, 66], [54, -66]];
-const ALCANCE_MM = 600, OP_LADO_MM = 152, LENTE_MM = 17.5, MEIO_CONE = 12.5 * Math.PI / 180;
+const BORDA = [[88, 62], [88, -62], [-60, 34], [-60, -34]];
+const ALCANCE_MM = 600, OP_LADO_MM = 152, LENTE_MM = 19.8, MEIO_CONE = 12.5 * Math.PI / 180;
 // alcance de cada ToF como no firmware: a maior leitura que ainda cai no círculo de 600 mm em volta do eixo
 function alcanceSensor([x, y, a]) {
   const ux = Math.cos(a * Math.PI / 180), uy = Math.sin(a * Math.PI / 180), b = x * ux + y * uy;
@@ -509,7 +510,7 @@ function criaRobo(corPla, nome, corEquipe, comDeteccao) {
   // placas dos sensores atrás das janelas
   for (const [x, y, a] of TOF) {
     const pcb = new THREE.Mesh(new THREE.BoxGeometry(0.0016, 0.0106, 0.0253), matPcbTof);
-    pcb.position.set((x - 3 * Math.cos(a * Math.PI / 180)) / 1000, 0.0175, -(y - 3 * Math.sin(a * Math.PI / 180)) / 1000);
+    pcb.position.set((x - 3 * Math.cos(a * Math.PI / 180)) / 1000, 0.0198, -(y - 3 * Math.sin(a * Math.PI / 180)) / 1000);
     pcb.rotation.y = a * Math.PI / 180; corpo.add(pcb);
   }
   const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.015), new THREE.MeshStandardMaterial({ map: adesivo(nome, corEquipe), roughness: 0.6 }));
@@ -766,7 +767,7 @@ function novaLuta(repete) {
   robos.forEach((r) => { r.queda = null; });
   tTrava[0] = tTrava[1] = -1e9; $("alerta").hidden = true;
   $("log").innerHTML = ""; tLibLog = -1; $("faixa").hidden = true; fimMostrado = false; fimExibido = false;
-  $("nomeB").textContent = `Adversário ${escolha.motor ? "1000" : "319"} rpm`;
+  $("nomeB").textContent = `Adversário ${["319", "1000", "600"][escolha.motor]} rpm`;
   $("semente").textContent = `Semente ${semente}. Estratégia do Grupo D: ${ESTR[escolha.estrA]}.`;
   estadoLuta = "rodando"; pausado = false; $("btPausa").textContent = "Pausar";
 }

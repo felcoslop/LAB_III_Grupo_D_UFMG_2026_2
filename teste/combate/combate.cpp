@@ -112,7 +112,7 @@ void inicia(const Config& c) {
     rb.p.muEst *= c.atrito; rb.p.muDin *= c.atrito;
     rb.p.restit = c.restit;
     rb.p.refl = (k == 0 ? c.brancoA : c.brancoB) ? 0.6 : 0.05;
-    rb.p.motor = (k == 1 && c.b1000) ? motor1000() : motor319();
+    rb.p.motor = k == 1 ? (c.rpmB == 1000 ? motor1000() : c.rpmB == 600 ? motor600() : motor319()) : motor319();
     rb.p.ponta = M->uniforme(0.1e-3, 0.6e-3);           // ponta da rampa impressa
     rb.p.vAberta = M->uniforme(12.0, 12.5);             // bateria carregada antes da luta
     rb.vBat = rb.p.vAberta;

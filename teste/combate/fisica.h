@@ -34,13 +34,13 @@ const double CD_AR  = 1.0;
 const double A_AR   = 0.149 * 0.0515;
 // Geometria do robô no referencial do corpo: origem no meio do eixo das rodas, no chão, x para
 // a frente e y para a esquerda (medidas do STL e do desenho de conjunto do projeto mecânico).
-const double X_PONTA   = 0.1177;   // ponta da rampa
+const double X_PONTA   = 0.118;    // ponta da rampa (STEP LAB3-Modelagem)
 const double X_FACE    = 0.100;    // face inclinada (61,8 graus) na altura das lentes dos ToF
-const double X_TRAS    = -0.025;   // face de trás da base
+const double X_TRAS    = -0.031;   // face de trás da base
 const double Y_LADO    = 0.0745;   // metade da largura do corpo
-const double BITOLA    = 0.1273;   // centros dos pneus depois do corte de 2 mm na ponta dos eixos
-const double R_RODA    = 0.01597;  // pneu StickyMAX S20 de 32 mm (desenho da RoboCore: 32 x 20 mm, 9,5 a 10 g)
-const double Y_PNEU_IN = 0.0535;   // face de dentro do pneu
+const double BITOLA    = 0.1268;   // centros dos pneus no STEP (62,9 mm de um lado e 63,9 mm do outro)
+const double R_RODA    = 0.016;    // pneu StickyMAX S20 de 32 mm (desenho da RoboCore: 32 x 20 mm, 9,5 a 10 g)
+const double Y_PNEU_IN = 0.0533;   // face de dentro do pneu
 const double X_PNEU    = 0.016;    // metade do comprimento do pneu visto de cima
 const double ANG_RAMPA = 17.7;     // graus
 
@@ -51,6 +51,7 @@ struct Motor {
   double jRoda;                                             // inércia no eixo da roda (kg.m²)
 };
 Motor motor319();     // JGB37-520 12 V, 319 rpm, redução 18,8:1, linha de 6000 rpm
+Motor motor600();     // JGB37-520 12 V, 600 rpm, redução 10:1, a mesma linha de 6000 rpm (existe à venda)
 Motor motor1000();    // JGB37-520 12 V, 1000 rpm, redução 6:1, a mesma linha de 6000 rpm
 
 struct Param {

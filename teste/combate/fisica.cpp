@@ -17,6 +17,9 @@ static const double KGFCM = 0.0980665;   // 1 kgf.cm em N.m
 // Cubo e pneu: anel de silicone de 10 g entre 12,5 e 16 mm de raio (2,1e-6 kg.m²) e cubo de PLA
 // (0,4e-6 kg.m²).
 Motor motor319()  { return {"JGB37-520 319 rpm", 12.0, 319, 0.10, 1.2, 1.9 * KGFCM, 2.5e-7 * 18.8 * 18.8 + 2.5e-6}; }
+// Motor intermediário: redução de 10:1 da mesma tabela, 600 rpm livre, 480 rpm com carga e 1,1 kgf.cm
+// travado (RCDrone). É vendido pronto no AliExpress e em lojas de robótica como "JGB37-520 12 V 600 rpm".
+Motor motor600()  { return {"JGB37-520 600 rpm", 12.0, 600, 0.10, 1.2, 1.1 * KGFCM, 2.5e-7 * 10.0 * 10.0 + 2.5e-6}; }
 Motor motor1000() { return {"JGB37-520 1000 rpm", 12.0, 1000, 0.10, 1.2, 0.6 * KGFCM, 2.5e-7 * 6.0 * 6.0 + 2.5e-6}; }
 
 double kappaRampa(double mu) {

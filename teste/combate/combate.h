@@ -16,7 +16,7 @@ struct Config {
   int      estrB    = -1;      // estratégia do adversário (-1 sorteada)
   bool     brancoA  = false;   // cor do robô do Grupo D (PLA preto por padrão)
   bool     brancoB  = false;   // cor do adversário
-  bool     b1000    = true;    // motores do adversário: 1000 rpm (true) ou 319 rpm, iguais aos do Grupo D
+  int      rpmB     = 1000;    // motores do adversário: 1000, 600 ou 319 rpm (319 é igual ao do Grupo D)
   int      posA     = -1;      // rumo do Grupo D na largada: -1 sorteado, 0 de frente para o adversário,
   int      posB     = -1;      // 1 e 2 de lado, 3 de costas (posB: o mesmo para o adversário)
   double   tRound   = 90;      // segundos de luta depois dos 5 s parados

@@ -148,7 +148,7 @@ jobs:
           python-version: "3.12"
       - name: Simulador de combate
         run: bash teste/combate/compila.sh
-      # as 3 estratégias contra o adversário de 1000 rpm e o de 319 rpm, preto e branco, com o
+      # as 3 estratégias contra o adversário de 1000, 600 e 319 rpm, preto e branco, com o
       # mesmo firmware nos dois robôs: falha se o robô do Grupo D sair do dojô sozinho
       - name: Bateria de combate
         run: |

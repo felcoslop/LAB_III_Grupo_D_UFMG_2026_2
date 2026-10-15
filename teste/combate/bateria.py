@@ -6,7 +6,7 @@ semente, em paralelo, e mostra o placar de cada combinação: vitórias, derrota
 saindo sozinho) e empates por tempo. A estratégia do adversário é sorteada em cada luta.
 
 Uso: python teste/combate/bateria.py BIN [--sementes N] [--estrategias rush,flank,fanout]
-         [--cores preto,branco] [--motores 1000,319] [--atrito 1] [--restit 0.4] [--extra "-x 2"]
+         [--cores preto,branco] [--motores 1000,600,319] [--atrito 1] [--restit 0.4] [--extra "-x 2"]
          [--csv ARQ] [--json ARQ] [--exige-quedas-proprias N]
   --atrito: fator no atrito do pneu (0,8 com pó no dojô); --restit: restituição do choque;
   --extra: opções a mais para o executável (por exemplo a manobra de destravamento, -x N)
@@ -108,7 +108,7 @@ def main():
     ap.add_argument("--semente0", type=int, default=1)
     ap.add_argument("--estrategias", default="rush,flank,fanout")
     ap.add_argument("--cores", default="preto,branco")
-    ap.add_argument("--motores", default="1000,319")
+    ap.add_argument("--motores", default="1000,600,319")
     ap.add_argument("--atrito", type=float, default=None)
     ap.add_argument("--restit", type=float, default=None)
     ap.add_argument("--extra", default="")
