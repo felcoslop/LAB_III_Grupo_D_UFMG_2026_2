@@ -92,9 +92,23 @@ static void led(bool aceso) {
 #endif
 }
 
+// LED de robô travado (PINO_LED_TRAVA, opcional): aceso enquanto o empurrão estiver travado ou a
+// manobra de destravar rodar.
+static void ledTrava(bool aceso) {
+#if PINO_LED_TRAVA >= 0
+  digitalWrite(PINO_LED_TRAVA, aceso ? HIGH : LOW);
+#else
+  (void)aceso;
+#endif
+}
+
 void estados_init() {
 #if PINO_LED >= 0
   pinMode(PINO_LED, OUTPUT);
+#endif
+#if PINO_LED_TRAVA >= 0
+  pinMode(PINO_LED_TRAVA, OUTPUT);
+  digitalWrite(PINO_LED_TRAVA, LOW);
 #endif
   est = ESPERA; tEntrada = millis(); tAntPasso = millis();
 }
@@ -387,6 +401,7 @@ void estados_passo() {
   bool preso = emLuta() && giroPreso();
   cinematica_rodas_travadas((emp && P.t_ms - tEmpurra >= 300) || est == DESTRAVA || preso);
   if (preso) { iniciaDestrava(); t = 0; }
+  ledTrava(emLuta() && estados_travado() != 0);   // LED opcional de robô travado
 #if ANTI_TRAVA
   // caixa do oponente parada no ataque: a manobra comanda as rodas enquanto dura; a borda (acima)
   // e o giro preso vêm antes e cancelam a manobra

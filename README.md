@@ -720,6 +720,9 @@ Os ajustes principais ficam no `config.h`:
 | `T_GIRO_TRAVA_MS`, `GIRO_TRAVA_DEG` e `GIRO_TRAVA_GANHO_DEG` | 600, 90 e 15 | giro preso: janela, giro estimado e melhora mínima do ângulo do oponente |
 | `T_DESTRAVA_RE_MS` e `T_DESTRAVA_AVANCO_MS` | 250 e 250 | ré (com espaço atrás) ou avanço da manobra DESTRAVA |
 | `T_TRAVA_MS` | 1600 | empurrão em contato a partir do qual o travamento aparece no painel |
+| `ANTI_TRAVA` | 1 | 1 liga o reconhecimento do empurrão travado pela caixa do rastreador; 0 apaga o módulo |
+| `ANTI_TRAVA_MANOBRA` | 0 | o que fazer ao detectar o empurrão travado: 0 só avisa, 1 lateral, 2 torque, 3 zigue, 4 giro, 5 pulso (cada opção está comentada no `config.h`: descomente uma) |
+| `PINO_LED_TRAVA` | -1 | GPIO de um LED que acende no empurrão travado; -1 sem LED (um LED com resistor de 330 ohms em qualquer GPIO livre de saída, que o DevKit de 30 pinos não deixa muitos) |
 | `MOTOR_C_TERM_JK` e `MOTOR_R_TERM_KW` | 40 e 6 | capacidade (J/K) e resistência (K/W) térmicas de cada motor (estimadas; medir) |
 | `MOTOR_QUENTE_K`, `MOTOR_FRIO_K` e `MOTOR_PWM_QUENTE` | 60, 45 e 0,7 | limite térmico: liga, desliga e PWM máximo das manobras normais |
 | `BORDA_LIMIAR_MV` | 600 | limiar fixo da borda antes da calibração |
