@@ -1,0 +1,562 @@
+<title>Montagem Grupo D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Bancada de montagem: o robô fica sobre um tapete de corte (grade de 10 mm) no palco à
+   esquerda; à direita, as camadas, a legenda dos jumpers e o fio escolhido; embaixo, a lista
+   de ligações, a compra de jumpers e as diferenças do esquema. Mesma família visual do
+   combate (azul-petróleo do Grupo D). */
+:root {
+  --bg: #eef0ec;
+  --painel: #ffffff;
+  --fg: #171a19;
+  --suave: #5a625e;
+  --linha: #d6dad4;
+  --a: #0d7480;
+  --aviso: #9a5b00;
+  --ruim: #a8291f;
+  --palco: #0d0f12;
+  --chip: #f5f6f3;
+  --f-titulo: "Saira Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-texto: "Source Sans 3", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121514; --painel: #1a1e1d; --fg: #e6e9e4; --suave: #9aa39e; --linha: #2c322f;
+    --a: #39adb9; --aviso: #e0a24a; --ruim: #f0786c; --chip: #232826;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121514; --painel: #1a1e1d; --fg: #e6e9e4; --suave: #9aa39e; --linha: #2c322f;
+  --a: #39adb9; --aviso: #e0a24a; --ruim: #f0786c; --chip: #232826;
+  color-scheme: dark;
+}
+html, body { height: auto; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--f-texto); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 14px 28px;
+}
+h1, h2, h3 { font-family: var(--f-titulo); font-weight: 700; letter-spacing: 0.01em; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.9rem; line-height: 1.05; }
+h2 { font-size: 1.3rem; }
+h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--suave); font-weight: 600; }
+p { margin: 0; }
+.app { max-width: 1440px; margin: 0 auto; display: grid; gap: 16px; }
+.topo { display: grid; gap: 4px; }
+.local { color: var(--suave); font-size: 0.95rem; max-width: 92ch; }
+.aviso { border-left: 3px solid var(--aviso); padding: 6px 10px; background: var(--chip); color: var(--fg); font-size: 0.92rem; max-width: 110ch; border-radius: 0 6px 6px 0; }
+.grade { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; align-items: start; }
+@media (max-width: 900px) { .grade { grid-template-columns: minmax(0, 1fr); } }
+.vista { position: relative; background: var(--palco); border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 10; max-width: 100%; }
+@media (max-width: 600px) { .vista { aspect-ratio: 4 / 4.2; } }
+.vista canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.cameras { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; right: 10px; }
+.cameras button, .botao {
+  font: 600 0.8rem var(--f-texto); padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(16, 19, 22, 0.78); color: #e9ece8; cursor: pointer;
+}
+.cameras button[aria-pressed="true"] { background: #0d7480; border-color: #39adb9; }
+.cameras button:focus-visible, .botao:focus-visible, .lista tr:focus-visible { outline: 2px solid #39adb9; outline-offset: 2px; }
+.dica { position: absolute; pointer-events: none; padding: 6px 9px; border-radius: 6px; background: rgba(10, 12, 14, 0.9); color: #eef1ee;
+  font-size: 0.82rem; max-width: 300px; line-height: 1.3; transform: translate(12px, 12px); }
+.dica b { font-weight: 600; }
+.escala { position: absolute; top: 10px; right: 10px; font: 600 0.72rem var(--f-mono); color: #b9c2bd; background: rgba(10,12,14,0.6); padding: 3px 7px; border-radius: 5px; }
+.lado { display: grid; gap: 12px; min-width: 0; }
+.bloco { background: var(--painel); border: 1px solid var(--linha); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; min-width: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 600 0.78rem var(--f-mono); padding: 3px 8px; border-radius: 999px; background: var(--chip); border: 1px solid var(--linha); font-variant-numeric: tabular-nums; }
+.marcas { display: grid; gap: 4px; }
+.marca { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer; }
+.marca input { accent-color: var(--a); width: 16px; height: 16px; margin: 0; }
+.marca .cor { width: 14px; height: 4px; border-radius: 2px; flex: none; }
+.marca .n { margin-left: auto; color: var(--suave); font: 0.75rem var(--f-mono); }
+.legenda { display: grid; gap: 8px; }
+.legenda .item { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: center; font-size: 0.86rem; }
+.legenda svg { width: 96px; height: 22px; display: block; }
+.escolhido { font-size: 0.9rem; display: grid; gap: 4px; }
+.escolhido .rede { font: 600 0.8rem var(--f-mono); }
+.vazio { color: var(--suave); font-size: 0.88rem; }
+.secao { display: grid; gap: 10px; }
+.duas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 14px; align-items: start; }
+.rola { overflow-x: auto; border: 1px solid var(--linha); border-radius: 10px; background: var(--painel); }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--linha); vertical-align: top; }
+th { font-family: var(--f-titulo); font-weight: 600; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--suave); white-space: nowrap; }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+td.tipo { font-family: var(--f-mono); white-space: nowrap; }
+tr.grupo td { background: var(--chip); font-family: var(--f-titulo); font-weight: 600; letter-spacing: 0.04em; }
+.lista tbody tr[data-i] { cursor: pointer; }
+.lista tbody tr[data-i]:hover, .lista tbody tr.sel { background: color-mix(in srgb, var(--a) 12%, transparent); }
+.fio { display: inline-block; width: 18px; height: 5px; border-radius: 3px; vertical-align: middle; margin-right: 6px; box-shadow: 0 0 0 1px var(--linha); }
+.mono { font-family: var(--f-mono); font-size: 0.84rem; }
+ol.passos { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; max-width: 100ch; }
+ol.passos code, .mono code { font-family: var(--f-mono); font-size: 0.82rem; background: var(--chip); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.ok { color: var(--a); font-weight: 600; }
+.mal { color: var(--ruim); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="app">
+  <header class="topo">
+    <h3>UFMG · ELE635 · Grupo D · robô de sumô de 1 kg</h3>
+    <h1>Montagem do robô com os jumpers</h1>
+    <p class="local">Cada componente encaixado no chassi e cada fio do esquema elétrico, com a ponta de cada jumper: <b>fêmea</b> nos pinos machos dos módulos e da placa de expansão, <b>macho</b> nos furos da protoboard. Os sensores ficam nas posições do <span class="mono">config.h</span> e os GPIOs de cada fio também saem dele, então a página acompanha o firmware.</p>
+    <p class="aviso" id="provisorio"></p>
+  </header>
+
+  <div class="grade">
+    <div class="vista" id="vista">
+      <div class="escala">grade de 10 mm</div>
+      <div class="cameras" id="cameras"></div>
+      <div class="dica" id="dica" hidden></div>
+    </div>
+    <aside class="lado">
+      <section class="bloco">
+        <h3>Jumpers e fios</h3>
+        <div class="chips" id="contagem"></div>
+      </section>
+      <section class="bloco">
+        <h3>Fio escolhido</h3>
+        <div class="escolhido" id="escolhido"><p class="vazio">Passe o mouse ou toque num fio, ou numa linha da tabela.</p></div>
+      </section>
+      <section class="bloco">
+        <h3>Pontas dos jumpers</h3>
+        <div class="legenda" id="legenda"></div>
+      </section>
+      <section class="bloco">
+        <h3>Fios</h3>
+        <div class="marcas" id="marcasFios"></div>
+      </section>
+      <section class="bloco">
+        <h3>Peças</h3>
+        <div class="marcas" id="marcasPecas"></div>
+      </section>
+    </aside>
+  </div>
+
+  <section class="secao">
+    <h2>Ligações</h2>
+    <p class="local">Ordem do esquema elétrico, agrupada por função. O comprimento é o do caminho desenhado, com as pontas; a compra arredonda para o tamanho comercial com 15% de folga.</p>
+    <div class="rola"><table class="lista" id="tabLigacoes"></table></div>
+  </section>
+
+  <div class="duas">
+    <section class="secao">
+      <h2>Jumpers para comprar</h2>
+      <div class="rola"><table id="tabCompras"></table></div>
+    </section>
+    <section class="secao">
+      <h2>Interferências</h2>
+      <p class="local">Peças que ocupam o mesmo lugar (sobreposição de mais de 3 mm, em voxels de 1,5 mm). Encostar uma na outra não conta.</p>
+      <div class="rola"><table id="tabInter"></table></div>
+    </section>
+  </div>
+
+  <section class="secao">
+    <h2>Diferenças entre o Fritzing e o firmware</h2>
+    <p class="local">O esquema do Fritzing (SUMO_Esquemático e SUMO_bb) e o documento de ligação (Lab3-Liga) não dizem a mesma coisa em alguns pontos. A montagem segue o firmware, que segue o Lab3-Liga.</p>
+    <div class="rola"><table id="tabDif"></table></div>
+  </section>
+
+  <section class="secao">
+    <h2>Quando os STL finais chegarem</h2>
+    <ol class="passos">
+      <li>Coloque os STL do chassi numa pasta e os dos componentes em outra (os nomes ficam no <code>doc/montagem/montagem.json</code>, bloco <code>modelos</code>).</li>
+      <li>Rode <code>python doc/montagem/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES</code>, que refaz o <code>doc/montagem/pecas.js</code>.</li>
+      <li>Ajuste <code>pos</code> e <code>rot</code> de cada peça no bloco <code>pecas</code> do mesmo arquivo; os sensores saem sozinhos do <code>config.h</code>.</li>
+      <li>Rode <code>python doc/montagem/gera_montagem.py</code> e confira a tabela de interferências até ela ficar vazia.</li>
+    </ol>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+/*PECAS*/
+</script>
+<script>
+"use strict";
+const D = /*MONTAGEM*/;
+const PECAS = window.PECAS;
+let precisa = true;
+const pede = () => { precisa = true; };
+const $ = (id) => document.getElementById(id);
+const TIPO = {FF: "fêmea-fêmea", MF: "macho-fêmea", MM: "macho-macho", SF: "soldado + fêmea", S: "soldado ou borne"};
+const PONTA = {femea: 14, macho: 9, solda: 2, borne: 6};
+$("provisorio").textContent = D.provisorio;
+
+// ------------------------------------------------------------------ nomes
+const PEC = Object.fromEntries(D.pecas.map((p) => [p.id, p]));
+function curto(id) {
+  const p = PEC[id];
+  if (!p) return id;
+  if (p.modelo === "vl53l0x") return "VL53L0X " + id;
+  if (p.modelo === "tcrt5000") return "TCRT5000 " + id;
+  return p.nome.replace(/\s*\(.*$/, "");
+}
+function nomePonto(ref) {
+  const [id, pino] = ref.split(":");
+  if (id === "exp") {
+    const c = pino[0];
+    const r = pino.slice(1).replace(/_(E|D)$/, "");
+    return `Placa de expansão · ${c} ${/^\d+$/.test(r) ? "do GPIO " + r : "do " + r}`;
+  }
+  if (id === "proto") return `Protoboard · furo ${pino}`;
+  return `${curto(id)} · ${pino}`;
+}
+
+// ------------------------------------------------------------------ cena
+const vista = $("vista");
+const renderer = new THREE.WebGLRenderer({antialias: true});
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+renderer.outputEncoding = THREE.sRGBEncoding;
+vista.prepend(renderer.domElement);
+const cena = new THREE.Scene();
+cena.background = new THREE.Color(0x0d0f12);
+const camera = new THREE.PerspectiveCamera(32, 1.6, 2, 4000);
+camera.up.set(0, 0, 1);
+const controles = new THREE.OrbitControls(camera, renderer.domElement);
+controles.enableDamping = true;
+controles.target.set(45, 0, 35);
+cena.add(new THREE.HemisphereLight(0xf2f4ff, 0x26302c, 0.75));
+const sol = new THREE.DirectionalLight(0xffffff, 0.95); sol.position.set(-160, 140, 300); cena.add(sol);
+const contra = new THREE.DirectionalLight(0xdfe8ff, 0.4); contra.position.set(240, -180, 120); cena.add(contra);
+
+// tapete de corte verde com grade de 10 mm e linhas mais fortes a cada 50 mm
+(function tapete() {
+  const g = new THREE.PlaneGeometry(400, 400);
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({color: 0x1d3b33, roughness: 0.95}));
+  m.position.set(40, 0, -0.2); cena.add(m);
+  const fina = new THREE.GridHelper(400, 40, 0x3f6a5d, 0x2d5247); fina.rotation.x = Math.PI / 2; fina.position.set(40, 0, -0.1); cena.add(fina);
+  const forte = new THREE.GridHelper(400, 8, 0x6f9c8c, 0x6f9c8c); forte.rotation.x = Math.PI / 2; forte.position.set(40, 0, -0.05); cena.add(forte);
+})();
+
+// ------------------------------------------------------------------ malhas
+function buf(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; }
+const GEO = {};
+function geometria(nome) {
+  if (GEO[nome]) return GEO[nome];
+  const d = PECAS[nome];
+  const p = new Int16Array(buf(d.p)), n = new Int8Array(buf(d.n));
+  const idx = d.i32 ? new Uint32Array(buf(d.i)) : new Uint16Array(buf(d.i));
+  const pos = new Float32Array(p.length), nor = new Float32Array(n.length);
+  for (let i = 0; i < p.length; i++) pos[i] = p[i] * 0.01;
+  for (let i = 0; i < n.length; i++) nor[i] = n[i] / 127;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  g.computeBoundingSphere();
+  return (GEO[nome] = g);
+}
+function material(cor, op = 1, extra = {}) {
+  return new THREE.MeshStandardMaterial(Object.assign({color: cor, roughness: 0.55, metalness: 0.12,
+    transparent: op < 1, opacity: op, depthWrite: op >= 1, side: op < 1 ? THREE.DoubleSide : THREE.FrontSide}, extra));
+}
+function procedural(mod, cor, op) {
+  const g = new THREE.Group();
+  const [a, b, c] = mod.dim;
+  if (mod.procedural === "protoboard") {
+    const corpo = new THREE.Mesh(new THREE.BoxGeometry(a, b, c), material(cor, op));
+    corpo.position.z = c / 2; g.add(corpo);
+    const furo = new THREE.InstancedMesh(new THREE.BoxGeometry(1.0, 1.0, 0.3), material(0x3a3a3a), 170);
+    const m = new THREE.Matrix4(); let k = 0;
+    for (let col = 1; col <= 17; col++) for (let i = 0; i < 10; i++) {
+      const y = i < 5 ? 13.97 - 2.54 * i : -3.81 - 2.54 * (i - 5);
+      m.makeTranslation((col - 9) * 2.54, y, c + 0.02); furo.setMatrixAt(k++, m);
+    }
+    g.add(furo);
+    const canal = new THREE.Mesh(new THREE.BoxGeometry(a - 2, 1.6, 0.4), material(0xbfbfb8)); canal.position.z = c; g.add(canal);
+  } else if (mod.procedural === "chave_gangorra") {
+    const corpo = new THREE.Mesh(new THREE.BoxGeometry(a, b, c), material(cor, op)); corpo.position.z = c / 2; g.add(corpo);
+    const tecla = new THREE.Mesh(new THREE.BoxGeometry(a * 0.78, b * 0.62, 3), material(0xc0281c));
+    tecla.position.z = c + 1.4; tecla.rotation.y = 0.18; g.add(tecla);
+  } else {
+    const caixa = new THREE.Mesh(new THREE.BoxGeometry(a, b, c), material(cor, op));
+    const ce = mod.centro || [0, 0, c / 2]; caixa.position.set(ce[0], ce[1], ce[2]); g.add(caixa);
+  }
+  return g;
+}
+
+const objetos = {};       // id da peça -> objeto 3D
+const grupoPeca = {};     // grupo -> [objetos]
+for (const p of D.pecas) {
+  let obj;
+  const proc = D.modelos[p.modelo];
+  if (proc) obj = procedural(proc, p.cor, p.opacidade);
+  else obj = new THREE.Mesh(geometria(p.modelo), material(p.cor, p.opacidade));
+  obj.matrixAutoUpdate = false;
+  obj.matrix.fromArray(p.m);
+  obj.visible = p.visivel !== false;
+  obj.userData = {peca: p};
+  if (p.opacidade < 1) obj.renderOrder = 2;
+  cena.add(obj);
+  objetos[p.id] = obj;
+  const gr = p.id === "corpo" ? "corpo" : p.grupo;
+  (grupoPeca[gr] = grupoPeca[gr] || []).push(obj);
+}
+
+// ------------------------------------------------------------------ fios e pontas
+const Z = new THREE.Vector3(0, 0, 1);
+const MAT_CAPA = material(0x17181a, 1, {roughness: 0.7});
+const MAT_PINO = material(0xd7b45a, 1, {metalness: 0.8, roughness: 0.3});
+const MAT_SOLDA = material(0xc8ccd0, 1, {metalness: 0.7, roughness: 0.35});
+const MAT_COBRE = material(0xc07a3c, 1, {metalness: 0.7, roughness: 0.35});
+const GEO_FEMEA = new THREE.BoxGeometry(2.6, 2.6, PONTA.femea);
+const GEO_MACHO = new THREE.BoxGeometry(2.6, 2.6, PONTA.macho);
+const GEO_PINO = new THREE.BoxGeometry(0.64, 0.64, 6);
+const GEO_SOLDA = new THREE.SphereGeometry(1.3, 12, 8);
+const GEO_COBRE = new THREE.CylinderGeometry(0.5, 0.5, PONTA.borne, 8).rotateX(Math.PI / 2);
+function ponta(tipo, p, d) {
+  const g = new THREE.Group();
+  const P = new THREE.Vector3(...p), Dv = new THREE.Vector3(...d).normalize();
+  const q = new THREE.Quaternion().setFromUnitVectors(Z, Dv);
+  const poe = (geo, mat, dist) => { const m = new THREE.Mesh(geo, mat); m.position.copy(P).addScaledVector(Dv, dist); m.quaternion.copy(q); g.add(m); };
+  if (tipo === "femea") poe(GEO_FEMEA, MAT_CAPA, PONTA.femea / 2);
+  else if (tipo === "macho") { poe(GEO_MACHO, MAT_CAPA, PONTA.macho / 2); poe(GEO_PINO, MAT_PINO, -3); }
+  else if (tipo === "solda") poe(GEO_SOLDA, MAT_SOLDA, 0);
+  else poe(GEO_COBRE, MAT_COBRE, PONTA.borne / 2);
+  return g;
+}
+const fios = [];
+const grupoFio = {};
+D.fios.forEach((f, i) => {
+  const pts = f.pts.map((p) => new THREE.Vector3(...p));
+  const curva = new THREE.CatmullRomCurve3(pts, false, "centripetal");
+  const raio = f.tipo === "S" || f.tipo === "SF" ? 0.85 : 0.65;
+  const mat = material(f.cor, 1, {roughness: 0.42, emissive: 0x000000});
+  const tubo = new THREE.Mesh(new THREE.TubeGeometry(curva, Math.max(24, pts.length * 3), raio, 7, false), mat);
+  tubo.userData = {fio: i};
+  const g = new THREE.Group();
+  g.add(tubo, ponta(f.ponta_de, f.pa, f.da), ponta(f.ponta_para, f.pb, f.db));
+  cena.add(g);
+  fios.push({g, tubo, mat, f});
+  (grupoFio[f.grupo] = grupoFio[f.grupo] || []).push(g);
+});
+
+// ------------------------------------------------------------------ rótulos
+const rotulos = new THREE.Group(); cena.add(rotulos);
+function rotulo(texto, pos, escala = 1, cor = "#f2f4f0", fundo = "rgba(12,14,16,0.82)") {
+  const c = document.createElement("canvas"), ctx = c.getContext("2d");
+  const fs = 44; ctx.font = `600 ${fs}px "JetBrains Mono", monospace`;
+  const w = Math.ceil(ctx.measureText(texto).width) + 24; c.width = w; c.height = fs + 18;
+  ctx.font = `600 ${fs}px "JetBrains Mono", monospace`;
+  ctx.fillStyle = fundo; ctx.fillRect(0, 0, w, c.height);
+  ctx.fillStyle = cor; ctx.textBaseline = "middle"; ctx.fillText(texto, 12, c.height / 2 + 2);
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({map: t, depthTest: false, transparent: true}));
+  const h = 3.2 * escala; s.scale.set(h * w / c.height, h, 1); s.position.set(...pos); s.renderOrder = 10;
+  rotulos.add(s);
+}
+function ondeNaPeca(id, local) { return new THREE.Vector3(...local).applyMatrix4(objetos[id].matrix).toArray(); }
+// GPIOs usados na barra S da placa de expansão
+const usados = new Set();
+D.fios.forEach((f) => [f.de, f.para].forEach((r) => { if (r.startsWith("exp:S")) usados.add(r.slice(5)); }));
+for (const lado of ["esquerda", "direita"]) {
+  D.placa[lado].forEach((nome, k) => {
+    if (!usados.has(nome) && !(nome === "GND" && usados.has(lado === "esquerda" ? "GND_E" : "GND_D"))) return;
+    const y = D.placa.y_primeira + D.placa.passo * k;
+    const x = D.placa.x_S[lado] + (lado === "esquerda" ? 6.5 : -6.5);
+    rotulo(nome, ondeNaPeca("exp", [x, y, 16]), 0.8);
+  });
+}
+for (const p of D.pecas) if (p.modelo === "vl53l0x" || p.modelo === "tcrt5000") {
+  const loc = p.modelo === "vl53l0x" ? [0, 9, 0] : [-15.5, 0, 20];
+  rotulo(p.id, ondeNaPeca(p.id, loc), 1.0, "#ffffff", p.modelo === "vl53l0x" ? "rgba(32,105,52,0.9)" : "rgba(28,84,150,0.9)");
+}
+rotulo("BOOT = START (GPIO 0)", ondeNaPeca("esp", [21.7, -8.6, 22]), 0.8, "#ffe9a8");
+rotulo("DIP 1 2 3 4", ondeNaPeca("dip", [0, 0, 18]), 0.8, "#cfe0ff");
+
+// ------------------------------------------------------------------ painel lateral
+const cont = {};
+D.fios.forEach((f) => (cont[f.tipo] = (cont[f.tipo] || 0) + 1));
+$("contagem").innerHTML = ["FF", "MF", "MM", "SF", "S"].filter((t) => cont[t])
+  .map((t) => `<span class="chip">${cont[t]} ${TIPO[t]}</span>`).join("");
+
+const SVG = {
+  FF: '<svg viewBox="0 0 96 22"><rect x="2" y="7" width="22" height="8" rx="1" fill="#17181a"/><path d="M24 11 H72" stroke="#2e9e44" stroke-width="3"/><rect x="72" y="7" width="22" height="8" rx="1" fill="#17181a"/></svg>',
+  MF: '<svg viewBox="0 0 96 22"><rect x="2" y="7" width="22" height="8" rx="1" fill="#17181a"/><path d="M24 11 H74" stroke="#d81b9a" stroke-width="3"/><rect x="74" y="7" width="14" height="8" rx="1" fill="#17181a"/><rect x="88" y="10" width="8" height="2" fill="#d7b45a"/></svg>',
+  MM: '<svg viewBox="0 0 96 22"><rect x="0" y="10" width="8" height="2" fill="#d7b45a"/><rect x="8" y="7" width="14" height="8" rx="1" fill="#17181a"/><path d="M22 11 H74" stroke="#a8a8a8" stroke-width="3"/><rect x="74" y="7" width="14" height="8" rx="1" fill="#17181a"/><rect x="88" y="10" width="8" height="2" fill="#d7b45a"/></svg>',
+  SF: '<svg viewBox="0 0 96 22"><circle cx="7" cy="11" r="4" fill="#c8ccd0"/><path d="M11 11 H72" stroke="#d7372f" stroke-width="3.6"/><rect x="72" y="7" width="22" height="8" rx="1" fill="#17181a"/></svg>',
+  S: '<svg viewBox="0 0 96 22"><circle cx="7" cy="11" r="4" fill="#c8ccd0"/><path d="M11 11 H82" stroke="#c62828" stroke-width="3.6"/><rect x="82" y="9.5" width="12" height="3" fill="#c07a3c"/></svg>',
+};
+const TXT = {
+  FF: "<b>fêmea-fêmea</b>: pino macho do módulo até o pino macho da placa de expansão (S, V ou G).",
+  MF: "<b>macho-fêmea</b>: a fêmea no pino do sensor, o macho no furo da protoboard.",
+  MM: "<b>macho-macho</b>: entre dois furos da protoboard.",
+  SF: "<b>soldado + fêmea</b>: fio soldado no regulador, com fêmea no pino da placa.",
+  S: "<b>soldado ou borne</b>: bateria, BMS, motores e alimentação da ponte H.",
+};
+$("legenda").innerHTML = Object.keys(SVG).filter((t) => cont[t]).map((t) => `<div class="item">${SVG[t]}<span>${TXT[t]}</span></div>`).join("");
+
+function marcas(alvo, grupos, rotulosG, padrao, ao) {
+  const el = $(alvo);
+  el.innerHTML = "";
+  for (const [g, n, cor] of rotulosG) {
+    const id = alvo + "_" + g.replace(/\W+/g, "_");
+    const lab = document.createElement("label");
+    lab.className = "marca";
+    lab.innerHTML = `<input type="checkbox" id="${id}" ${padrao(g) ? "checked" : ""}><span class="cor" style="background:${cor}"></span><span>${g}</span><span class="n">${n}</span>`;
+    el.append(lab);
+    lab.querySelector("input").addEventListener("change", (e) => ao(g, e.target.checked));
+  }
+}
+const corGrupo = {"I2C": "#d81b9a", "Sensores de oponente": "#2e9e44", "Sensores de borda": "#1fbcc4", "Chave DIP": "#2f6fd6",
+  "Ponte H": "#8e44ad", "Motores": "#2f9a3e", "Bateria 3S": "#c62828", "Lógica": "#d7372f"};
+marcas("marcasFios", grupoFio, Object.keys(grupoFio).map((g) => [g, grupoFio[g].length, corGrupo[g]]), () => true,
+  (g, v) => { grupoFio[g].forEach((o) => (o.visible = v)); pede(); });
+const NOMES_P = {chassi: ["Chassi e motores", "#3b414b"], corpo: ["Corpo do chassi", "#565e6b"], potencia: ["Bateria 3S, BMS e ponte H", "#b3261e"],
+  logica: ["Bateria da lógica e regulador", "#7b2a8f"], controle: ["ESP32, placa e protoboard", "#1f4e8c"], sensores: ["Sensores", "#2b7a3a"]};
+const ordemP = ["sensores", "controle", "potencia", "logica", "chassi", "corpo"];
+marcas("marcasPecas", grupoPeca, ordemP.filter((g) => grupoPeca[g]).map((g) => [NOMES_P[g][0], grupoPeca[g].length, NOMES_P[g][1]]),
+  () => true, (nome, v) => {
+    const g = ordemP.find((k) => NOMES_P[k][0] === nome);
+    grupoPeca[g].forEach((o) => (o.visible = v && o.userData.peca.visivel !== false));
+    pede();
+  });
+(function marcaRotulos() {
+  const lab = document.createElement("label");
+  lab.className = "marca";
+  lab.innerHTML = '<input type="checkbox" id="vRotulos" checked><span class="cor" style="background:#f2f4f0"></span><span>Rótulos (GPIO e sensores)</span>';
+  $("marcasPecas").append(lab);
+  lab.querySelector("input").addEventListener("change", (e) => { rotulos.visible = e.target.checked; pede(); });
+})();
+
+// ------------------------------------------------------------------ tabelas
+const tab = $("tabLigacoes");
+const ordemG = [];
+D.fios.forEach((f) => { if (!ordemG.includes(f.grupo)) ordemG.push(f.grupo); });
+let html = "<thead><tr><th>De</th><th>Para</th><th>Jumper</th><th>Rede</th><th>Compr.</th><th>Observação</th></tr></thead><tbody>";
+for (const g of ordemG) {
+  html += `<tr class="grupo"><td colspan="6">${g}</td></tr>`;
+  D.fios.forEach((f, i) => {
+    if (f.grupo !== g) return;
+    html += `<tr data-i="${i}" tabindex="0"><td><span class="fio" style="background:${f.cor}"></span>${nomePonto(f.de)}</td><td>${nomePonto(f.para)}</td>` +
+      `<td class="tipo">${TIPO[f.tipo]}</td><td class="mono">${f.rede}</td><td class="num">${(f.mm / 10).toFixed(1)} cm</td><td>${f.obs || ""}</td></tr>`;
+  });
+}
+tab.innerHTML = html + "</tbody>";
+tab.addEventListener("click", (e) => { const tr = e.target.closest("tr[data-i]"); if (tr) escolhe(+tr.dataset.i, true); });
+tab.addEventListener("keydown", (e) => { if (e.key === "Enter") { const tr = e.target.closest("tr[data-i]"); if (tr) escolhe(+tr.dataset.i, true); } });
+
+$("tabCompras").innerHTML = "<thead><tr><th>Jumper</th><th>Tamanho</th><th>Quantidade</th></tr></thead><tbody>" +
+  D.compras.map((c) => `<tr><td class="tipo">${TIPO[c.tipo]}</td><td class="num">${c.cm ? c.cm + " cm" : "curto (até 4 cm)"}</td><td class="num">${c.n}</td></tr>`).join("") +
+  `<tr><td colspan="3" class="vazio">Fios soldados: 22 AWG vermelho e preto para a bateria, os motores e a ponte H; fita de níquel entre as células.</td></tr></tbody>`;
+
+const inter = D.interferencias;
+$("tabInter").innerHTML = inter === null ? '<tbody><tr><td class="vazio">Conferência não calculada nesta versão da página.</td></tr></tbody>'
+  : inter.length === 0 ? '<tbody><tr><td class="ok">Nenhuma interferência.</td></tr></tbody>'
+  : "<thead><tr><th>Peça</th><th>Peça</th><th>Volume</th></tr></thead><tbody>" +
+    inter.map((p) => `<tr><td>${p.a}</td><td>${p.b}${p.encaixe ? ' <span class="vazio">(encaixe na janela)</span>' : ""}</td>` +
+      `<td class="num ${p.encaixe ? "" : "mal"}">${p.mm3.toLocaleString("pt-BR")} mm³</td></tr>`).join("") + "</tbody>";
+
+$("tabDif").innerHTML = "<thead><tr><th>Item</th><th>Fritzing</th><th>Firmware e Lab3-Liga</th><th>Por quê</th></tr></thead><tbody>" +
+  D.diferencas.map((d) => `<tr><td><b>${d.item}</b></td><td>${d.fritzing}</td><td>${d.firmware}</td><td>${d.porque}</td></tr>`).join("") + "</tbody>";
+
+// ------------------------------------------------------------------ escolha de fio
+let fixo = -1, sobre = -1;
+function realce(i, liga) {
+  if (i < 0) return;
+  fios[i].mat.emissive.setHex(liga ? 0x666666 : 0x000000);
+  pede();
+}
+function mostra(i) {
+  const el = $("escolhido");
+  if (i < 0) { el.innerHTML = '<p class="vazio">Passe o mouse ou toque num fio, ou numa linha da tabela.</p>'; return; }
+  const f = D.fios[i];
+  el.innerHTML = `<div class="rede"><span class="fio" style="background:${f.cor}"></span>${f.rede} · ${TIPO[f.tipo]}</div>` +
+    `<div>${nomePonto(f.de)}</div><div>→ ${nomePonto(f.para)}</div>` +
+    `<div class="vazio">${(f.mm / 10).toFixed(1)} cm${f.obs ? " · " + f.obs : ""}</div>`;
+}
+function escolhe(i, foca) {
+  realce(fixo, false);
+  document.querySelectorAll("#tabLigacoes tr.sel").forEach((t) => t.classList.remove("sel"));
+  fixo = i;
+  realce(i, true);
+  mostra(i);
+  const tr = document.querySelector(`#tabLigacoes tr[data-i="${i}"]`);
+  if (tr) tr.classList.add("sel");
+  if (foca && i >= 0) {
+    const f = D.fios[i];
+    const a = new THREE.Vector3(...f.pa), b = new THREE.Vector3(...f.pb);
+    controles.target.copy(a.add(b).multiplyScalar(0.5));
+    vista.scrollIntoView({behavior: "smooth", block: "nearest"});
+  }
+}
+const ray = new THREE.Raycaster();
+const ponteiro = new THREE.Vector2();
+const dica = $("dica");
+function acha(ev) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ponteiro.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ponteiro, camera);
+  const vis = fios.filter((x) => x.g.visible).map((x) => x.tubo);
+  const hit = ray.intersectObjects(vis, false)[0];
+  return {i: hit ? hit.object.userData.fio : -1, x: ev.clientX - r.left, y: ev.clientY - r.top};
+}
+renderer.domElement.addEventListener("pointermove", (ev) => {
+  if (ev.buttons) return;
+  const {i, x, y} = acha(ev);
+  if (sobre !== fixo) realce(sobre, false);
+  sobre = i;
+  if (i >= 0) {
+    realce(i, true);
+    const f = D.fios[i];
+    dica.innerHTML = `<b>${f.rede}</b> · ${TIPO[f.tipo]}<br>${nomePonto(f.de)}<br>→ ${nomePonto(f.para)}`;
+    dica.style.left = Math.min(x, vista.clientWidth - 240) + "px"; dica.style.top = Math.min(y, vista.clientHeight - 90) + "px";
+    dica.hidden = false;
+  } else { dica.hidden = true; if (fixo >= 0) realce(fixo, true); }
+});
+renderer.domElement.addEventListener("pointerleave", () => { dica.hidden = true; if (sobre !== fixo) realce(sobre, false); sobre = -1; });
+let baixo = null;
+renderer.domElement.addEventListener("pointerdown", (ev) => (baixo = [ev.clientX, ev.clientY]));
+renderer.domElement.addEventListener("pointerup", (ev) => {
+  if (!baixo || Math.hypot(ev.clientX - baixo[0], ev.clientY - baixo[1]) > 5) return;
+  escolhe(acha(ev).i, false);
+});
+
+// ------------------------------------------------------------------ câmeras
+const CAMS = [
+  ["Perspectiva", [250, 215, 185], [45, 0, 32]],
+  ["De cima", [45.01, 0, 430], [45, 0, 30]],
+  ["Frente", [330, -20, 70], [45, 0, 30]],
+  ["Lado esquerdo", [50, 330, 70], [45, 0, 30]],
+  ["Trás", [-260, -40, 120], [20, 0, 45]],
+  ["Placa e protoboard", [-40, -60, 200], [30, 15, 62]],
+];
+const botoes = [];
+for (const [nome, pos, alvo] of CAMS) {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = nome; b.setAttribute("aria-pressed", "false");
+  b.addEventListener("click", () => {
+    camera.position.set(...pos); controles.target.set(...alvo); controles.update();
+    botoes.forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  });
+  $("cameras").append(b); botoes.push(b);
+}
+botoes[0].click();
+
+function tamanho() {
+  const w = vista.clientWidth, h = vista.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / Math.max(1, h);
+  camera.updateProjectionMatrix();
+  pede();
+}
+new ResizeObserver(tamanho).observe(vista);
+tamanho();
+// desenho só quando algo muda (câmera, camadas, fio escolhido), para o celular não esquentar parado
+controles.addEventListener("change", pede);
+(function quadro() {
+  requestAnimationFrame(quadro);
+  controles.update();
+  if (!precisa) return;
+  precisa = false;
+  renderer.render(cena, camera);
+})();
+</script>
