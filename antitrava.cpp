@@ -78,7 +78,9 @@ static bool executa() {
       }
       break;
     case MT_GIRO:
-      if (t < ANTI_TRAVA_GIRO_MS) { cinematica_comanda(0, lado * GIRO_MAX_DPS); return true; }
+      // perfil da borda: tensão toda nas duas rodas desde o primeiro ms; com o limitador de aceleração do
+      // perfil normal o giro nem começava antes de o oponente empurrar o robô para trás
+      if (t < ANTI_TRAVA_GIRO_MS) { cinematica_comanda(0, lado * GIRO_MAX_DPS, PERFIL_BORDA); return true; }
       break;
     case MT_PULSO:
       // três ciclos: solta as rodas por um instante (o oponente empurra o robô para trás, o peso

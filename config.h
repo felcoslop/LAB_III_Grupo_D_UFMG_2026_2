@@ -464,7 +464,7 @@ static const CfgBorda BORDA[] = {
 #define ANTI_TRAVA_TORQUE_MS 500    // torque e zigue: empurrão com giro
 #define ANTI_TRAVA_TORQUE_DPS 150
 #define ANTI_TRAVA_ZIGUE_MS  125    // zigue: tempo de cada lado
-#define ANTI_TRAVA_GIRO_MS   200    // giro strike: giro no eixo (uns 70 graus com a rampa de aceleração)
+#define ANTI_TRAVA_GIRO_MS   200    // giro strike: giro no eixo com tensão toda (sem a rampa de aceleração)
 #define ANTI_TRAVA_PULSO_MS  300    // pulso: ciclo de solta e empurra
 #define ANTI_TRAVA_SOLTA_MS  20     // rodas soltas em cada pulso
 // Modelo térmico de cada motor: corrente = (tensão aplicada - força contraeletromotriz) /

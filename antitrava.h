@@ -16,8 +16,9 @@
 //   2 torque: continua empurrando com o giro para o lado com mais espaço (uma roda com tudo e a
 //     outra com menos), para a frente do oponente escorregar na rampa e mostrar a quina;
 //   3 zigue: o mesmo do 2, alternando o lado a cada ANTI_TRAVA_ZIGUE_MS (os dois lados);
-//   4 giro: giro no eixo (giro strike) de uns 70 graus para o lado com mais espaço, o empurrão
-//     do oponente passa pela quina do robô, e a mira volta na lateral dele;
+//   4 giro: giro no eixo (giro strike) para o lado com mais espaço, com tensão toda desde o primeiro
+//     milissegundo (perfil da borda). Com o oponente empurrando, o robô gira só uns 10 graus antes de ser
+//     levado para trás: sem avanço, as duas rodas não resistem ao empurrão;
 //   5 pulso: solta as rodas por ANTI_TRAVA_SOLTA_MS e volta com tudo, três vezes (o oponente
 //     empurra o robô para trás, o peso vai para a rampa do robô e a ponta dele desce, e o
 //     oponente que acelera levanta a própria frente).
