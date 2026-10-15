@@ -62,7 +62,7 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 
 | Componente | Qtd. | Uso no projeto |
 |---|---|---|
-| ESP32 DevKit V1 (30 pinos) com placa de expansão | 1 | microcontrolador de dois núcleos, com ADC (o rádio fica desligado) |
+| ESP32 DevKit V1 (30 pinos) em protoboard de 400 pontos (81 x 55 mm) | 1 | microcontrolador de dois núcleos, com ADC (o rádio fica desligado) |
 | VL53L0X (placas CJVL53L0XV2 / GY-530) | 5 ou 7 | distância até o oponente: LE, FE, FC, FD e LD, mais TE e TD na versão de 7 |
 | TCRT5000 com comparador LM393 | 4 | linha branca da borda, lida pela saída analógica A0 |
 | Motor JGB37-520, 12 V, 319 rpm (redução de 18,8:1) | 2 | tração, com pneu StickyMAX S20 de 32 mm [ROBOCORE, s.d.b] |
@@ -103,7 +103,7 @@ Os PDFs da pasta `doc/` trazem os gabaritos em escala 1:1 da bancada e do robô,
 
 ### Posição dos sensores: 5 ou 7
 
-A constante `QTD_TOF` do `config.h` escolhe entre os 5 sensores originais e a versão de 7, que acrescenta um par nas quinas de trás (TE e TD a ±160°). Os 5 sensores de antes não mudam: FC no centro, que é quem decide o ataque, FE e FD a ±20° e LE e LD a ±90°. O par novo fica no fim da tabela, então os 5 sensores de antes mantêm XSHUT, endereço, cor no painel e calibração gravada; com `QTD_TOF 5` o firmware compilado é idêntico ao anterior.
+A constante `QTD_TOF` do `config.h` escolhe entre os 5 sensores originais e a versão de 7, que acrescenta um par atrás do eixo (TE e TD). Na bancada e na previsão do estudo abaixo o par fica nas quinas de trás, a ±160°; no robô montado as janelas do chassi só deixam o par reto, a ±90° (o `config.h` do robô já tem essa posição). Os 5 sensores de antes não mudam: FC no centro, que é quem decide o ataque, FE e FD a ±20° e LE e LD a ±90°. O par novo fica no fim da tabela, então os 5 sensores de antes mantêm XSHUT, endereço, cor no painel e calibração gravada; com `QTD_TOF 5` o firmware compilado é idêntico ao anterior.
 
 O capítulo 2 do Sumo Robot Blackbook pede número ímpar de sensores, com um no centro para centralizar o oponente, e diz que os sensores precisam vigiar todas as áreas por onde o oponente pode atacar, principalmente os cantos [DEDE, s.d.]. O exemplo de 7 do livro acrescenta duas diagonais na frente, mas o livro não trata de sensores atrás. Com os 5 sensores de hoje, a frente já enxerga bem: o buraco entre FE e LE (de 32,5° a 77,5°) só existe a mais de uns 25 cm, porque os cones se cruzam perto do robô, e o oponente que vem por ali entra em algum cone antes de encostar. A traseira, de 115° a 180°, não tem nenhum sensor. Com o par atrás, o total continua ímpar, o FC continua sozinho no centro e a área sem cobertura passa a ser vigiada.
 
@@ -118,7 +118,7 @@ A escolha saiu de uma simulação com o rastreador do firmware compilado no comp
 | Erro de ângulo na frente, 90% dos casos | 7,5° | 6,1° | 7,5° |
 | Posições do dojô dentro de algum cone | 58% | 64% | 88% |
 
-O par na frente melhora um pouco a mira nas diagonais, mas não muda o que passa sem ser visto. O par atrás reduz os ataques sem aviso de 36% para 8% e deixa a busca cerca de 6 vezes mais rápida, sem mudar a precisão na frente. O ângulo de ±160° veio de uma varredura: com o par a ±140°, ±150°, ±160° e ±170°, os ataques por trás sem aviso ficaram em 17%, 12%, 9% e 8%, e a ±170° o ganho é pequeno e o aviso chega mais tarde. Os pontos sem cobertura que restam são o buraco diagonal a mais de 25 cm e uma faixa estreita bem atrás a mais de 30 cm. Esses números são de simulação; o teste na bancada com o painel é o que confirma o ganho.
+O par na frente melhora um pouco a mira nas diagonais, mas não muda o que passa sem ser visto. O par atrás reduz os ataques sem aviso de 36% para 8% e deixa a busca cerca de 6 vezes mais rápida, sem mudar a precisão na frente. O ângulo de ±160° veio de uma varredura: com o par a ±140°, ±150°, ±160° e ±170°, os ataques por trás sem aviso ficaram em 17%, 12%, 9% e 8%, e a ±170° o ganho é pequeno e o aviso chega mais tarde. Os pontos sem cobertura que restam são o buraco diagonal a mais de 25 cm e uma faixa estreita bem atrás a mais de 30 cm. Esses números valem para o par a ±160°. Com o par reto a ±90° do robô montado, os dois ToF de cada lado olham para a mesma direção e a faixa de trás (de 115° a 180°) volta a ficar sem cobertura; o que cobre esse lado é o rastreador, que segue o oponente pela última posição vista e gira para o lado em que ele sumiu. Dois ToF olhando para o mesmo lado também somavam a plateia em volta do dojô: na bateria com pessoas em volta, o robô chegou a ficar 45 s mirando uma pessoa e a vitória sobre o oponente parado passou de 2,5 s para 13 s. O `TOF_ALCANCE_LATERAL_MM` limita o alcance dos laterais, e o valor saiu da bateria de 540 lutas com pessoas em volta (15 largadas): o maior tempo mirando uma pessoa foi de 49,7 s com 180 mm, 29,8 s com 150 mm, 5,9 s com 120 mm, 29,6 s com 100 mm e 1,0 s com 80 mm, com 347 a 355 vitórias em todos. O padrão ficou em 80 mm: o lado só enxerga o oponente encostado ou quase, e a frente cuida do resto. Esses números são de simulação, e o oponente que passa pela lateral a mais de 8 cm só aparece para os sensores da frente; o teste na bancada com o painel é o que confirma o ganho.
 
 ![Radar 2D do painel com 7 sensores e o oponente atrás, visto só pelo TE](doc/img/radar_7_sensores.jpg)
 
@@ -159,14 +159,14 @@ A base do modelo é a tabela do fabricante para a linha de 12 V e 319 rpm do JGB
 | Tensão de partida | 1,5 V | tabela do motor |
 | Queda na ponte H | cerca de 0,2 V | estimada para a ponte de MOSFET, precisa de medida |
 | Diâmetro da roda | 32 mm | pneu StickyMAX S20 |
-| Bitola (centro a centro das rodas) | 127,3 mm | STL do projeto mecânico com o corte de 2 mm na ponta dos eixos (131,3 mm sem o corte); medir no chassi |
+| Bitola (centro a centro das rodas) | 126,8 mm | STEP LAB3-Modelagem do projeto mecânico (10/2026); medir no chassi |
 
 O modelo do motor é uma reta de tensão por velocidade que passa pelos dois pontos da tabela: 1,5 V para sair do lugar e 319 rpm livre com 12 V. Com a bateria 3S em 11,1 V e 0,2 V perdidos na ponte H, o motor recebe 10,9 V com PWM de 100%:
 
 | Resultado do modelo | Valor |
 |---|---|
 | Velocidade máxima em linha reta | 478 mm/s (cerca de 555 mm/s com a bateria cheia) |
-| Giro máximo no eixo | 415 graus/s, meia volta em 0,43 s |
+| Giro máximo no eixo | 417 graus/s, meia volta em 0,43 s |
 | kS, kV e kA de cada roda | 1,5 V; 19,6 mV por mm/s; 1,25 mV por mm/s² |
 | Força no chão na partida, por roda | 3,9 N, no limite dos 3,9 N que o atrito permite com atrito 1 |
 | Distância de parada na borda, no pior caso | 38 mm |
@@ -226,7 +226,7 @@ As três estratégias da proposta do Grupo D [GRUPO D, 2026a] ficam nas vias 1 a
 
 O perfil escuro troca velocidade e limpeza da medida por sensibilidade. Um robô preto e fosco devolve pouca luz ao VL53L0X, e no perfil claro ele some antes do fim do dojô; com mais tempo de medida e um limite de sinal menor, o sensor enxerga mais longe, ao custo de uma medida a cada 33 ms e de mais leituras falsas, que o rastreador absorve com o modelo de ruído do perfil. Nas lutas simuladas contra oponentes escuros e furtivos (240 lutas, Rush, com e sem a DIP 4), o perfil escuro baixou o tempo até achar um oponente furtivo parado de 1,0 s para 0,5 s e o tempo até vencer o oponente errante escuro de 8,6 s para 4,4 s; as 240 lutas terminaram em vitória nos dois perfis.
 
-No dojô de 77 cm, cada robô vê o outro assim que os 5 s acabam, e antes das aberturas as três estratégias faziam a mesma coisa na largada: a investida do outro robô cancelava o flanco, e o leque só valia na busca sem pista. Agora cada uma tem a sua abertura, com o oponente a até 60° da frente quando os 5 s acabam. O Rush vai direto. O Flank sai num arco largo, mirando 75° ao lado do oponente por até 0,7 s, mesmo com ele vindo rápido, e vira para ele quando o oponente fica a 75° da frente. O lado do arco é o que tem mais espaço até a borda pela localização, quando ela já é confiável. O Fan out chega em zigue-zague (estado LEQUE) e ataca direto a 14 cm. No combate com o mesmo firmware nos dois robôs (360 lutas, 30 largadas por combinação), o Rush venceu 60, perdeu 8 e empatou 52 de 120 lutas; o Fan out, 58, 8 e 54; o Flank, 50, 22 e 48. O arco tira o robô da linha da investida, mas o adversário com o mesmo firmware vira para ele e às vezes encontra a lateral exposta. O ângulo do arco saiu de uma comparação com o Flank largando de frente (40 lutas por versão): com 60° e 1 s, 30 derrotas; com 75° e 0,7 s, 12; com 80°, 5, mas numa luta do `teste/sim` o arco deixou o robô na borda de frente para uma pessoa, e ele passou 4,7 s mirando nela, acima do limite de 3 s do CI. Nas lutas do `teste/sim`, o Flank venceu as 48 lutas contra o parado, o pesado e o rápido.
+No dojô de 77 cm, cada robô vê o outro assim que os 5 s acabam, e antes das aberturas as três estratégias faziam a mesma coisa na largada: a investida do outro robô cancelava o flanco, e o leque só valia na busca sem pista. Agora cada uma tem a sua abertura, com o oponente a até 60° da frente quando os 5 s acabam. O Rush vai direto. O Flank sai num arco largo, mirando 75° ao lado do oponente por até 0,7 s, mesmo com ele vindo rápido, e vira para ele quando o oponente fica a 75° da frente. O lado do arco é o que tem mais espaço até a borda pela localização, quando ela já é confiável. O Fan out chega em zigue-zague (estado LEQUE) e ataca direto a 14 cm. No combate com o mesmo firmware nos dois robôs (180 lutas, 10 largadas por combinação, contra os adversários de 1000, 600 e 319 rpm), o Rush venceu 25, perdeu 16 e empatou 19 de 60 lutas; o Flank, 24, 18 e 18; o Fan out, 16, 20 e 24. Com 60 lutas por estratégia, a diferença entre o Rush e o Flank fica dentro do erro da amostra (uns 5 pontos) e só o Fan out aparece atrás. O arco tira o robô da linha da investida, mas o adversário com o mesmo firmware vira para ele e às vezes encontra a lateral exposta. O ângulo do arco saiu de uma comparação com o Flank largando de frente (40 lutas por versão): com 60° e 1 s, 30 derrotas; com 75° e 0,7 s, 12; com 80°, 5, mas numa luta do `teste/sim` o arco deixou o robô na borda de frente para uma pessoa, e ele passou 4,7 s mirando nela, acima do limite de 3 s do CI. Nas lutas do `teste/sim`, o Flank venceu as 48 lutas contra o parado, o pesado e o rápido.
 
 Depois da largada, no Flank, com o oponente à vista a mais de 24 cm e sem investida, o robô mira 35° ao lado dele; com o desvio constante, o caminho vira uma espiral que termina na lateral do oponente. O lado é o que tem mais espaço até a borda, pela localização no dojô. A 18 cm do oponente, com ele aberto mais de 75°, depois de 1,5 s ou se ele investir, o robô ataca direto. No Fan out, o leque só avança com pelo menos 20 cm livres à frente.
 
@@ -242,16 +242,16 @@ O empurrão travado é o ataque em contato que passa de 1,6 s sem a luta acabar.
 
 O módulo `antitrava.cpp` (experimental, fora com `ANTI_TRAVA 0` no `config.h`) reconhece o empurrão travado pela caixa do rastreador bayesiano, sem encoder: a caixa do oponente fica parada no referencial do robô, com a distância dentro de 25 mm e o lado dentro de 12°, por 1,2 s, com o robô no ATAQUE e o oponente encostado (ou a menos de 60 mm). Um salto da estimativa mais curto que 150 ms, comum com a leitura colada no contato, não zera a janela. Um empurrão que funciona também deixa a caixa parada, mas leva o oponente para fora do dojô de 77 cm em pouco mais de 1 s; passado esse tempo, os dois robôs estão empatados na força. Depois da detecção vem a manobra escolhida em `ANTI_TRAVA_MANOBRA`, ou pelo comando `trava N`, sem gravar:
 
-| N | Manobra | O que o robô faz | Contra o robô igual (319 rpm, 120 lutas) | Contra o de 1000 rpm (120 lutas) |
+| N | Manobra | O que o robô faz | Contra o robô igual (319 rpm, 60 lutas) | Contra o de 1000 rpm (60 lutas) |
 |---|---|---|---|---|
-| 0 | nenhuma | só avisa no log e no painel | 11 vitórias, 16 derrotas, 93 empates | 101, 18, 1 |
-| 1 | lateral | ré em arco por 200 ms para o lado com mais espaço e volta em arco pela lateral do oponente (sem espaço atrás, vira a 2) | 11, 108, 1 | 102, 18, 0 |
-| 2 | torque | 500 ms de empurrão com giro de 150°/s para o lado com mais espaço | 11, 82, 27 | 102, 18, 0 |
-| 3 | zigue | o mesmo da 2, trocando o lado a cada 125 ms | 11, 108, 1 | 102, 18, 0 |
-| 4 | giro | giro no eixo por 200 ms, com tensão toda desde o primeiro instante (perfil da borda, sem a rampa de aceleração), e volta a mirar | 11, 108, 1 | 102, 18, 0 |
-| 5 | pulso | rodas soltas por 20 ms e empurrão de novo, três vezes | 11, 16, 93 | 101, 18, 1 |
+| 0 | nenhuma | só avisa no log e no painel | 12 vitórias, 19 derrotas, 29 empates | 44, 14, 2 |
+| 1 | lateral | ré em arco por 200 ms para o lado com mais espaço e volta em arco pela lateral do oponente (sem espaço atrás, vira a 2) | 12, 29, 19 | 45, 14, 1 |
+| 2 | torque | 500 ms de empurrão com giro de 150°/s para o lado com mais espaço | 12, 19, 29 | 45, 14, 1 |
+| 3 | zigue | o mesmo da 2, trocando o lado a cada 125 ms | 12, 19, 29 | 45, 14, 1 |
+| 4 | giro | giro no eixo por 200 ms, com tensão toda desde o primeiro instante (perfil da borda, sem a rampa de aceleração), e volta a mirar | 13, 38, 9 | 44, 14, 2 |
+| 5 | pulso | rodas soltas por 20 ms e empurrão de novo, três vezes | 12, 19, 29 | 44, 14, 2 |
 
-Contra o robô igual, que continua empurrando, toda manobra que solta ou desvia o empurrão entrega o lugar: a ré com volta pela lateral, o zigue-zague e o giro trocaram 92 dos 93 empates por derrotas, a curva com torque trocou 66, e o adversário com o mesmo motor empurrou o Grupo D para fora durante a manobra, como a equipe previa. A versão do pulso com ré de 50 ms também perdeu 92 empates; com as rodas soltas por 20 ms, ela não muda nenhuma luta. Com o oponente empurrando, o giro não passa de uns 10° em 200 ms, com ou sem a rampa de aceleração, e o robô é levado uns 10 cm para trás: sem avanço, as duas rodas em sentidos opostos não resistem ao empurrão. Variantes com solta de 60 a 200 ms, giro de 60 e 100 ms, ré de 60 e 100 ms e curva de 40 a 250°/s também foram testadas contra o igual: todas as que soltam por 100 ms ou mais perderam 11 a 12 das 12 lutas de cada teste, as de 60 ms perderam 10 ou 11, e só as que mantêm o empurrão (curva de até 80°/s, solta de até 60 ms) mantiveram o empate, sem nenhuma vitória. Girar o próprio robô também expõe a lateral dele à rampa do oponente. Por isso o firmware sai com `ANTI_TRAVA_MANOBRA 0`, e as manobras ficam para o teste no dojô de verdade, onde a deformação do pneu, a folga das caixas de redução e o piso irregular, que a simulação não tem, podem desempatar. Na página do combate, o seletor "Empurrão travado" liga cada manobra no robô do Grupo D, e um alerta piscante "Robô travado" mostra quem está travado e em que nível: empurrão travado (1,6 s), ré da DESTRAVA ou manobra da caixa parada. Para apagar o módulo de vez: os arquivos `antitrava.h` e `antitrava.cpp`, as linhas com `ANTI_TRAVA` no `estados.cpp` e no `debug.cpp` e o nome `antitrava` nas listas de compilação dos testes.
+Contra o robô igual, que continua empurrando, a ré com volta pela lateral trocou 10 dos 29 empates por derrotas e o giro trocou 20, porque o adversário com o mesmo motor empurrou o Grupo D para fora durante a manobra, como a equipe previa; o giro ganhou uma luta a mais (13 vitórias contra 12), e as outras manobras, nenhuma. Com o chassi novo, o torque, o zigue-zague e o pulso não mudaram nenhuma luta contra o igual. Com o chassi anterior (ponta da rampa a 117,7 mm e os sensores de trás a ±160°), o torque e o zigue-zague tinham trocado 66 e 92 empates por derrotas, então esse resultado depende da geometria e do rastreador, e as três só valem a pena depois do teste no dojô. A versão do pulso com ré de 50 ms perdeu 92 empates no chassi anterior; com as rodas soltas por 20 ms, ela não muda nenhuma luta. Com o oponente empurrando, o giro não passa de uns 10° em 200 ms, com ou sem a rampa de aceleração, e o robô é levado uns 10 cm para trás: sem avanço, as duas rodas em sentidos opostos não resistem ao empurrão. Variantes com solta de 60 a 200 ms, giro de 60 e 100 ms, ré de 60 e 100 ms e curva de 40 a 250°/s também foram testadas contra o igual, no chassi anterior: todas as que soltam por 100 ms ou mais perderam 11 a 12 das 12 lutas de cada teste, as de 60 ms perderam 10 ou 11, e só as que mantêm o empurrão (curva de até 80°/s, solta de até 60 ms) mantiveram o empate, sem nenhuma vitória. Girar o próprio robô também expõe a lateral dele à rampa do oponente. Por isso o firmware sai com `ANTI_TRAVA_MANOBRA 0`, e as manobras ficam para o teste no dojô de verdade, onde a deformação do pneu, a folga das caixas de redução e o piso irregular, que a simulação não tem, podem desempatar. Na página do combate, o seletor "Empurrão travado" liga cada manobra no robô do Grupo D, e um alerta piscante "Robô travado" mostra quem está travado e em que nível: empurrão travado (1,6 s), ré da DESTRAVA ou manobra da caixa parada. Para apagar o módulo de vez: os arquivos `antitrava.h` e `antitrava.cpp`, as linhas com `ANTI_TRAVA` no `estados.cpp` e no `debug.cpp` e o nome `antitrava` nas listas de compilação dos testes.
 
 O cuidado com a sobrecarga fica com o modelo térmico de cada motor no `cinematica.cpp`. A corrente sai da tensão aplicada menos a força contraeletromotriz, sobre a resistência de 10 Ω (12 V e 1,2 A com o eixo travado, pela tabela do motor), e com a roda travada a força contraeletromotriz é zero. O calor entra num modelo de primeira ordem, com capacidade e resistência térmicas estimadas para um motor de 37 mm. Pelo modelo, um round inteiro de 90 s com o motor travado no máximo esquenta o motor uns 22 K, e o limite de 70% do PWM só liga com 60 K, depois de uns 7 minutos travado, como numa bancada com o robô preso contra a parede; a fuga da borda nunca é limitada. A ponte H HW-956 aguenta 10 A por canal, bem acima dos 1,2 A do motor travado, e a bateria 3S entrega os 2,4 A dos dois motores sem esforço. A capacidade e a resistência térmicas do modelo precisam de medida com um termômetro no motor, com o robô montado.
 
@@ -302,7 +302,7 @@ A pasta `teste/sim` compila o firmware de verdade (percepção, ToF, rastreador,
 | errante | anda sem rumo pelo dojô e ataca só de perto |
 | espelho | o mesmo motor, a mesma roda e a mesma lâmina do robô do Grupo D, atacando do mesmo jeito |
 
-O robô do Grupo D tem as medidas do STL do projeto mecânico: rampa 117,7 mm à frente do eixo das rodas, traseira 25 mm atrás, 149 mm de largura, 980 g e o centro de massa 26,9 mm à frente do eixo. Na bateria com pessoas em volta do dojô (3 estratégias, 6 oponentes, claro e escuro, 15 largadas cada, 540 lutas), o robô venceu 352 lutas e nunca saiu do dojô sozinho: 88 de 90 contra o parado e contra o pesado, 89 contra o rápido e 87 contra o errante. O lento, com mais torque e uma lâmina melhor, ganhou quase todas as lutas, e o espelho, de força igual, terminou quase sempre empatado; nos dois casos o robô fica travado empurrando um oponente que não cede, e a seção [Travamento](#travamento) mostra por que soltar o empurrão piora o resultado. Sem as pessoas e com o oponente furtivo, que quase não reflete, a bateria de 810 lutas também terminou sem nenhuma queda própria.
+O robô do Grupo D tem as medidas do STEP do projeto mecânico (LAB3-Modelagem): rampa 118 mm à frente do eixo das rodas, traseira 31 mm atrás, 149 mm de largura, 980 g e o centro de massa 26,9 mm à frente do eixo. Na bateria com pessoas em volta do dojô (3 estratégias, 6 oponentes, claro e escuro, 15 largadas cada, 540 lutas), o robô venceu 351 lutas, perdeu 121 e empatou 68, e nunca saiu do dojô sozinho: 90 de 90 contra o parado e contra o pesado, 87 contra o rápido e 84 contra o errante. O lento, com mais torque e uma lâmina melhor, ganhou as 90 lutas, e o espelho, de força igual, terminou empatado em 66 de 90; nos dois casos o robô fica travado empurrando um oponente que não cede, e a seção [Travamento](#travamento) mostra por que soltar o empurrão piora o resultado. Sem as pessoas e com o oponente furtivo, que quase não reflete, a bateria de 810 lutas também terminou sem nenhuma queda própria.
 
 A página [Lutas simuladas](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/lutas.html) mostra as lutas no navegador: escolha de estratégia, oponente, cor e largada, com os dois robôs, o caminho, o dojô que a localização estima, o oponente que o rastreador estima, o estado e o PWM de cada roda a cada instante. O workflow da página gera os rastros e o placar com o firmware da `main` a cada publicação.
 
@@ -317,7 +317,7 @@ python teste/sim/roda_lutas.py teste/sim/luta --dips 1,2,4 --fora --perfil-pela-
 
 ## Combate com dois firmwares
 
-A pasta `teste/combate` coloca dois robôs com o mesmo firmware no mesmo dojô: o do Grupo D e um adversário igual, com motores de 1000 rpm ou de 319 rpm. Cada módulo do firmware entra duas vezes no mesmo programa, uma no namespace `fa` e outra no `fb` (`fw_modulo.cpp`), sem nenhuma linha do firmware mudar, e o Arduino de mentira (`hal_combate.cpp`) atende o robô da vez com o relógio, a chave DIP, o botão de start, os quatro TCRT5000, os sete VL53L0X e o PWM da ponte H. O mesmo código vira um executável para a bateria de lutas e um módulo WebAssembly para a página [Combate Grupo D](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/combate.html), compilado com o Zig 0.14 [ZIG SOFTWARE FOUNDATION, 2025].
+A pasta `teste/combate` coloca dois robôs com o mesmo firmware no mesmo dojô: o do Grupo D e um adversário igual, com motores de 1000, 600 ou 319 rpm. Cada módulo do firmware entra duas vezes no mesmo programa, uma no namespace `fa` e outra no `fb` (`fw_modulo.cpp`), sem nenhuma linha do firmware mudar, e o Arduino de mentira (`hal_combate.cpp`) atende o robô da vez com o relógio, a chave DIP, o botão de start, os quatro TCRT5000, os sete VL53L0X e o PWM da ponte H. O mesmo código vira um executável para a bateria de lutas e um módulo WebAssembly para a página [Combate Grupo D](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/combate.html), compilado com o Zig 0.14 [ZIG SOFTWARE FOUNDATION, 2025].
 
 A página mostra a luta em 3D com as peças do STL do projeto mecânico (base, corpo, suporte da eletrônica, abraçadeiras, JGB37-520, cubos e pneus), numa sala em Belo Horizonte às 20h00 de 2 de setembro, só com a lâmpada de LED do teto acesa. Na tela entram a estratégia do Grupo D, a cor e os motores do adversário, a estratégia dele e a posição na largada de cada um dos dois robôs; o placar mostra o estado de cada firmware, e a telemetria mostra velocidade, PWM, corrente, bateria e o peso em cada apoio. A camada de detecção mostra só o que o firmware do Grupo D enxerga, como no painel: o cone de cada VL53L0X com a calota na distância medida, o mapa de probabilidade do rastreador, a caixa vermelha do oponente na posição estimada e um círculo embaixo de cada TCRT5000. No controle manual, as setas (ou W A S D) dirigem o robô do Grupo D ou o adversário depois dos 5 s parados.
 
@@ -327,43 +327,45 @@ A página mostra a luta em 3D com as peças do STL do projeto mecânico (base, c
 |---|---|---|
 | Massa | 980 g em cada robô | pedido da equipe |
 | Centro de massa | 26,9 mm à frente do eixo, 24 mm acima do chão | balanço de massa do projeto mecânico |
-| Apoios | pneus com 77% do peso, ponta da rampa com 23% | estática com a ponta a 117,7 mm do eixo |
+| Apoios | pneus com 77% do peso, ponta da rampa com 23% | estática com a ponta a 118 mm do eixo (STEP LAB3-Modelagem) |
 | Pneu StickyMAX S20 (silicone de 20 Shore A, pegajoso, 32 x 20 mm, 10 g) na madeira pintada | atrito 1,15 parado e 1,30 escorregando, com a transição em 5 cm/s | borracha macia em superfície lisa: 1,2 a 2,0 parado e atrito escorregando maior que o parado, subindo com a velocidade [ROTH; DRISCOLL; HOLT, 1942; GROSCH, 1963]; perto do mínimo dessas medidas por causa da tinta e do pó; medir com o robô de rodas travadas puxado por um dinamômetro; medidas do pneu [ROBOCORE, 2024] |
 | PLA arrastando no dojô e PLA contra PLA | 0,35 e 0,30 | estimativa |
 | Choque entre os robôs | modelo contínuo de contato com restituição de 0,4 e rigidez de 30 N/mm | [FLORES et al., 2011]; restituição estimada para corpos de PLA com parafusos e placas, conferida com 0,2 e 0,6 |
 | Gravidade | 9,7847 m/s² | gravidade normal do GRS80 na latitude da UFMG (-19,87°) com as correções de ar livre e de Bouguer para 830 m [MORITZ, 2000; HOFMANN-WELLENHOF; MORITZ, 2006] |
 | Ar | 1,065 kg/m³, arrasto de caixa (Cd de 1) na frente de 14,9 x 5,15 cm | atmosfera padrão a 830 m (91,7 kPa) com 25 °C e 50% de umidade [ISO, 1975; HOERNER, 1965]; 0,009 N a 1,5 m/s |
 | JGB37-520, 319 rpm | 18,8:1, 1,9 kgf.cm e 1,2 A travado | [RCDRONE, s.d.] |
+| JGB37-520, 600 rpm | o mesmo motor com redução de 10:1, 1,1 kgf.cm e 1,2 A travado (motor de linha, à venda) | [RCDRONE, s.d.] |
 | JGB37-520, 1000 rpm | o mesmo motor com redução de 6:1, 0,6 kgf.cm e 1,2 A travado | [RCDRONE, s.d.] |
 | Bateria 3S | 12,0 a 12,5 V sem carga, 0,15 ohm com o BMS e os fios | estimativa |
 | Dojô | madeira pintada de 77 cm, 2,5 cm de altura, faixa de 2,5 cm, Shikiri de 1 x 10 cm afastadas 10 cm | [ROBOCORE, s.d.a]; regulamento da CoRA 2026 |
 
-A carga em cada apoio sai do equilíbrio de momentos com o peso, a aceleração e a força do contato, e o pneu sem peso não tem tração. O choque entre os corpos usa a força de Flores e coautores, k.d.(1 + 8(1 - e)/(5e) . d'/v0), com a penetração d, a taxa de penetração d' e a velocidade v0 do começo do choque: a força começa em zero, nunca puxa os robôs um para o outro e tira no choque a energia que o coeficiente de restituição e manda [FLORES et al., 2011]. O ar entra como arrasto no centro de massa de cada robô; na velocidade máxima ele fica abaixo de 0,1% do atrito do pneu, e a gravidade de Belo Horizonte é 0,26% menor que os 9,81 m/s² de antes. Quando a frente de um robô encosta na lateral ou na traseira do outro, a rampa de 17,7 graus transforma o empurrão em força vertical (1,46 vez a horizontal) até o pneu mais próximo do outro ficar sem peso. Com as duas frentes encostadas, a ponta mais baixa vence, mas levanta só a ponta da rampa do outro. Os VL53L0X lançam raios no cone de 25 graus contra as faces do outro robô: a face da frente inclinada devolve menos luz, os pneus pretos quase nada e as caixas de redução metálicas aparecem com qualquer cor de PLA [STMICROELECTRONICS, s.d.b]. Na sala à noite, só com a lâmpada de LED, quase não existe infravermelho de fundo, e as leituras falsas ficam na metade do modelo da bancada.
+A carga em cada apoio sai do equilíbrio de momentos com o peso, a aceleração e a força do contato, e o pneu sem peso não tem tração. O choque entre os corpos usa a força de Flores e coautores, k.d.(1 + 8(1 - e)/(5e) . d'/v0), com a penetração d, a taxa de penetração d' e a velocidade v0 do começo do choque: a força começa em zero, nunca puxa os robôs um para o outro e tira no choque a energia que o coeficiente de restituição e manda [FLORES et al., 2011]. O ar entra como arrasto no centro de massa de cada robô; na velocidade máxima ele fica abaixo de 0,1% do atrito do pneu, e a gravidade de Belo Horizonte é 0,26% menor que os 9,81 m/s² de antes. Quando a frente de um robô encosta na lateral ou na traseira do outro, a rampa de 17,7 graus transforma o empurrão em força vertical (1,46 vez a horizontal) até o pneu mais próximo do outro ficar sem peso. Com as duas frentes encostadas, entrar por baixo não dá vantagem a quem entra: a ponta da rampa do outro robô sobe e o peso dela passa para os pneus dele, que passam a tracionar mais, enquanto quem levanta carrega o peso tirado na própria ponta, que arrasta no dojô. Os VL53L0X lançam raios no cone de 25 graus contra as faces do outro robô: a face da frente inclinada devolve menos luz, os pneus pretos quase nada e as caixas de redução metálicas aparecem com qualquer cor de PLA [STMICROELECTRONICS, s.d.b]. Na sala à noite, só com a lâmpada de LED, quase não existe infravermelho de fundo, e as leituras falsas ficam na metade do modelo da bancada.
 
 ### Resultado
 
-Na bateria de 360 lutas (3 estratégias, adversário preto e branco, 1000 e 319 rpm, 30 largadas sorteadas cada, estratégia do adversário sorteada), com a física de Belo Horizonte, o Grupo D venceu 169, perdeu 41 e empatou 150, sem nenhuma queda própria.
+Na bateria de 180 lutas (3 estratégias, adversário preto e branco, 1000, 600 e 319 rpm, 10 largadas sorteadas cada, estratégia do adversário sorteada), com a física de Belo Horizonte e a geometria do STEP LAB3-Modelagem, o Grupo D venceu 65, perdeu 54 e empatou 61, sem nenhuma queda própria (TE e TD retos, a ±90°, como o chassi deixa).
 
 | Adversário | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| 1000 rpm | 157 | 22 | 1 |
-| 319 rpm, igual | 12 | 19 | 149 |
+| 1000 rpm | 44 | 14 | 2 |
+| 600 rpm | 9 | 21 | 30 |
+| 319 rpm, igual | 12 | 19 | 29 |
 
 | Estratégia do Grupo D | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| Rush | 60 | 9 | 51 |
-| Flank | 51 | 23 | 46 |
-| Fan out | 58 | 9 | 53 |
+| Rush | 25 | 16 | 19 |
+| Flank | 24 | 18 | 18 |
+| Fan out | 16 | 20 | 24 |
 
 | Largada do Grupo D | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| de frente para o adversário | 74 | 14 | 56 |
-| de lado | 56 | 3 | 49 |
-| de costas | 39 | 24 | 45 |
+| de frente para o adversário | 30 | 2 | 22 |
+| de lado | 14 | 3 | 19 |
+| de costas | 21 | 49 | 20 |
 
-O motor de 1000 rpm tem um terço do torque: travado, ele empurra com uns 7,4 N (0,6 kgf.cm em cada roda de 16 mm de raio), abaixo dos 8,5 a 9,6 N que os pneus do Grupo D aguentam com 77% dos 980 g em cima deles (atrito de 1,15 parado e 1,30 escorregando). O empurrão de frente leva o adversário para fora em 2,2 s, em média; com o atrito antigo de 1,10 eram 12,2 s, porque a sobra de tração era pequena. As derrotas vêm de choques em que o adversário chega rápido na lateral ou na traseira do Grupo D. Contra o de 319 rpm, os robôs encostam 0,5 s depois dos 5 s parados e ficam empurrando de frente até o fim dos 90 s, porque os dois têm o mesmo limite de tração. O arco do Flank perde mais que o Rush e o Fan out: o adversário com o mesmo firmware vira para ele e às vezes encontra a lateral exposta. De costas, o robô gasta o começo da luta girando e pode receber o adversário na traseira, que é o ponto fraco. O motor mais quente chegou a 22 K acima do ambiente no modelo térmico do firmware, longe do limite de 60 K.
+O motor de 1000 rpm tem um terço do torque: travado, ele empurra com uns 7,4 N (0,6 kgf.cm em cada roda de 16 mm de raio), abaixo dos 8,5 a 9,6 N que os pneus do Grupo D aguentam com 77% dos 980 g em cima deles (atrito de 1,15 parado e 1,30 escorregando). O empurrão de frente leva o adversário para fora em 2,8 s, em média. O motor de 600 rpm, de linha e à venda, empurra com 13,5 N travado (1,1 kgf.cm), acima do limite de tração do pneu: ele esbarra no mesmo limite do de 319 rpm e só chega mais rápido, então o resultado fica perto do robô igual. Contra os dois, os robôs encostam 0,8 s depois dos 5 s parados e ficam empurrando de frente até o fim dos 90 s. As derrotas vêm da largada de costas, em que o robô gasta o começo da luta girando e recebe o adversário na traseira, que é o ponto fraco (49 das 54 derrotas), e do Fan out, que perde um pouco mais (20 derrotas, contra 16 do Rush e 18 do Flank), sem que a bateria mostre o motivo. O motor mais quente chegou a 21,5 K acima do ambiente no modelo térmico do firmware, longe do limite de 60 K.
 
-O atrito do pneu e a restituição do choque são as estimativas com mais incerteza, então a mesma bateria rodou com cada um mudado (240 lutas cada, 20 largadas):
+O atrito do pneu e a restituição do choque são as estimativas com mais incerteza, então a mesma bateria rodou com cada um mudado. A tabela é da rodada anterior à troca do chassi (240 lutas cada, 20 largadas, só 1000 e 319 rpm); com o chassi novo e o atrito 20% menor, as 180 lutas deram 65 vitórias, 53 derrotas e 62 empates (contra o de 1000 rpm, 44 vitórias, 16 derrotas e nenhum empate), e o empurrão de 1000 rpm levou uns 13 s:
 
 | Física | Contra o de 1000 rpm | Tempo da vitória | Contra o de 319 rpm |
 |---|---|---|---|
@@ -374,15 +376,15 @@ O atrito do pneu e a restituição do choque são as estimativas com mais incert
 | restituição 0,6 | 100 V, 19 D, 1 E | 2,2 s | 10 V, 16 D, 94 E |
 | física antiga (9,81 m/s², sem ar, atrito 1,10, mola amortecida) | 99 V, 19 D, 2 E | 13,5 s | 10 V, 12 D, 98 E |
 
-O resultado contra o robô igual quase não muda com a física: os dois têm o mesmo pneu e o mesmo limite de tração. Contra o de 1000 rpm, o atrito decide o tempo do empurrão: com pó no dojô, a sobra de tração cai e o empurrão leva uns 20 s.
+O resultado contra o robô igual quase não muda com a física: os dois têm o mesmo pneu e o mesmo limite de tração. Contra o de 1000 rpm, o atrito decide o tempo do empurrão: com pó no dojô, a sobra de tração cai e o empurrão leva uns 13 s.
 
-Com as rodas atrás e o centro de massa 26,9 mm à frente do eixo, 23% do peso fica na ponta da rampa, que arrasta no dojô e não traciona; com o centro de massa sobre o eixo, esse peso iria para os pneus e o empurrão máximo subiria uns 30%. A rampa do outro robô que entra por baixo da frente levanta só a ponta e não tira peso dos pneus. A lateral e a traseira são os pontos fracos: ali a rampa do outro tira o peso do pneu mais próximo. O par de sensores de borda "de trás" fica 54 mm à frente do eixo, então, andando de ré, a roda chega à borda antes do sensor.
+Com as rodas atrás e o centro de massa 26,9 mm à frente do eixo, 23% do peso fica na ponta da rampa, que arrasta no dojô e não traciona; com o centro de massa sobre o eixo, esse peso iria para os pneus e o empurrão máximo subiria uns 30%. A rampa do outro robô que entra por baixo da frente levanta só a ponta: o peso dela passa para os pneus de quem foi levantado, e por isso encaixar a lâmina por baixo da lâmina do adversário, entre robôs de mesmo torque, ajuda o adversário a empurrar e não ajuda quem encaixou. A lateral e a traseira são os pontos fracos: ali a rampa do outro tira o peso do pneu mais próximo. O par de sensores de borda "de trás" fica 54 mm à frente do eixo, então, andando de ré, a roda chega à borda antes do sensor.
 
 No computador:
 
 ```
 bash teste/combate/compila.sh
-python teste/combate/bateria.py teste/combate/combate --sementes 30 --csv combate.csv
+python teste/combate/bateria.py teste/combate/combate --sementes 30 --csv combate.csv   # --motores 1000,600,319 por padrão
 teste/combate/combate -s 7 -a rush -c preto -m 1000 -v      # uma luta, com o Log dos dois firmwares
 pip install ziglang==0.14.0
 ZIG="python -m ziglang" bash teste/combate/compila.sh wasm  # módulo da página
@@ -396,38 +398,50 @@ A simulação deixa de fora a rampa entrando fundo embaixo do outro robô (o pon
 
 ## Montagem 3D
 
-A página [Montagem Grupo D](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/montagem.html) mostra o robô montado em 3D, com cada componente no chassi e cada fio do esquema elétrico, e marca a ponta de cada jumper: fêmea nos pinos machos dos módulos e da placa de expansão, macho nos furos da mini protoboard. Os modelos dos componentes são os do relatório do projeto mecânico (ESP32 DevKit de 30 pinos, placa de expansão, TPS63070, chave DIP, ponte H dupla, célula 18650, BMS 3S, VL53L0X e TCRT5000) [GRUPO D, 2026b]. A página vem de três arquivos:
+A página [Montagem Grupo D](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/montagem.html) mostra o robô montado em 3D, com cada componente no chassi e cada fio do esquema elétrico, e marca a ponta de cada jumper: fêmea nos pinos machos dos módulos, macho nos furos da protoboard. O chassi é o do STEP LAB3-Modelagem do projeto mecânico (base, rampa da frente, laterais, hastes, tampa, suportes, motorredutores, cubos e pneus, uma peça por vez). Os modelos dos componentes são os do relatório (ESP32 DevKit de 30 pinos, TPS63070, chave DIP, ponte H dupla, célula 18650, BMS 3S e TCRT5000), e os sete VL53L0X vão no suporte de PLA *Mounting Bracket for VL53L0X Module* (Cults3D), com o módulo CJVL53L0XV2 no rebaixo dele. Não há placa de expansão: o ESP32 fica numa protoboard de 400 pontos (81 x 55 mm) na tampa da frente, e a chave DIP e o botão de ligar ficam nos furos A e B da tampa de trás. A página vem de três arquivos:
 
 - o `config.h`, que dá a posição de cada VL53L0X (lente na altura `LENTE_ALTURA_MM`, olhando no ângulo da tabela `TOF`) e de cada TCRT5000 (tabela `BORDA`) e o GPIO de cada fio, então mudar um pino no firmware muda a página;
-- o `doc/montagem/montagem.json`, com a posição e o giro das outras peças, os pinos de cada modelo, a ordem das barras S, V e G da placa de expansão, o uso da mini protoboard, o caminho dos feixes de fios e as diferenças do esquema;
+- o `doc/montagem/montagem.json`, com a posição e o giro das outras peças, os pinos de cada modelo, a ordem dos pinos do ESP32 na protoboard, o uso dela (I2C, 3V3 e GND), o caminho dos feixes de fios e as diferenças do esquema;
 - o `doc/montagem/pecas.js`, com as malhas compactas que o `exporta_pecas.py` gera a partir dos STL.
+
+A protoboard tem 30 colunas de 10 furos e dois pares de trilhos de 25 furos. O ESP32 ocupa as colunas 16 a 30, com os pinos nas fileiras b (lado de trás) e i (lado da frente), 22,86 mm entre elas. Só um furo da coluna de cada pino fica fora do corpo do DevKit: o a, no lado de trás, e o j, no lado da frente; cada GPIO usado leva um jumper nesse furo. As colunas 1 a 13 ficam livres para os barramentos de SDA (coluna 2) e SCL (coluna 4), e os trilhos do lado de trás levam o 3V3 (trilho interno) e o GND (trilho externo) para os sensores.
 
 As ligações seguem o firmware e o documento de ligação (Lab3-Liga):
 
 | Ligação | Jumper | Pontas |
 |---|---|---|
-| VIN, GND e XSHUT de cada VL53L0X | fêmea-fêmea | barra do sensor e V, G e S do GPIO do XSHUT na placa de expansão (17, 23, 19, 18, 5, 16 e 4) |
-| SDA e SCL de cada VL53L0X | macho-fêmea | barra do sensor e coluna do SDA ou do SCL na mini protoboard |
-| SDA e SCL da protoboard até o ESP32 | macho-fêmea | protoboard e S do GPIO 21 e do 22 |
-| VCC, GND e A0 de cada TCRT5000 | fêmea-fêmea | barra do módulo e V, G e S do GPIO 34, 35, 32 ou 33 (o D0 fica sem fio) |
-| Chave DIP | macho-macho e macho-fêmea | um lado de cada via no 3V3 da protoboard, o outro no S do GPIO 12, 14, 2 e 15 |
-| GND, IN1, IN2, IN3 e IN4 da ponte H | fêmea-fêmea | barra da ponte e G do GPIO 13 e S do 25, 26, 27 e 13 |
+| VIN e GND de cada VL53L0X e de cada TCRT5000 | macho-fêmea | pino do módulo e furo dos trilhos de 3V3 e de GND |
+| XSHUT de cada VL53L0X | macho-fêmea | pino do sensor e furo livre da coluna do GPIO 17, 23, 19, 18, 5, 16 ou 4 |
+| SDA e SCL de cada VL53L0X | macho-fêmea | pino do sensor e coluna 2 (SDA) ou 4 (SCL) da protoboard |
+| SDA e SCL da protoboard até o ESP32 | macho-macho | coluna do barramento e furo livre da coluna do GPIO 21 e do 22 |
+| A0 de cada TCRT5000 | macho-fêmea | pino do módulo e furo livre da coluna do GPIO 34, 35, 32 ou 33 (o D0 fica sem fio) |
+| 3V3 e GND do DevKit | macho-macho | furo livre das colunas do 3V3 e do GND e furo dos trilhos |
+| Chave DIP | fio soldado com ponta macho | quatro pernas do lado A unidas por fio nu e um fio para o trilho de 3V3; cada perna do lado B no furo livre da coluna do GPIO 12, 14, 2 e 15 |
+| GND, IN1, IN2, IN3 e IN4 da ponte H | macho-fêmea | pino da ponte, trilho de GND e furo livre da coluna do GPIO 25, 26, 27 e 13 |
 | Motores, bateria 3S, BMS e alimentação da ponte H | fio 22 AWG soldado | bornes da ponte H e terminais soldados |
-| Bateria 18650 da lógica, chave liga e desliga e TPS63070 | fio soldado | saída de 3,3 V do TPS63070 com ponta fêmea no pino 3V3 da placa de expansão |
+| Bateria 18650 da lógica, botão de ligar e TPS63070 | fio soldado | o 3,3 V e o GND do TPS63070 vão com ponta macho nos trilhos da protoboard |
 
-São 38 jumpers fêmea-fêmea, 21 macho-fêmea e 6 macho-macho, e a página soma o comprimento de cada caminho para a lista de compra. O jumper de tensão da barra V da placa de expansão fica em 3,3 V, porque os VL53L0X, os TCRT5000 e a chave DIP trabalham em 3,3 V. O start continua no botão BOOT (GPIO 0): o DevKit de 30 pinos não leva o GPIO 0 para a barra, então um botão externo precisa ser soldado em paralelo com o BOOT.
+São 52 jumpers macho-fêmea e 6 macho-macho, mais 7 fios soldados com ponta macho (DIP e TPS63070) e 15 fios soldados nos bornes, e a página soma o comprimento de cada caminho para a lista de compra. Os trilhos de 3,3 V alimentam os VL53L0X, os TCRT5000 e a chave DIP, todos de 3,3 V. O start continua no botão BOOT (GPIO 0): o DevKit de 30 pinos não leva o GPIO 0 para a barra, então um botão externo precisa ser soldado em paralelo com o BOOT.
 
 O esquema do Fritzing (`SUMO_Esquemático` e `SUMO_bb`) difere do firmware em quatro pontos, e a página mostra os quatro: os sensores de borda saem do D0 nos GPIO 36, 39, 34 e 35, mas o firmware lê o A0 nos 34, 35, 32 e 33; a chave DIP vai nos GPIO 15, 14, 33 e 32 com o comum no GND, mas o firmware lê os 12, 14, 2 e 15 com o pull-down interno e o comum no 3V3 (com o comum no GND a chave nunca muda a leitura); o botão S1 vai no GPIO 2, que é a via 3 da chave; e a ponte H aparece como L298N. O ramo dos motores não tem chave liga e desliga no esquema.
 
-As posições de agora são provisórias, dentro do chassi antigo. A tabela de interferências da página (voxels de 1,5 mm, sobreposição de mais de 3 mm) mostra o que ainda colide: os TCRT5000 da frente com os VL53L0X laterais e com o corpo, os de trás com o arco das rodas e os VL53L0X de trás com os motorredutores. Com os STL do chassi remodelado:
+As posições dos componentes dentro do chassi são provisórias e foram conferidas contra o STEP em blocos de 1 mm. O `doc/montagem/README.md` traz o espaço que sobra e o que falta, com as medidas. As quatro células 18650 (3S mais a da lógica) ficam em bloco de 2 x 2 com 3,8 mm de folga até a face de baixo da tampa; o BMS, o TPS63070, a ponte H, o botão de ligar e a chave DIP cabem. A protoboard de 81 x 55 mm cabe na tampa da frente (um canto de 6 mm passa da borda inclinada, cerca de 1,4% da área); uma segunda não tem lugar, porque a tampa de trás tem só 42 mm de comprimento. Quatro pontos pedem mudança no chassi ou na posição dos sensores:
+
+- os TCRT5000 da frente precisam de um rasgo de 10 x 15 x 6 mm na parede da rampa, porque o PCB passa por ela, e os VL53L0X FE, FD e FC precisam de janela na rampa;
+- os TCRT5000 de trás ficam atrás do motor, com a ponta para fora do chassi (a posição que o projetista do chassi indicou), e saem 32,6 mm atrás da base: o comprimento vira 181,6 mm contra os 152 mm do quadrado da classe de 1 kg (a largura fica em 149 mm);
+- as janelas do LE e do TE têm os centros a 22 mm um do outro e o suporte do VL53L0X tem 32 mm, então os dois suportes se sobrepõem 10 mm (o mesmo vale para o LD e o TD): afastar as janelas ou cortar o suporte;
+- o módulo do LE encosta 91 mm³ no TCRT5000 BFE: afastar o BFE 3 mm para a frente.
+
+Com os STL do chassi remodelado:
 
 ```
-python doc/montagem/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES   # refaz o doc/montagem/pecas.js
+python doc/montagem/step_para_stl.py LAB3-Modelagem.step PASTA_DO_CHASSI        # um STL por peça do STEP
+python doc/montagem/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES      # refaz o doc/montagem/pecas.js
 # ajuste pos e rot das peças no doc/montagem/montagem.json
-python doc/montagem/gera_montagem.py --interferencias                        # refaz a página e a lista de interferências
+python doc/montagem/gera_montagem.py --interferencias                           # refaz a página e a lista de interferências
 ```
 
-O `exporta_pecas.py` e a conferência de interferências precisam de `pip install trimesh fast-simplification networkx scipy`; o resto do `gera_montagem.py` usa só o Python, com as contas em float do próprio Python, então a página sai igual em qualquer computador.
+O `step_para_stl.py` precisa de `pip install cadquery-ocp`; o `exporta_pecas.py` e a conferência de interferências precisam de `pip install trimesh fast-simplification networkx scipy`; o resto do `gera_montagem.py` usa só o Python, com as contas em float do próprio Python, então a página sai igual em qualquer computador.
 
 ## Instalação
 
@@ -699,6 +713,7 @@ Os ajustes principais ficam no `config.h`:
 | `I2C_CLOCK_HZ` | 100000 | velocidade do I2C; 400000 só com fios curtos |
 | `TOF_TIMING_US` | 20000 | tempo de cada medida do ToF no perfil claro |
 | `TOF_ALCANCE_MM` | 600 | alcance máximo a partir do centro do robô (pior caso dentro do dojô) |
+| `TOF_ALCANCE_LATERAL_MM` | 80 | alcance dos ToF laterais (LE, LD, TE e TD no robô montado): evita que dois sensores do mesmo lado somem a plateia em volta do dojô; aumente para 100 a 150 se perder o oponente que passa pela lateral, diminua para 50 a 60 se ainda mirar a plateia (1000 ou mais desliga o limite) |
 | `TOF_MINIMO_PARA_LUTAR` | 3 | quantidade mínima de ToF para o robô iniciar |
 | `CENTRO_DEG` | 7 | ângulo máximo para o oponente contar como centrado |
 | `FUSAO_BAYES` | 1 | 1 usa o rastreador e 0 a fusão simples |
