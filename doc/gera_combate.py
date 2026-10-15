@@ -6,8 +6,12 @@ pelo doc/combate/exporta_malhas.py), o módulo WebAssembly com os dois firmwares
 (teste/combate/compila.sh wasm), o resultado da bateria de lutas (teste/combate/bateria.py --json)
 e os textos da página (doc/combate/textos.json).
 
-Uso: python doc/gera_combate.py --wasm teste/combate/combate.wasm --bateria bateria.json
-         [--saida doc/site/combate.html]
+A página fica no repositório (doc/site/combate.html), com a bateria de doc/combate/bateria.json, e o
+CI confere que ela é igual à gerada a partir do código atual.
+
+Uso: python doc/gera_combate.py --wasm teste/combate/combate.wasm [--bateria doc/combate/bateria.json]
+         [--saida doc/site/combate.html] [--fragmento]
+  --fragmento: sem <!doctype>, <head> e <body> (página publicada como artefato)
 """
 import argparse
 import base64
@@ -23,7 +27,8 @@ def main():
     ap.add_argument("--malhas", default=os.path.join(AQUI, "combate", "malhas.js"))
     ap.add_argument("--textos", default=os.path.join(AQUI, "combate", "textos.json"))
     ap.add_argument("--wasm", required=True)
-    ap.add_argument("--bateria", required=True)
+    ap.add_argument("--bateria", default=os.path.join(AQUI, "combate", "bateria.json"))
+    ap.add_argument("--fragmento", action="store_true")
     ap.add_argument("--saida", default=os.path.join(AQUI, "site", "combate.html"))
     a = ap.parse_args()
 
@@ -72,6 +77,10 @@ def main():
     html = html.replace("/*MALHAS*/", malhas.strip())
     html = html.replace('"/*WASM*/"', json.dumps(wasm))
     html = html.replace("/*BATERIA*/", json.dumps(dados, ensure_ascii=False))
+    if not a.fragmento:
+        html = ('<!doctype html>\n<html lang="pt-BR">\n<head>\n<meta charset="utf-8">\n'
+                '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n</head>\n<body>\n'
+                + html + "\n</body>\n</html>\n")
     os.makedirs(os.path.dirname(os.path.abspath(a.saida)), exist_ok=True)
     with open(a.saida, "w", encoding="utf-8") as f:
         f.write(html)
