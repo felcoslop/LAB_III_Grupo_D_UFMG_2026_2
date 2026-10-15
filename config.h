@@ -91,31 +91,40 @@ static const CfgToF TOF[] = {
 #define LENTE_ALTURA_MM   23.0f    // centro das lentes, entre 21 e 24 mm acima da base
 #define GEOMETRIA_NOME    "BANCADA"
 #else
-// Robô montado, com as medidas do STL do projeto mecânico (base, corpo, abraçadeiras e
-// JGB37-520). A origem fica no meio do eixo das rodas, que é o centro de giro: a ponta da rampa
-// fica 117,7 mm à frente dele e a traseira 25 mm atrás, e o corpo tem 149 mm de largura. As
-// janelas da face inclinada do corpo (61,8 graus) guardam FE, FC e FD, a cerca de 17 mm do
-// chão; as aberturas das paredes laterais, entre 70 e 90 mm à frente do eixo, guardam LE e LD.
-// O STL não tem janela para TE e TD: eles ficam na face de trás do berço dos motores, entre as
-// rodas, apontando a ±160 graus.
+// Robô montado, com as medidas do STEP do projeto mecânico (LAB3-Modelagem, 10/2026). A origem fica
+// no meio do eixo das rodas, que é o centro de giro, no chão, com x para a frente e y para a
+// esquerda: a ponta da rampa fica 118 mm à frente dele, a traseira da base 31 mm atrás, e o corpo
+// tem 149 mm de largura. Cada VL53L0X vai no suporte de PLA de 32 x 20 x 3,5 mm (mounting bracket
+// for VL53L0X module, doc/montagem/modelos), com a placa de frente para a janela e a lente 7,75 mm
+// acima da borda de baixo do suporte:
+//   - FE, FC e FD olham pelas janelas da face inclinada da frente (FE e FD a 17 graus para fora);
+//   - LE e LD olham pela janela da lateral que fica à frente do eixo (janela de 20 x 13 mm com
+//     centro a 54,4 mm do eixo);
+//   - TE e TD ficam na janela da lateral mais perto do eixo (centro a 32,4 mm), retos como o LE
+//     e o LD: o suporte plano encaixa na janela e a lente olha para o lado (90 graus). A janela
+//     não deixa girar o suporte para olhar para trás (a 160 graus o suporte sairia 13 mm da lateral).
+//   PENDENTE NO CHASSI: as duas janelas têm os centros a 22 mm um do outro e o suporte tem 32 mm de
+//   largura, então o suporte do TE e o do LE se sobrepõem 10 mm (o do TE não pode ir mais para trás,
+//   por causa do pneu, nem o do LE mais para a frente, por causa da rampa). Saídas: afastar as duas
+//   janelas para 32 mm entre centros, ou cortar 10 mm do lado de dentro de cada suporte (doc/montagem).
 static const CfgToF TOF[] = {
   //  nome   xshut  endereço   x     y    ang   offset
-  {  "LE",   17,    0x30,     80,   72,   90,    0  },   // abertura da parede lateral esquerda
-  {  "FE",   23,    0x31,     96,   33,   20,    0  },   // janela esquerda da face da frente
-  {  "FC",   19,    0x32,     97,    0,    0,    0  },   // janela do meio, decide o ataque
-  {  "FD",   18,    0x33,     96,  -33,  -20,    0  },   // janela direita da face da frente
-  {  "LD",    5,    0x34,     80,  -72,  -90,    0  },   // abertura da parede lateral direita
+  {  "LE",   17,    0x30,     55,    72,   90,    0  },   // janela da lateral esquerda, à frente
+  {  "FE",   23,    0x31,     85,    35,   17,    0  },   // janela esquerda da face da frente
+  {  "FC",   19,    0x32,     95,     0,    0,    0  },   // janela do meio, decide o ataque
+  {  "FD",   18,    0x33,     85,   -35,  -17,    0  },   // janela direita da face da frente
+  {  "LD",    5,    0x34,     55,   -72,  -90,    0  },   // janela da lateral direita, à frente
 #if QTD_TOF == 7
-  {  "TE",   16,    0x35,    -23,   40,  160,    0  },   // face de trás do berço, à esquerda
-  {  "TD",    4,    0x36,    -23,  -40, -160,    0  },   // face de trás do berço, à direita
+  {  "TE",   16,    0x35,     33,    72,   90,    0  },   // janela da lateral esquerda, perto do eixo
+  {  "TD",    4,    0x36,     33,   -72,  -90,    0  },   // janela da lateral direita, perto do eixo
 #endif
 };
-#define CORPO_FRENTE_MM   117.7f   // ponta da rampa
-#define CORPO_TRAS_MM     25.0f    // face de trás da base
+#define CORPO_FRENTE_MM   118.0f   // ponta da rampa
+#define CORPO_TRAS_MM     31.0f    // face de trás da base
 #define CORPO_ESQ_MM      74.5f
 #define CORPO_DIR_MM      74.5f
-#define CORPO_ALTURA_MM   51.5f    // topo do corpo em relação ao chão
-#define LENTE_ALTURA_MM   17.5f    // meio das janelas da face da frente em relação ao chão
+#define CORPO_ALTURA_MM   55.0f    // topo da tampa da frente em relação ao chão (a da traseira fica a 47 mm)
+#define LENTE_ALTURA_MM   19.8f    // lente 7,75 mm acima da borda de baixo do suporte, que fica a 12 mm do chão
 #define GEOMETRIA_NOME    "ROBO"
 #endif
 #define N_TOF  (sizeof(TOF) / sizeof(TOF[0]))   // quantidade de ToF, no máximo 16
@@ -129,6 +138,17 @@ static const CfgToF TOF[] = {
 // 340 + 309 - 76 = 573 mm do centro do robô; com 27 mm de folga, o alcance fica em 600 mm. O que
 // passa desse raio, ou cai fora do dojô pela localização (arena.cpp), não vira oponente.
 #define TOF_ALCANCE_MM    600
+// Os ToF laterais (|ângulo| de 80 graus ou mais: LE, LD e, no robô montado, TE e TD) só valem
+// até este alcance, a partir da face do sensor. No robô montado os quatro olham para o mesmo lado
+// (duas janelas por lateral), e a plateia em volta do dojô aparecia nos dois ao mesmo tempo: o
+// rastreador somava as duas leituras e mirava uma pessoa por dezenas de segundos. Com 80 mm o lado
+// só enxerga o oponente encostado ou quase (a frente, a 600 mm, cuida do resto). Na bateria com
+// pessoas em volta do dojô (540 lutas) o maior tempo mirando uma pessoa foi de 49,7 s com 180 mm,
+// 29,8 s com 150 mm, 5,9 s com 120 mm, 29,6 s com 100 mm e 1,0 s com 80 mm, e as vitórias ficaram
+// entre 347 e 355 em todos. COMO AJUSTAR: aumente (100 a 150) se o robô perder o oponente que passa
+// pela lateral a mais de 8 cm; diminua (50 a 60) se ainda mirar a plateia. Um valor alto (1000 ou
+// mais) desliga o limite.
+#define TOF_ALCANCE_LATERAL_MM 80
 #define TOF_MIN_MM        15      // leitura menor que isso é descartada
 #define TOF_TIMEOUT_MS    150     // sem medida nova por esse tempo, a leitura é descartada
 #define TOF_PERDIDO_MS    500     // sem responder por esse tempo, o sensor fica marcado como FALHOU
@@ -200,16 +220,19 @@ static const CfgBorda BORDA[] = {
 #define BORDA_ALTURA_MM   2.7f     // altura da face do sensor ao chão, só para o painel 3D
 #define BORDA_ATE_RODA_MM 40.0f    // menor distância em x entre um sensor de borda e o centro (rodas)
 #else
-// Janelas quadradas de 10 x 9 mm na base, perto das laterais (STL da base). Os quatro sensores
-// ficam à frente do eixo das rodas: o par "de trás" fica 54 mm à frente dele.
+// Furos de 10 x 9 mm na base, perto das laterais (STEP da base): o par da frente fica nos furos a
+// 88 mm do eixo, com a placa do TCRT5000 para dentro do chassi. O par de trás não tem furo: a placa
+// fica atrás dos motores, presa na ponta da base com o sensor para fora, e sai uns 30 mm da
+// traseira (o projetista aceitou). O static_assert da cinemática confere que a distância de parada
+// cabe nos 60 mm até o eixo. POSIÇÃO PREVISTA do par de trás: medir depois de montar.
 static const CfgBorda BORDA[] = {
-  {  "BFE",   34,     94,   66,  -1,   true  },
-  {  "BFD",   35,     94,  -66,  +1,   true  },
-  {  "BTE",   32,     54,   66,  -1,   false },
-  {  "BTD",   33,     54,  -66,  +1,   false },
+  {  "BFE",   34,     88,   62,  -1,   true  },
+  {  "BFD",   35,     88,  -62,  +1,   true  },
+  {  "BTE",   32,    -60,   34,  -1,   false },
+  {  "BTD",   33,    -60,  -34,  +1,   false },
 };
 #define BORDA_ALTURA_MM   4.0f
-#define BORDA_ATE_RODA_MM 54.0f    // menor distância em x entre um sensor de borda e o eixo das rodas
+#define BORDA_ATE_RODA_MM 60.0f    // menor distância em x entre um sensor de borda e o eixo das rodas
 #endif
 #define N_BORDA  (sizeof(BORDA) / sizeof(BORDA[0]))
 
@@ -268,9 +291,8 @@ static const CfgBorda BORDA[] = {
 #define BATERIA_V_CHEIA   12.6f    // V, usado só na conta da distância de parada
 #define PONTE_QUEDA_V     0.2f     // V perdidos na ponte H de MOSFET (estimado; medir)
 #define RODA_DIAMETRO_MM  32.0f
-// distância entre os centros dos pneus: 131,3 mm no STL e 127,3 mm depois do corte de 2 mm na
-// ponta de cada eixo, que o projeto mecânico pede para a largura caber nos 15,2 cm (medir no chassi)
-#define BITOLA_MM         127.3f
+// distância entre os centros dos pneus, medida no STEP LAB3-Modelagem (10/2026); conferir no chassi
+#define BITOLA_MM         126.8f
 #define ACEL_MAX_MMS2     6000.0f  // limite das manobras normais, abaixo da tração (atrito ~1)
 #define FREIO_MIN_MMS2    4400.0f  // pior frenagem: roda patinando, atrito 0,7 e 80% do peso nas rodas
 #define BORDA_FAIXA_MM    25.0f    // largura da faixa branca da borda (regra RoboCore)
@@ -479,8 +501,9 @@ static const CfgBorda BORDA[] = {
 // O QUE FAZER QUANDO O EMPURRÃO TRAVAR (caixa do rastreador parada no ataque, antitrava.h)
 // Descomente UMA linha só. Com todas comentadas, o robô só avisa: o terminal, o painel e o LED
 // (PINO_LED_TRAVA, abaixo) mostram "robô travado" e o robô continua empurrando. Nas lutas
-// simuladas contra um oponente de 319 rpm nenhuma manobra venceu; soltar ou girar no meio do
-// empurrão entregou o lugar ao oponente. Só vale a pena ligar uma delas depois de testar no dojô.
+// simuladas contra um oponente de 319 rpm nenhuma manobra ganhou mais de uma luta a mais que o
+// aviso: a Lateral e o Giro entregaram o lugar ao oponente e as outras três não mudaram nada. Só
+// vale a pena ligar uma delas depois de testar no dojô.
 //   Só avisa  -> nenhuma linha descomentada (padrão)
 //   Lateral   -> ré em arco e volta pela lateral do oponente
 //   Torque    -> continua empurrando com um giro suave (desequilibra o oponente)
