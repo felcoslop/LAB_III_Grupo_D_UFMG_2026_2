@@ -3,8 +3,9 @@
 #   - index.html: cinemática das rodas, com as mesmas contas do firmware rodando no navegador;
 #   - lutas.html: lutas simuladas com o firmware de verdade (teste/sim), cujos rastros e placar
 #     este workflow gera na hora, então a página acompanha qualquer mudança no código;
-#   - combate.html: combate em 3D com o firmware nos dois robôs, compilado para WebAssembly, as
-#     peças do STL e a bateria de lutas, também gerados aqui.
+#   - combate.html: combate em 3D com o firmware nos dois robôs em WebAssembly, versionado no
+#     repositório (o CI confere que ele bate com o código);
+#   - montagem.html: montagem 3D com os jumpers, também versionada.
 # O GitHub Pages precisa estar ligado em Settings > Pages com a fonte "GitHub Actions"
 # (o publicar.sh do pacote de publicação faz isso pela API).
 name: Página do simulador
@@ -49,14 +50,6 @@ jobs:
           python teste/sim/gera_rastros.py teste/sim/luta doc/site/lutas
           python teste/sim/roda_lutas.py teste/sim/luta --sementes 10 --dips 1,2,4 --fora --perfil-pela-cor \
             --json doc/site/lutas/placar.json
-      # combate.html: os dois firmwares em WebAssembly, as peças do STL e uma bateria de 120 lutas
-      - name: Combate em 3D
-        run: |
-          pip install ziglang==0.14.0
-          ZIG="python -m ziglang" bash teste/combate/compila.sh wasm
-          bash teste/combate/compila.sh
-          python teste/combate/bateria.py teste/combate/combate --sementes 10 --json combate_bateria.json
-          python doc/gera_combate.py --wasm teste/combate/combate.wasm --bateria combate_bateria.json
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -5,9 +5,9 @@
 # como na bancada e também ligados), os testes da cinemática, da máquina de estados, da
 # localização no dojô e do PWM dos motores rodando no computador, uma bateria de lutas
 # simuladas com o firmware de verdade (nenhuma queda própria e nenhuma perseguição longa de
-# objeto fora do dojô) e a conferência de que o painel_sumo.html foi gerado a partir do
-# doc/painel_src.html atual e de que a página do simulador (doc/site) usa as mesmas constantes
-# do config.h.
+# objeto fora do dojô) e a conferência de que o painel_sumo.html, a página do combate
+# (doc/site/combate.html) e a da montagem (doc/site/montagem.html) foram gerados a partir do código
+# atual e de que a página do simulador (doc/site) usa as mesmas constantes do config.h.
 name: Compilação
 
 on:
@@ -163,11 +163,17 @@ jobs:
         with:
           name: combate-simulado
           path: combate.csv
-      # o mesmo código compilado para WebAssembly, como a página 3D usa
-      - name: WebAssembly da página 3D
+      # o mesmo código compilado para WebAssembly, como a página 3D usa; a página versionada precisa
+      # ser igual à gerada com este WebAssembly e a bateria de doc/combate/bateria.json
+      - name: WebAssembly e página 3D do combate
         run: |
           pip install ziglang==0.14.0
           ZIG="python -m ziglang" bash teste/combate/compila.sh wasm
+          python doc/gera_combate.py --wasm teste/combate/combate.wasm
+          git diff --exit-code -- doc/site/combate.html || {
+            echo "::error::doc/site/combate.html desatualizado: compile o wasm, rode python doc/gera_combate.py --wasm teste/combate/combate.wasm e faça o commit"
+            exit 1
+          }
 
   painel:
     name: Painel e página do simulador
@@ -187,3 +193,11 @@ jobs:
           }
       - name: Página do simulador com as constantes do config.h
         run: python doc/confere_site.py
+      # montagem 3D: posições dos sensores e GPIOs do config.h, peças do montagem.json
+      - name: Página da montagem e comparação com o arquivo versionado
+        run: |
+          python doc/montagem/gera_montagem.py
+          git diff --exit-code -- doc/site/montagem.html || {
+            echo "::error::doc/site/montagem.html desatualizado: rode python doc/montagem/gera_montagem.py e faça o commit"
+            exit 1
+          }
