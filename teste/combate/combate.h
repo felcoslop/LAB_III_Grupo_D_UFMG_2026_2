@@ -22,6 +22,8 @@ struct Config {
   double   tRound   = 90;      // segundos de luta depois dos 5 s parados
   double   atrito   = 1.0;     // fator no atrito do pneu (fisica.h: 1,15 parado e 1,30 escorregando; 0,8 com pó)
   double   restit   = 0.4;     // coeficiente de restituição do choque entre os corpos
+  int      manobraA = -1;      // manobra do empurrão travado do Grupo D (-1: a do config.h)
+  int      manobraB = 0;       // a do adversário (0: só detecta, como o firmware sem a manobra)
   bool     pessoas  = true;    // operadores e juiz em volta do dojô
   double   massa    = 0.98;
 };
@@ -38,6 +40,7 @@ struct Estatistica {
   double tLevantado[2] = {0, 0};   // segundos com a rampa do outro tirando mais de 30% da carga das rodas
   double aquecMax[2] = {0, 0};
   int    destravas[2] = {0, 0};
+  int    manobras[2] = {0, 0};     // manobras do empurrão travado (antitrava.h)
   double fMaxContato = 0;
   double tPrimContato = -1;
   int    jeito[2] = {0, 0};      // rumo na largada: 0 frente a frente, 1 e 2 de lado, 3 de costas
