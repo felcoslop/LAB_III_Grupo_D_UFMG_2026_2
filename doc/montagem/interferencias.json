@@ -1,104 +1,128 @@
 [
  {
-  "a": "Corpo do chassi (PLA)",
-  "b": "TCRT5000 BTE (A0 no GPIO 32)",
-  "mm3": 641,
+  "a": "Suporte de PLA do LE (VL53L0X Mounting Bracket)",
+  "b": "Suporte de PLA do TE (VL53L0X Mounting Bracket)",
+  "mm3": 945,
   "encaixe": false
  },
  {
-  "a": "Corpo do chassi (PLA)",
-  "b": "TCRT5000 BTD (A0 no GPIO 33)",
-  "mm3": 591,
+  "a": "Suporte de PLA do LD (VL53L0X Mounting Bracket)",
+  "b": "Suporte de PLA do TD (VL53L0X Mounting Bracket)",
+  "mm3": 945,
   "encaixe": false
  },
  {
-  "a": "Motorredutor direito JGB37-520",
-  "b": "VL53L0X TD (XSHUT no GPIO 4, endereço 0x36)",
-  "mm3": 364,
+  "a": "Rampa da frente (PLA)",
+  "b": "TCRT5000 BFE (A0 no GPIO 34)",
+  "mm3": 466,
   "encaixe": false
  },
  {
-  "a": "Motorredutor esquerdo JGB37-520",
-  "b": "VL53L0X TE (XSHUT no GPIO 16, endereço 0x35)",
-  "mm3": 361,
+  "a": "Rampa da frente (PLA)",
+  "b": "TCRT5000 BFD (A0 no GPIO 35)",
+  "mm3": 462,
+  "encaixe": false
+ },
+ {
+  "a": "Rampa da frente (PLA)",
+  "b": "VL53L0X FD (XSHUT no GPIO 18, endereço 0x33)",
+  "mm3": 94,
   "encaixe": false
  },
  {
   "a": "VL53L0X LE (XSHUT no GPIO 17, endereço 0x30)",
   "b": "TCRT5000 BFE (A0 no GPIO 34)",
-  "mm3": 277,
+  "mm3": 91,
   "encaixe": false
  },
  {
-  "a": "Abraçadeira esquerda",
-  "b": "VL53L0X TE (XSHUT no GPIO 16, endereço 0x35)",
-  "mm3": 256,
+  "a": "Rampa da frente (PLA)",
+  "b": "VL53L0X FE (XSHUT no GPIO 23, endereço 0x31)",
+  "mm3": 74,
   "encaixe": false
  },
  {
-  "a": "Corpo do chassi (PLA)",
-  "b": "TCRT5000 BFE (A0 no GPIO 34)",
-  "mm3": 250,
-  "encaixe": false
+  "a": "Rampa da frente (PLA)",
+  "b": "Suporte de PLA do FD (VL53L0X Mounting Bracket)",
+  "mm3": 712,
+  "encaixe": true
  },
  {
-  "a": "Corpo do chassi (PLA)",
-  "b": "TCRT5000 BFD (A0 no GPIO 35)",
-  "mm3": 250,
-  "encaixe": false
+  "a": "Rampa da frente (PLA)",
+  "b": "Suporte de PLA do FE (VL53L0X Mounting Bracket)",
+  "mm3": 702,
+  "encaixe": true
  },
  {
-  "a": "Abraçadeira direita",
-  "b": "VL53L0X TD (XSHUT no GPIO 4, endereço 0x36)",
-  "mm3": 246,
-  "encaixe": false
+  "a": "VL53L0X FE (XSHUT no GPIO 23, endereço 0x31)",
+  "b": "Suporte de PLA do FE (VL53L0X Mounting Bracket)",
+  "mm3": 614,
+  "encaixe": true
+ },
+ {
+  "a": "VL53L0X FD (XSHUT no GPIO 18, endereço 0x33)",
+  "b": "Suporte de PLA do FD (VL53L0X Mounting Bracket)",
+  "mm3": 597,
+  "encaixe": true
+ },
+ {
+  "a": "VL53L0X FC (XSHUT no GPIO 19, endereço 0x32)",
+  "b": "Suporte de PLA do FC (VL53L0X Mounting Bracket)",
+  "mm3": 584,
+  "encaixe": true
+ },
+ {
+  "a": "VL53L0X TE (XSHUT no GPIO 16, endereço 0x35)",
+  "b": "Suporte de PLA do TE (VL53L0X Mounting Bracket)",
+  "mm3": 570,
+  "encaixe": true
+ },
+ {
+  "a": "VL53L0X TD (XSHUT no GPIO 4, endereço 0x36)",
+  "b": "Suporte de PLA do TD (VL53L0X Mounting Bracket)",
+  "mm3": 570,
+  "encaixe": true
+ },
+ {
+  "a": "VL53L0X LE (XSHUT no GPIO 17, endereço 0x30)",
+  "b": "Suporte de PLA do LE (VL53L0X Mounting Bracket)",
+  "mm3": 540,
+  "encaixe": true
  },
  {
   "a": "VL53L0X LD (XSHUT no GPIO 5, endereço 0x34)",
-  "b": "TCRT5000 BFD (A0 no GPIO 35)",
-  "mm3": 165,
-  "encaixe": false
- },
- {
-  "a": "Corpo do chassi (PLA)",
-  "b": "VL53L0X FC (XSHUT no GPIO 19, endereço 0x32)",
-  "mm3": 216,
+  "b": "Suporte de PLA do LD (VL53L0X Mounting Bracket)",
+  "mm3": 540,
   "encaixe": true
  },
  {
-  "a": "Corpo do chassi (PLA)",
-  "b": "VL53L0X FD (XSHUT no GPIO 18, endereço 0x33)",
-  "mm3": 186,
+  "a": "Rampa da frente (PLA)",
+  "b": "Suporte de PLA do FC (VL53L0X Mounting Bracket)",
+  "mm3": 466,
   "encaixe": true
  },
  {
-  "a": "Corpo do chassi (PLA)",
-  "b": "VL53L0X FE (XSHUT no GPIO 23, endereço 0x31)",
-  "mm3": 182,
+  "a": "Hastes laterais (PLA)",
+  "b": "Suporte de PLA do TE (VL53L0X Mounting Bracket)",
+  "mm3": 412,
   "encaixe": true
  },
  {
-  "a": "Base do chassi (PLA)",
-  "b": "TCRT5000 BTE (A0 no GPIO 32)",
-  "mm3": 128,
+  "a": "Hastes laterais (PLA)",
+  "b": "Suporte de PLA do TD (VL53L0X Mounting Bracket)",
+  "mm3": 412,
   "encaixe": true
  },
  {
-  "a": "Base do chassi (PLA)",
-  "b": "TCRT5000 BTD (A0 no GPIO 33)",
-  "mm3": 128,
+  "a": "Rampa da frente (PLA)",
+  "b": "Suporte de PLA do LE (VL53L0X Mounting Bracket)",
+  "mm3": 233,
   "encaixe": true
  },
  {
-  "a": "Base do chassi (PLA)",
-  "b": "TCRT5000 BFE (A0 no GPIO 34)",
-  "mm3": 118,
-  "encaixe": true
- },
- {
-  "a": "Base do chassi (PLA)",
-  "b": "TCRT5000 BFD (A0 no GPIO 35)",
-  "mm3": 118,
+  "a": "Rampa da frente (PLA)",
+  "b": "Suporte de PLA do LD (VL53L0X Mounting Bracket)",
+  "mm3": 230,
   "encaixe": true
  }
 ]
