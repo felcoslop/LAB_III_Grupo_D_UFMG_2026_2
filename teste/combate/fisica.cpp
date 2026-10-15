@@ -14,8 +14,10 @@ static const double KGFCM = 0.0980665;   // 1 kgf.cm em N.m
 // 1000 rpm é o mesmo motor com redução de 6:1, e o torque cai na mesma proporção da redução
 // (1,9 x 6 / 18,8 = 0,6 kgf.cm). A inércia no eixo da roda soma a do rotor (cerca de 2,5 g.cm²
 // num motor do tamanho 520) multiplicada pelo quadrado da redução e a do cubo com o pneu.
-Motor motor319()  { return {"JGB37-520 319 rpm", 12.0, 319, 0.10, 1.2, 1.9 * KGFCM, 2.5e-7 * 18.8 * 18.8 + 1.5e-6}; }
-Motor motor1000() { return {"JGB37-520 1000 rpm", 12.0, 1000, 0.10, 1.2, 0.6 * KGFCM, 2.5e-7 * 6.0 * 6.0 + 1.5e-6}; }
+// Cubo e pneu: anel de silicone de 10 g entre 12,5 e 16 mm de raio (2,1e-6 kg.m²) e cubo de PLA
+// (0,4e-6 kg.m²).
+Motor motor319()  { return {"JGB37-520 319 rpm", 12.0, 319, 0.10, 1.2, 1.9 * KGFCM, 2.5e-7 * 18.8 * 18.8 + 2.5e-6}; }
+Motor motor1000() { return {"JGB37-520 1000 rpm", 12.0, 1000, 0.10, 1.2, 0.6 * KGFCM, 2.5e-7 * 6.0 * 6.0 + 2.5e-6}; }
 
 double kappaRampa(double mu) {
   double a = ANG_RAMPA * M_PI / 180;
@@ -132,6 +134,7 @@ static Caixa caixa(const Robo& rb) {
 
 void Mundo::contatoRobos(double f[2][3]) {
   for (int k = 0; k < 2; k++) { f[k][0] = f[k][1] = f[k][2] = 0; r[k].lift = r[k].prensa = Lift(); r[k].fcx = r[k].fcy = 0; }
+  bool antes = contato;
   contato = false; fContato = 0;
   if (r[0].fora || r[1].fora) return;
   Caixa C[2] = {caixa(r[0]), caixa(r[1])};
@@ -180,15 +183,24 @@ void Mundo::contatoRobos(double f[2][3]) {
   else if (pen1 > 0) { px = p1x; py = p1y; }
   else if (pen2 > 0) { px = p2x; py = p2y; }
   else { px = 0.5 * (p1x + p2x); py = 0.5 * (p1y + p2y); }
-  // força normal (mola amortecida) e atrito PLA com PLA
+  // Força normal pelo modelo contínuo de FLORES et al. (2011): F = k.d.(1 + 8(1-e)/(5e) . d'/v0),
+  // com a penetração d, a taxa de penetração d' e a velocidade v0 do começo do choque. A energia
+  // perdida no choque bate com o coeficiente de restituição e, a força começa em zero (sem o
+  // degrau da mola amortecida linear) e nunca puxa. A velocidade v0 tem mínimo de 0,3 m/s, para
+  // o encosto lento não virar um amortecedor duro demais para o passo de 0,125 ms.
   Robo& A = r[0]; Robo& B = r[1];
   double rAx = px - A.x, rAy = py - A.y, rBx = px - B.x, rBy = py - B.y;
   double vAx = A.vx - A.w * rAy, vAy = A.vy + A.w * rAx;
   double vBx = B.vx - B.w * rBy, vBy = B.vy + B.w * rBx;
   double vrx = vBx - vAx, vry = vBy - vAy;
   double vn = vrx * nX + vry * nY;
-  const double k = 3e4, c = 60;
-  double Fn = std::max(0.0, k * melhor - c * vn);
+  if (!antes) vImpacto = std::max(0.3, -vn);
+  const double k = A.p.kContato, e = std::max(0.05, std::min(0.95, A.p.restit));
+  double chi = 8 * (1 - e) / (5 * e) / vImpacto;
+  // amortecimento k.d.chi limitado para a integração explícita continuar estável (massa
+  // reduzida de 0,49 kg)
+  double cAm = std::min(k * melhor * chi, 0.5 * 0.49 / 1.25e-4);
+  double Fn = std::max(0.0, k * melhor - cAm * vn);
   double ttX = -nY, ttY = nX;
   double vt = vrx * ttX + vry * ttY;
   double Ft = -A.p.muPP * Fn * std::tanh(vt / 0.01);
@@ -285,6 +297,9 @@ void Mundo::forcasRobo(Robo& rb, double& fx, double& fy, double& tq, double dt) 
   double den = std::sqrt(vm * vm + s0 * s0);
   double Fx = -p.muPla * rb.nS * vpx / den, Fy = -p.muPla * rb.nS * vpy / den;
   fx += Fx; fy += Fy; tq += rx * Fy - ry * Fx;
+  // arrasto do ar no centro de massa
+  double va = std::hypot(rb.vx, rb.vy), kAr = 0.5 * RHO_AR * CD_AR * A_AR * va;
+  fx -= kAr * rb.vx; fy -= kAr * rb.vy;
 }
 
 void Mundo::integra(Robo& rb, double fx, double fy, double tq, double dt) {

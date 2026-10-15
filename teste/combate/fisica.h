@@ -1,14 +1,16 @@
 // fisica.h
-// Mundo do simulador de combate: dojô da RoboCore para as classes Lego/Vex de 1 kg (77 cm de
-// diâmetro, 2,5 cm de altura, faixa branca de 2,5 cm, madeira laminada de alta pressão), dois
-// robôs com a geometria do STL do projeto mecânico e a sala onde a luta acontece.
+// Mundo do simulador de combate: dojô de madeira pintada da classe Lego/Vex de 1 kg (77 cm de
+// diâmetro, 2,5 cm de altura, faixa branca de 2,5 cm), dois robôs com a geometria do STL do
+// projeto mecânico e a sala de Belo Horizonte onde a luta acontece (gravidade e ar do lugar).
 //
 // Cada robô apoia em três pontos: os dois pneus e a ponta da rampa, que arrasta no dojô. A carga
 // em cada apoio sai do equilíbrio de momentos com o peso no centro de massa, a aceleração do
 // passo anterior, a força do contato e a força vertical que a rampa do outro robô faz quando
 // entra por baixo. A força de cada pneu sai do escorregamento do pneu (atrito com a curva de
 // Stribeck, limitado por mu.N, nas direções longitudinal e lateral juntas), e cada roda tem o
-// modelo do motor DC com força contraeletromotriz, redução e queda da bateria.
+// modelo do motor DC com força contraeletromotriz, redução e queda da bateria. O choque entre os
+// dois corpos de PLA usa o modelo contínuo de contato com coeficiente de restituição de
+// FLORES et al. (2011), e o ar freia cada robô com o arrasto de uma caixa.
 // Unidades internas no SI (m, s, kg, N); os sensores trabalham em mm, como o firmware.
 #pragma once
 #include <stdint.h>
@@ -19,8 +21,17 @@ namespace cb {
 
 const double R_DOJO = 0.385;     // raio do dojô (m)
 const double FAIXA  = 0.025;     // largura da faixa branca (m)
-const double G      = 9.81;
-
+// Gravidade normal do GRS80 (MORITZ, 2000) na latitude da UFMG (-19,87 graus), menos a correção
+// de ar livre de 0,3086 mGal/m e mais a da placa de Bouguer (2,67 g/cm³) para 830 m de altitude:
+// 9,7863 - 0,0026 + 0,0009 = 9,7847 m/s² (HOFMANN-WELLENHOF; MORITZ, 2006).
+const double G      = 9.7847;
+// Ar da sala às 20 h de 2 de setembro: pressão da atmosfera padrão a 830 m (91,7 kPa, ISO 2533),
+// 25 °C e 50% de umidade dão 1,065 kg/m³. Arrasto de caixa (Cd perto de 1, HOERNER, 1965) na
+// área de frente do robô, 14,9 cm x 5,15 cm: a 1,5 m/s a força é de 0,009 N, menos de 0,1% do
+// atrito do pneu, mas entra nas contas.
+const double RHO_AR = 1.065;
+const double CD_AR  = 1.0;
+const double A_AR   = 0.149 * 0.0515;
 // Geometria do robô no referencial do corpo: origem no meio do eixo das rodas, no chão, x para
 // a frente e y para a esquerda (medidas do STL e do desenho de conjunto do projeto mecânico).
 const double X_PONTA   = 0.1177;   // ponta da rampa
@@ -28,7 +39,7 @@ const double X_FACE    = 0.100;    // face inclinada (61,8 graus) na altura das 
 const double X_TRAS    = -0.025;   // face de trás da base
 const double Y_LADO    = 0.0745;   // metade da largura do corpo
 const double BITOLA    = 0.1273;   // centros dos pneus depois do corte de 2 mm na ponta dos eixos
-const double R_RODA    = 0.01597;  // pneu StickyMAX S20 de 32 mm
+const double R_RODA    = 0.01597;  // pneu StickyMAX S20 de 32 mm (desenho da RoboCore: 32 x 20 mm, 9,5 a 10 g)
 const double Y_PNEU_IN = 0.0535;   // face de dentro do pneu
 const double X_PNEU    = 0.016;    // metade do comprimento do pneu visto de cima
 const double ANG_RAMPA = 17.7;     // graus
@@ -48,16 +59,27 @@ struct Param {
   double hCg    = 0.024;    // altura do centro de massa
   double izz    = 2.5e-3;   // inércia de giro no centro de massa (kg.m²)
   Motor  motor;
-  // Pneu de elastômero macio na madeira laminada. Borracha macia não perde atrito ao patinar
-  // como um material duro: o atrito dela sobe com a velocidade de escorregamento até um pico
-  // que, para borracha de transição vítrea bem abaixo da temperatura ambiente, fica acima de
-  // 1 m/s (GROSCH, 1963). Por isso o valor escorregando é o mesmo do valor parado.
-  double muEst  = 1.10;     // parado
-  double muDin  = 1.10;     // escorregando
-  double vStrib = 0.03;     // m/s, transição entre os dois (só vale com muDin diferente de muEst)
+  // Pneu StickyMAX S20 (silicone de 20 Shore A, pegajoso) na madeira pintada. Borracha macia
+  // numa superfície lisa tem atrito acima de 1, e o atrito escorregando é maior que o parado e
+  // sobe com a velocidade de escorregamento: ROTH, DRISCOLL e HOLT (1942) mediram 1,2 a 2,0
+  // parado em vidro e de 1,3 a 3,4 entre 1 µm/s e 5 cm/s escorregando; GROSCH (1963) mostrou
+  // que o pico fica acima de 1 m/s para borracha de transição vítrea bem abaixo da temperatura
+  // ambiente, como o silicone (-120 °C). A tinta é menos lisa e menos limpa que o vidro, e o pó
+  // do dojô tira aderência do pneu pegajoso; por isso os valores ficam perto do mínimo dessas
+  // medidas: 1,15 parado e 1,30 escorregando. A bateria roda também com o atrito 20% menor
+  // (pó) e 20% maior. Medida no dojô de verdade: puxar o robô com as rodas travadas (ponte H em
+  // freio) com um dinamômetro; mu = força / (massa x g).
+  double muEst  = 1.15;     // parado
+  double muDin  = 1.30;     // escorregando
+  double vStrib = 0.05;     // m/s, transição entre os dois
   double cRol   = 0.015;    // resistência ao rolamento do pneu macio
   double muPla  = 0.35;     // ponta da rampa (PLA) arrastando no dojô
   double muPP   = 0.30;     // PLA contra PLA no contato entre os robôs
+  // Choque entre os corpos de PLA. Os corpos impressos, com parafusos, placas e pneus, devolvem
+  // pouco da energia; sem medida dos robôs, o coeficiente de restituição fica em 0,4 (a bateria
+  // roda também com 0,2 e 0,6). Rigidez do contato medida no deslocamento do conjunto: 3e4 N/m.
+  double restit = 0.4;
+  double kContato = 3e4;
   double refl   = 0.05;     // refletância do corpo no infravermelho (PLA preto 0,05, branco 0,6)
   double vAberta = 12.3;    // bateria 3S sem carga (V)
   double rBat   = 0.15;     // resistência da bateria, do BMS e dos fios (ohm)
@@ -110,6 +132,7 @@ public:
   double reflParede = 0.6;
   double t = 0;
   bool   contato = false;
+  double vImpacto = 0;              // velocidade de aproximação no começo do contato atual (m/s)
   double tUltContato = -10, tContatoTotal = 0;
   double fContato = 0;              // força normal no contato (N)
   double arranhoes = 0.0003;        // chance por ms de um risco ou poeira passar por um sensor de borda
