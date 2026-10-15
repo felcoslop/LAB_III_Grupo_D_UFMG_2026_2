@@ -22,6 +22,7 @@ Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **
 - [Localização no dojô](#localização-no-dojô)
 - [Lutas simuladas](#lutas-simuladas)
 - [Combate com dois firmwares](#combate-com-dois-firmwares)
+- [Montagem 3D](#montagem-3d)
 - [Instalação](#instalação)
 - [Uso](#uso)
 - [Arquitetura](#arquitetura)
@@ -209,7 +210,7 @@ Os valores marcados com "medir" no `config.h` ficam certos só com o robô monta
 
 ## Estratégias e chave DIP
 
-As três estratégias da proposta do Grupo D [GRUPO D, 2026] ficam nas vias 1 a 3 da chave DIP, e a via 4 escolhe o perfil do oponente. O firmware lê a chave com um filtro de 30 ms contra trepidação e trava a escolha no start: mexer na chave durante a luta não muda nada. Sem nenhuma via de estratégia ligada vale o Rush, e com mais de uma ligada vale a de menor número (o comando `lista` avisa o conflito). Os comandos `estrategia` e `perfil` passam por cima da chave para testes na bancada.
+As três estratégias da proposta do Grupo D [GRUPO D, 2026a] ficam nas vias 1 a 3 da chave DIP, e a via 4 escolhe o perfil do oponente. O firmware lê a chave com um filtro de 30 ms contra trepidação e trava a escolha no start: mexer na chave durante a luta não muda nada. Sem nenhuma via de estratégia ligada vale o Rush, e com mais de uma ligada vale a de menor número (o comando `lista` avisa o conflito). Os comandos `estrategia` e `perfil` passam por cima da chave para testes na bancada.
 
 | DIP 1 | DIP 2 | DIP 3 | Estratégia | Busca sem pista | Chegada no oponente |
 |---|---|---|---|---|---|
@@ -388,6 +389,41 @@ python doc/gera_combate.py --wasm teste/combate/combate.wasm --bateria bateria.j
 ```
 
 A simulação deixa de fora a rampa entrando fundo embaixo do outro robô (o ponto de apoio não anda), o tombamento, a deformação do pneu, a poeira no dojô e o feixe do VL53L0X batendo no chão. O atrito real do pneu e o centro de massa medido na balança (robô apoiado numa régua, até equilibrar) deixam o resultado mais perto da luta de verdade.
+
+## Montagem 3D
+
+A página [Montagem Grupo D](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/montagem.html) mostra o robô montado em 3D, com cada componente no chassi e cada fio do esquema elétrico, e marca a ponta de cada jumper: fêmea nos pinos machos dos módulos e da placa de expansão, macho nos furos da mini protoboard. Os modelos dos componentes são os do relatório do projeto mecânico (ESP32 DevKit de 30 pinos, placa de expansão, TPS63070, chave DIP, ponte H dupla, célula 18650, BMS 3S, VL53L0X e TCRT5000) [GRUPO D, 2026b]. A página vem de três arquivos:
+
+- o `config.h`, que dá a posição de cada VL53L0X (lente na altura `LENTE_ALTURA_MM`, olhando no ângulo da tabela `TOF`) e de cada TCRT5000 (tabela `BORDA`) e o GPIO de cada fio, então mudar um pino no firmware muda a página;
+- o `doc/montagem/montagem.json`, com a posição e o giro das outras peças, os pinos de cada modelo, a ordem das barras S, V e G da placa de expansão, o uso da mini protoboard, o caminho dos feixes de fios e as diferenças do esquema;
+- o `doc/montagem/pecas.js`, com as malhas compactas que o `exporta_pecas.py` gera a partir dos STL.
+
+As ligações seguem o firmware e o documento de ligação (Lab3-Liga):
+
+| Ligação | Jumper | Pontas |
+|---|---|---|
+| VIN, GND e XSHUT de cada VL53L0X | fêmea-fêmea | barra do sensor e V, G e S do GPIO do XSHUT na placa de expansão (17, 23, 19, 18, 5, 16 e 4) |
+| SDA e SCL de cada VL53L0X | macho-fêmea | barra do sensor e coluna do SDA ou do SCL na mini protoboard |
+| SDA e SCL da protoboard até o ESP32 | macho-fêmea | protoboard e S do GPIO 21 e do 22 |
+| VCC, GND e A0 de cada TCRT5000 | fêmea-fêmea | barra do módulo e V, G e S do GPIO 34, 35, 32 ou 33 (o D0 fica sem fio) |
+| Chave DIP | macho-macho e macho-fêmea | um lado de cada via no 3V3 da protoboard, o outro no S do GPIO 12, 14, 2 e 15 |
+| GND, IN1, IN2, IN3 e IN4 da ponte H | fêmea-fêmea | barra da ponte e G do GPIO 13 e S do 25, 26, 27 e 13 |
+| Motores, bateria 3S, BMS e alimentação da ponte H | fio 22 AWG soldado | bornes da ponte H e terminais soldados |
+| Bateria 18650 da lógica, chave liga e desliga e TPS63070 | fio soldado | saída de 3,3 V do TPS63070 com ponta fêmea no pino 3V3 da placa de expansão |
+
+São 38 jumpers fêmea-fêmea, 21 macho-fêmea e 6 macho-macho, e a página soma o comprimento de cada caminho para a lista de compra. O jumper de tensão da barra V da placa de expansão fica em 3,3 V, porque os VL53L0X, os TCRT5000 e a chave DIP trabalham em 3,3 V. O start continua no botão BOOT (GPIO 0): o DevKit de 30 pinos não leva o GPIO 0 para a barra, então um botão externo precisa ser soldado em paralelo com o BOOT.
+
+O esquema do Fritzing (`SUMO_Esquemático` e `SUMO_bb`) difere do firmware em quatro pontos, e a página mostra os quatro: os sensores de borda saem do D0 nos GPIO 36, 39, 34 e 35, mas o firmware lê o A0 nos 34, 35, 32 e 33; a chave DIP vai nos GPIO 15, 14, 33 e 32 com o comum no GND, mas o firmware lê os 12, 14, 2 e 15 com o pull-down interno e o comum no 3V3 (com o comum no GND a chave nunca muda a leitura); o botão S1 vai no GPIO 2, que é a via 3 da chave; e a ponte H aparece como L298N. O ramo dos motores não tem chave liga e desliga no esquema.
+
+As posições de agora são provisórias, dentro do chassi antigo. A tabela de interferências da página (voxels de 1,5 mm, sobreposição de mais de 3 mm) mostra o que ainda colide: os TCRT5000 da frente com os VL53L0X laterais e com o corpo, os de trás com o arco das rodas e os VL53L0X de trás com os motorredutores. Com os STL do chassi remodelado:
+
+```
+python doc/montagem/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES   # refaz o doc/montagem/pecas.js
+# ajuste pos e rot das peças no doc/montagem/montagem.json
+python doc/montagem/gera_montagem.py --interferencias                        # refaz a página e a lista de interferências
+```
+
+O `exporta_pecas.py` e a conferência de interferências precisam de `pip install trimesh fast-simplification networkx scipy`; o resto do `gera_montagem.py` usa só o Python, com as contas em float do próprio Python, então a página sai igual em qualquer computador.
 
 ## Instalação
 
@@ -755,6 +791,8 @@ sumo_esp32/
     combate_src.html        modelo da página 3D do combate
     gera_combate.py         gera doc/site/combate.html com o WebAssembly, as malhas e a bateria
     combate/                malhas do STL (malhas.js, exporta_malhas.py) e textos da página
+    montagem_src.html       modelo da página da montagem 3D
+    montagem/               montagem.json (peças, pinos, rotas), pecas.js, exporta_pecas.py, gera_montagem.py e interferencias.json
     gabarito_bancada.pdf    gabarito 1:1 da bancada
     guia_montagem_sensores.pdf  gabarito do robô, ligação e conferência
     guia_montagem_sensores_7.pdf  o mesmo para 7 sensores, com bancada, pinagem e cobertura
@@ -789,7 +827,9 @@ FLORES, Paulo; MACHADO, Margarida; SILVA, Miguel T.; MARTINS, Jorge M. On the co
 
 GROSCH, K. A. The relation between the friction and visco-elastic properties of rubber. **Proceedings of the Royal Society of London A**, v. 274, n. 1356, p. 21-39, 1963.
 
-GRUPO D. **Slides sobre máquinas de estados**: estratégias Rush, Flank e Fan out. Belo Horizonte: UFMG, ELE635 Laboratório de Sistemas III, 2026. Apresentação.
+GRUPO D. **Slides sobre máquinas de estados**: estratégias Rush, Flank e Fan out. Belo Horizonte: UFMG, ELE635 Laboratório de Sistemas III, 2026a. Apresentação.
+
+GRUPO D. **Projeto mecânico**: robô de sumô autônomo da classe Lego/Vex Sumô. Belo Horizonte: UFMG, ELE635 Laboratório de Projetos III, 2026b. Relatório, com os modelos 3D dos componentes eletrônicos.
 
 HOERNER, Sighard F. **Fluid-dynamic drag**: practical information on aerodynamic drag and hydrodynamic resistance. Midland Park: Hoerner, 1965.
 
