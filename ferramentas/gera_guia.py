@@ -116,19 +116,33 @@ def sensor(P, s, cone, rot_off=32, lateral_fora=False, rot=None):
     txt(rx, ry - 5.6 * mm, f'x={s["x"]} y={s["y"]}', 6.3, "M", colors.HexColor("#444444"), "c")
 
 # ============================ PÁGINA 1: GABARITO 1:1 DO ROBÔ ============================
+# Geometria do robô montado (chassi do STEP), lida do config.h: origem no meio do eixo das rodas,
+# corpo de CORPO_TRAS_MM atrás até CORPO_FRENTE_MM à frente, e o limite de 152 x 152 mm da classe
+# centrado no corpo.
+F_R, T_R = num("CORPO_FRENTE_MM", BLOCO_ROBO), num("CORPO_TRAS_MM", BLOCO_ROBO)
+E_R, D_R = num("CORPO_ESQ_MM", BLOCO_ROBO), num("CORPO_DIR_MM", BLOCO_ROBO)
+LENTE_R = num("LENTE_ALTURA_MM", BLOCO_ROBO)
+BITOLA, RODA_D = num("BITOLA_MM", cfg), num("RODA_DIAMETRO_MM", cfg)
+br = lambda v: f"{v:g}".replace(".", ",")
 W, H = A4
-cx, cy = W / 2, 150 * mm
+cx, cy = W / 2, 118 * mm
 def P(xr, yr): return cx - yr * mm, cy + xr * mm
 
 txt(W / 2, H - 16 * mm, f"GABARITO 1:1 · {QTD} SENSORES DE OPONENTE NO ROBÔ (vista de cima)", 13, "SB", anchor="c")
 txt(W / 2, H - 22 * mm, "Impressão em TAMANHO REAL (100%, sem \"ajustar à página\"). A barra de 100 mm confere a escala.", 8.5, anchor="c")
+xm, ym = (F_R - T_R) / 2, (E_R - D_R) / 2
 c.setStrokeColor(CINZA); c.setLineWidth(0.8); c.setDash(3, 2)
-x0, y0 = P(ROBO / 2, ROBO / 2)
+x0, y0 = P(xm + ROBO / 2, ym + ROBO / 2)
 c.rect(x0, y0 - ROBO * mm, ROBO * mm, ROBO * mm, stroke=1, fill=0); c.setDash()
-txt(cx, y0 - ROBO * mm - 5 * mm, "contorno máximo do robô: 152 × 152 mm (classe de 1 kg)", 8, color=CINZA, anchor="c")
-c.setStrokeColor(colors.black); c.setLineWidth(2.5)
-c.line(*P(ROBO / 2, ROBO / 2), *P(ROBO / 2, -ROBO / 2))
-txt(cx, P(ROBO / 2, 0)[1] + 3 * mm, "FRENTE (lâmina)", 9, "SB", anchor="c")
+txt(cx, P(xm - ROBO / 2, 0)[1] - 5 * mm,
+    f"tracejado: limite da classe de 1 kg (152 × 152 mm) · contorno cheio: corpo do chassi do STEP ({br(F_R + T_R)} × {br(E_R + D_R)} mm)",
+    8, color=CINZA, anchor="c")
+c.setStrokeColor(colors.black); c.setLineWidth(1.2)
+x0, y0 = P(F_R, E_R)
+c.rect(x0, y0 - (F_R + T_R) * mm, (E_R + D_R) * mm, (F_R + T_R) * mm, stroke=1, fill=0)
+c.setLineWidth(2.5)
+c.line(*P(F_R, E_R), *P(F_R, -D_R))
+txt(*P(F_R - 6, 62), "FRENTE", 9, "SB", anchor="c")
 c.setLineWidth(1.2)
 ax, ay = P(40, 0); bx, by = P(-10, 0)
 c.line(bx, by, ax, ay); c.line(ax, ay, ax - 3 * mm, ay - 5 * mm); c.line(ax, ay, ax + 3 * mm, ay - 5 * mm)
@@ -139,25 +153,27 @@ txt(ex - 1 * mm, ey + 2 * mm, "y (esquerda)", 7.5)
 c.setLineWidth(1)
 c.circle(cx, cy, 3 * mm); c.line(cx - 6 * mm, cy, cx + 6 * mm, cy); c.line(cx, cy - 6 * mm, cx, cy + 6 * mm)
 txt(cx + 4 * mm, cy - 8 * mm, "ORIGEM = centro de giro", 8, "SB")
-txt(cx + 4 * mm, cy - 11.5 * mm, "(meio entre as 2 rodas de tração)", 7.5)
+txt(cx + 4 * mm, cy - 11.5 * mm, "(meio do eixo das rodas, no chão)", 7.5)
 c.setStrokeColor(colors.HexColor("#999999")); c.setDash(1, 2)
-for sg in (1, -1):
-    wx, wy = P(15, sg * 66)
-    c.rect(wx - 5 * mm, wy - 30 * mm, 10 * mm, 30 * mm)
+for sg in (1, -1):                                       # rodas: diâmetro e bitola do config.h
+    c.rect(cx - (sg * BITOLA / 2 + 5) * mm, cy - RODA_D / 2 * mm, 10 * mm, RODA_D * mm)
 c.setDash()
-txt(*P(-20, 66), "roda", 7, color=colors.HexColor("#999999"), anchor="c")
-txt(*P(-20, -66), "roda", 7, color=colors.HexColor("#999999"), anchor="c")
+for sg in (1, -1):
+    txt(*P(-RODA_D / 2 - 4, sg * BITOLA / 2), "roda", 7, color=colors.HexColor("#999999"), anchor="c")
 for s in TOF:
-    sensor(P, s, 45 if abs(s["ang"]) < 60 else 24)
+    if abs(s["ang"]) >= 60:                              # laterais: rótulo por dentro, na altura do sensor
+        uy = 1 if s["y"] > 0 else -1
+        sensor(P, s, 24, rot=(s["x"] - 2, s["y"] - uy * 30))
+    else:                                                # frente: rótulo fora do corpo, à frente da rampa
+        sensor(P, s, 45, rot=(F_R + 12, s["y"] + (12 if s["y"] > 0 else -12 if s["y"] < 0 else 0)))
 escala(20 * mm, 52 * mm)
 y = 42 * mm
 linhas = [
     ("SB", "Uso do gabarito"),
-    ("S", "1. Cada sensor fica EM PÉ sobre o traço colorido, com o chip preto virado para fora, na direção da seta, e os pinos para dentro."),
-    ("S", "2. O centro do chip (a lente) fica sobre o ponto branco. A altura boa da lente é de 20 a 25 mm do chão."),
-    ("S", "3. No robô, o gabarito colado na base do chassi serve para furar ou posicionar os suportes. Os números x, y e ângulo"),
-    ("S", "    são os mesmos da tabela TOF[] do config.h. Com a origem fora do centro do quadrado, x e y de cada lente precisam"),
-    ("S", "    de nova medida a partir do meio entre as rodas, e o config.h recebe os valores medidos."),
+    ("S", "1. Cada VL53L0X vai no suporte de PLA, na janela do chassi: o traço colorido é a placa do sensor e a seta, para onde a lente olha."),
+    ("S", f"2. O ponto branco é a lente. No robô montado ela fica a {br(LENTE_R)} mm do chão (LENTE_ALTURA_MM do config.h)."),
+    ("S", "3. Os números x, y e ângulo são os da tabela TOF[] do config.h, com a origem no meio do eixo das rodas. Depois de montar,"),
+    ("S", "    a posição medida de cada lente substitui a prevista no config.h, e este guia sai de novo com python ferramentas/gera_guia.py."),
     ("S", f"4. Cada sensor leva uma etiqueta ({', '.join(s['nome'] for s in TOF)}) e o fio XSHUT da cor indicada: é esse fio que dá o nome ao sensor."),
 ]
 if QTD == 7:
@@ -395,13 +411,18 @@ if QTD == 7:
             c.drawPath(path, fill=1, stroke=1); c.setFillAlpha(1)
         txt(cxp, cyp - 542 * k * mm - 4.5 * mm, titulo, 8, "SB", anchor="c")
         txt(cxp, cyp - 542 * k * mm - 8.3 * mm, sub, 7, "S", CINZA, "c")
-    t5 = [s for s in TOF if s["nome"] not in NOVOS]
+    # geometria do estudo de 08/10: robô de 152 mm com a origem no centro, antes do chassi do STEP
+    ESTUDO = [dict(nome="LE", x=10, y=70, ang=90), dict(nome="FE", x=66, y=40, ang=20),
+              dict(nome="FC", x=68, y=0, ang=0), dict(nome="FD", x=66, y=-40, ang=-20),
+              dict(nome="LD", x=10, y=-70, ang=-90), dict(nome="TE", x=-60, y=62, ang=160),
+              dict(nome="TD", x=-60, y=-62, ang=-160)]
+    t5 = [s for s in ESTUDO if s["nome"] not in NOVOS]
     frente = t5 + [dict(nome="DE", x=60, y=62, ang=45), dict(nome="DD", x=60, y=-62, ang=-45)]
     yd = y - 40 * mm
     diagrama(40 * mm, yd, t5, "5 sensores (hoje)", "atrás, de 115° a 180°, não enxerga nada")
     diagrama(105 * mm, yd, frente, "7, par na frente (±45°)", "alternativa descartada")
-    diagrama(170 * mm, yd, TOF, "7, par atrás (±160°)", "posição escolhida")
-    txt(W / 2, yd + 542 / 18 * mm + 4 * mm, "Cones até o alcance útil de cada sensor, escala 1:18 (círculo cinza: 54,2 cm do centro, o pior caso dentro do dojô)", 7.5, anchor="c")
+    diagrama(170 * mm, yd, ESTUDO, "7, par atrás (±160°)", "escolhida no estudo")
+    txt(W / 2, yd + 542 / 18 * mm + 4 * mm, "Estudo de 08/10 (robô de 152 mm, antes do chassi do STEP): cones até o alcance útil, escala 1:18, círculo cinza a 54,2 cm", 7.5, anchor="c")
     y = yd - 542 / 18 * mm - 15 * mm
     texto = [
         ("SB", "Por que o par novo vai atrás"),
@@ -428,7 +449,9 @@ if QTD == 7:
         y -= 4.2 * mm
     for l in ["Base: 500 ataques em linha reta a 0,4 a 1,2 m/s com o robô parado, 300 buscas seguindo o rumo do firmware e 240 sequências",
               "de rastreio com o oponente andando. O par na frente melhora um pouco a mira nas diagonais, mas não muda o que passa sem ser visto.",
-              "Ainda sobra o buraco entre FE e LE (32° a 78°) a mais de 25 cm e uma faixa estreita bem atrás a mais de 30 cm."]:
+              "Ainda sobra o buraco entre FE e LE (32° a 78°) a mais de 25 cm e uma faixa estreita bem atrás a mais de 30 cm.",
+              "No chassi do STEP, as janelas da lateral só deixam o par reto, a ±90° (posição atual do config.h): a faixa de trás volta",
+              "a ficar sem cobertura, e o rastreador cobre esse lado pela última posição vista. Na bancada, o par continua a ±160°."]:
         txt(14 * mm, y - 1 * mm, l, 7.3); y -= 3.9 * mm
     txt(14 * mm, y - 6 * mm, "Referência", 8.6, "SB")
     txt(14 * mm, y - 10.5 * mm, "DEDE, Fırat Faris. Sumo Robot Blackbook: robot sumo strategies, tactics to win! Istambul: JSumo, [s.d.]. E-book.", 7.6)
