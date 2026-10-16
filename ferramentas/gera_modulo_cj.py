@@ -13,7 +13,7 @@ barra de 6 pinos (VIN, GND, SCL, SDA, GPIO1, XSHUT) de passo 2,54 mm na ponta de
 pinos para trás (-z). Dimensões do chip e da barra conferidas no catálogo do módulo; conferir a
 placa que chegar.
 
-Uso: python doc/montagem/modelos/gera_modulo_cj.py   (grava cj_vl53l0x.stl ao lado)
+Uso: python ferramentas/gera_modulo_cj.py   (grava cj_vl53l0x.stl ao lado)
 Precisa de: pip install trimesh numpy
 """
 import os
@@ -39,5 +39,5 @@ for k in range(6):
     y = 2.25 + (k - 2.5) * 2.54
     partes.append(caixa(-7.32, -6.68, y - 0.32, y + 0.32, -12.0, -3.1))   # pino de 0,64 mm
 m = trimesh.util.concatenate(partes)
-m.export(os.path.join(AQUI, "cj_vl53l0x.stl"))
+m.export(os.path.join(os.path.dirname(AQUI), "doc", "montagem", "modelos", "cj_vl53l0x.stl"))
 print("cj_vl53l0x.stl", len(m.faces), "triângulos", np.round(m.bounds, 2).tolist())

@@ -5,8 +5,8 @@
 // repetido em toda volta do loop não mexe no periférico. A configuração repetida era o defeito
 // do analogWrite no core 2.x: cada chamada zerava o contador do PWM.
 // Uso (core 2.x e core 3.x):
-//   g++ -std=c++11 -Wall -Wextra -I teste/stub -I . -DUSAR_MOTORES=1 teste/teste_motores.cpp motores.cpp -o t && ./t
-//   g++ -std=c++11 -Wall -Wextra -I teste/stub -I . -DUSAR_MOTORES=1 -DESP_ARDUINO_VERSION_MAJOR=3 teste/teste_motores.cpp motores.cpp -o t && ./t
+//   g++ -std=c++11 -Wall -Wextra -I teste/unidade/stub -I . -DUSAR_MOTORES=1 teste/unidade/teste_motores.cpp motores.cpp -o t && ./t
+//   g++ -std=c++11 -Wall -Wextra -I teste/unidade/stub -I . -DUSAR_MOTORES=1 -DESP_ARDUINO_VERSION_MAJOR=3 teste/unidade/teste_motores.cpp motores.cpp -o t && ./t
 #include <cstdio>
 #include "motores.h"
 #include "config.h"

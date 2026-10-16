@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Monta a página 3D do combate (doc/site/combate.html) em um arquivo só.
+"""Monta a página 3D do combate (site/combate.html) em um arquivo só.
 
-Junta o modelo doc/combate_src.html, as malhas do robô (doc/combate/malhas.js, geradas do STL
-pelo doc/combate/exporta_malhas.py), o módulo WebAssembly com os dois firmwares
+Junta o modelo doc/combate/combate_src.html, as malhas do robô (doc/combate/malhas.js, geradas do STL
+pelo ferramentas/exporta_malhas.py), o módulo WebAssembly com os dois firmwares
 (teste/combate/compila.sh wasm), o resultado da bateria de lutas (teste/combate/bateria.py --json)
 e os textos da página (doc/combate/textos.json).
 
-A página fica no repositório (doc/site/combate.html), com a bateria de doc/combate/bateria.json, e o
+A página fica no repositório (site/combate.html), com a bateria de doc/combate/bateria.json, e o
 CI confere que ela é igual à gerada a partir do código atual.
 
-Uso: python doc/gera_combate.py --wasm teste/combate/combate.wasm [--bateria doc/combate/bateria.json]
-         [--saida doc/site/combate.html] [--fragmento]
+Uso: python ferramentas/gera_combate.py --wasm teste/combate/combate.wasm [--bateria doc/combate/bateria.json]
+         [--saida site/combate.html] [--fragmento]
   --fragmento: sem <!doctype>, <head> e <body> (página publicada como artefato)
 """
 import argparse
@@ -19,17 +19,19 @@ import json
 import os
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
+RAIZ = os.path.dirname(AQUI)
+DADOS = os.path.join(RAIZ, "doc", "combate")
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--modelo", default=os.path.join(AQUI, "combate_src.html"))
-    ap.add_argument("--malhas", default=os.path.join(AQUI, "combate", "malhas.js"))
-    ap.add_argument("--textos", default=os.path.join(AQUI, "combate", "textos.json"))
+    ap.add_argument("--modelo", default=os.path.join(DADOS, "combate_src.html"))
+    ap.add_argument("--malhas", default=os.path.join(DADOS, "malhas.js"))
+    ap.add_argument("--textos", default=os.path.join(DADOS, "textos.json"))
     ap.add_argument("--wasm", required=True)
-    ap.add_argument("--bateria", default=os.path.join(AQUI, "combate", "bateria.json"))
+    ap.add_argument("--bateria", default=os.path.join(DADOS, "bateria.json"))
     ap.add_argument("--fragmento", action="store_true")
-    ap.add_argument("--saida", default=os.path.join(AQUI, "site", "combate.html"))
+    ap.add_argument("--saida", default=os.path.join(RAIZ, "site", "combate.html"))
     a = ap.parse_args()
 
     html = open(a.modelo, encoding="utf-8").read()

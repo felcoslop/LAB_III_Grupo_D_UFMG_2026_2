@@ -2,7 +2,7 @@
 
 Referencial de saída (mm): x para a frente, y para cima e z para a direita (o do three.js com o
 robô olhando para +x), origem no meio do eixo das rodas, no chão. O STEP (LAB3-Modelagem, depois de
-doc/montagem/step_para_stl.py) tem a frente em -x, o eixo das rodas em x = 51 mm e o plano de
+ferramentas/step_para_stl.py) tem a frente em -x, o eixo das rodas em x = 51 mm e o plano de
 simetria em y = 0; o chão fica 3,0 mm abaixo do z = 0 do desenho (x_robô = 51 - x, y_robô = -y,
 z_robô = z + 3,0).
 
@@ -13,7 +13,7 @@ Peças da página (uma malha por nome):
   pneuE/D  pneu StickyMAX 32 mm                          cuboE/D  cubo de PLA
 E fica a esquerda em y_robô > 0.
 
-Uso: python doc/combate/exporta_malhas.py PASTA_DOS_STL doc/combate/malhas.js
+Uso: python ferramentas/exporta_malhas.py PASTA_DOS_STL doc/combate/malhas.js
 Precisa de: pip install trimesh fast-simplification networkx scipy
 """
 import base64

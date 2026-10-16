@@ -21,7 +21,7 @@
 
 // ============================================================================
 // Sensores de oponente: VL53L0X (ToF), placas CJVL53L0XV2 / GY-530
-// Referencial (o mesmo dos gabaritos em doc/): origem no centro de giro (na bancada, o
+// Referencial (o mesmo dos gabaritos em doc/pdf/): origem no centro de giro (na bancada, o
 // centro da protoboard), x em mm para a frente, y em mm para a esquerda, ang em graus
 // (0 é frente, positivo é esquerda). As coordenadas x,y são da lente de cada sensor.
 // O offset_mm só vale enquanto o sensor não foi calibrado com o comando "cal"; a
@@ -41,8 +41,9 @@ struct CfgToF {
 #define GEOMETRIA_BANCADA 1
 #endif
 
-// Quantidade de sensores de oponente: 5 (montagem original) ou 7, com um par a mais nos cantos
-// de trás (TE e TD, a ±160 graus). A frente continua com os 3 sensores de antes e o FC segue
+// Quantidade de sensores de oponente: 5 (montagem original) ou 7, com um par a mais atrás do eixo
+// (TE e TD: a ±160 graus nas quinas da bancada; no robô montado, retos a ±90 graus, porque as
+// janelas do chassi não deixam girar o suporte). A frente continua com os 3 sensores de antes e o FC segue
 // sozinho no centro, decidindo o ataque, como pede o capítulo 2 do Sumo Robot Blackbook (número
 // ímpar de sensores, com um no centro). Na simulação com o rastreador, o par de trás reduziu os
 // ataques que chegam sem ser vistos de 36% para 8% e o tempo médio de busca de 206 para 35 ms,
@@ -65,7 +66,7 @@ struct CfgToF {
 // 29,9 mm do FD. Com essas três distâncias o FC fica cerca de 14 mm à frente dos cantos e
 // 1 mm para a direita. LE e LD ficam a 59,3 mm um do outro, no meio da protoboard.
 // TE e TD (7 sensores) ainda não foram montados: a posição abaixo é a prevista no gabarito
-// (doc/guia_montagem_sensores_7.pdf), nas quinas de trás da protoboard, com o palito colado por
+// (doc/pdf/guia_montagem_sensores_7.pdf), nas quinas de trás da protoboard, com o palito colado por
 // fora para não atrapalhar os fios das linhas 1 a 4. Depois de montar, a posição medida
 // substitui estes números.
 static const CfgToF TOF[] = {

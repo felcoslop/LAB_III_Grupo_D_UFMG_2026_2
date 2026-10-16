@@ -8,7 +8,7 @@
 // erro e a incerteza que o filtro informa e o descarte de pontos fora do dojô: o oponente perto
 // da borda nunca pode ser descartado, e a pessoa do lado de fora deve ser descartada com
 // frequência.
-// Uso: g++ -std=c++11 -O2 -Wall -Wextra -I teste/stub -I . teste/teste_arena.cpp arena.cpp -o t && ./t
+// Uso: g++ -std=c++11 -O2 -Wall -Wextra -I teste/unidade/stub -I . teste/unidade/teste_arena.cpp arena.cpp -o t && ./t
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>

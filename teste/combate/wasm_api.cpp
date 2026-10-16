@@ -1,5 +1,5 @@
 // wasm_api.cpp
-// Funções exportadas para a página 3D (doc/site/combate.html). A página cria o módulo, chama
+// Funções exportadas para a página 3D (site/combate.html). A página cria o módulo, chama
 // cb_inicia com as escolhas da tela e, a cada quadro, cb_passo e cb_quadro, que devolve um vetor
 // de floats na memória do módulo com o estado dos dois robôs (layout em QUADRO_*).
 #include <cstdio>

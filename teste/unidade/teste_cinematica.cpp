@@ -1,7 +1,7 @@
 // teste_cinematica.cpp
 // Testes da cinemática das rodas no computador, sem ESP32. O CI compila este arquivo junto com o
 // cinematica.cpp do firmware e roda o programa; qualquer verificação que falhe devolve erro.
-// Uso: g++ -std=c++11 -Wall -Wextra -I teste/stub -I . teste/teste_cinematica.cpp cinematica.cpp -o t && ./t
+// Uso: g++ -std=c++11 -Wall -Wextra -I teste/unidade/stub -I . teste/unidade/teste_cinematica.cpp cinematica.cpp -o t && ./t
 #include <cstdio>
 #include <cstdlib>
 #include "cinematica.h"

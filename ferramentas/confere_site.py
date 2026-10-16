@@ -1,11 +1,11 @@
-"""Conferência da página do simulador (doc/site/index.html) contra o config.h.
+"""Conferência da página do simulador (site/index.html) contra o config.h.
 
 A página roda em JavaScript as mesmas contas do firmware, com as constantes copiadas no objeto
 C do script. Este programa lê os #define do config.h, calcula o valor que cada constante da
 página deveria ter e falha quando alguma está diferente, para a página nunca mostrar números
 de uma versão antiga do firmware. O CI roda este programa em todo pull request.
 
-Uso: python doc/confere_site.py
+Uso: python ferramentas/confere_site.py
 """
 import math
 import pathlib
@@ -85,8 +85,8 @@ def le_pagina(texto):
 
 
 def main():
-    defs = le_defines((RAIZ / "config.h").read_text(encoding="utf-8"))
-    pagina = (RAIZ / "doc" / "site" / "index.html").read_text(encoding="utf-8")
+    defs = le_defines((RAIZ / "firmware" / "sumo_esp32" / "config.h").read_text(encoding="utf-8"))
+    pagina = (RAIZ / "site" / "index.html").read_text(encoding="utf-8")
     valores, kv = le_pagina(pagina)
     erros = []
     for chave, expr in MAPA.items():
@@ -105,7 +105,7 @@ def main():
             erros.append(f"C.KV usa {kv.group(2)} rpm e o config.h tem MOTOR_RPM_LIVRE {avalia('MOTOR_RPM_LIVRE', defs)}")
     if erros:
         for e in erros:
-            print("::error::doc/site/index.html desatualizada: " + e)
+            print("::error::site/index.html desatualizada: " + e)
         sys.exit(1)
     print(f"página do simulador confere com o config.h ({len(MAPA) + 2} constantes)")
 

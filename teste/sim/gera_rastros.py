@@ -1,4 +1,4 @@
-"""Rastros de lutas simuladas para o visualizador da página (doc/site/lutas.html).
+"""Rastros de lutas simuladas para o visualizador da página (site/lutas.html).
 
 Roda o simulador (teste/sim/luta, o firmware de verdade compilado com o mundo simulado) uma vez
 para cada combinação de estratégia, oponente e cor, sempre com pessoas paradas em volta do dojô,
