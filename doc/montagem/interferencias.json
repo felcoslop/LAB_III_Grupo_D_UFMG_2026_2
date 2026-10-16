@@ -1,17 +1,5 @@
 [
  {
-  "a": "Suporte de PLA do LE (VL53L0X Mounting Bracket)",
-  "b": "Suporte de PLA do TE (VL53L0X Mounting Bracket)",
-  "mm3": 945,
-  "encaixe": false
- },
- {
-  "a": "Suporte de PLA do LD (VL53L0X Mounting Bracket)",
-  "b": "Suporte de PLA do TD (VL53L0X Mounting Bracket)",
-  "mm3": 945,
-  "encaixe": false
- },
- {
   "a": "Rampa da frente (PLA)",
   "b": "TCRT5000 BFE (A0 no GPIO 34)",
   "mm3": 466,
@@ -42,6 +30,18 @@
   "encaixe": false
  },
  {
+  "a": "Laterais (PLA)",
+  "b": "VL53L0X TE (XSHUT no GPIO 16, endereço 0x35)",
+  "mm3": 71,
+  "encaixe": false
+ },
+ {
+  "a": "Laterais (PLA)",
+  "b": "VL53L0X TD (XSHUT no GPIO 4, endereço 0x36)",
+  "mm3": 71,
+  "encaixe": false
+ },
+ {
   "a": "Rampa da frente (PLA)",
   "b": "Suporte de PLA do FD (VL53L0X Mounting Bracket)",
   "mm3": 712,
@@ -60,6 +60,12 @@
   "encaixe": true
  },
  {
+  "a": "VL53L0X TD (XSHUT no GPIO 4, endereço 0x36)",
+  "b": "Suporte de PLA do TD (VL53L0X Mounting Bracket)",
+  "mm3": 601,
+  "encaixe": true
+ },
+ {
   "a": "VL53L0X FD (XSHUT no GPIO 18, endereço 0x33)",
   "b": "Suporte de PLA do FD (VL53L0X Mounting Bracket)",
   "mm3": 597,
@@ -74,13 +80,7 @@
  {
   "a": "VL53L0X TE (XSHUT no GPIO 16, endereço 0x35)",
   "b": "Suporte de PLA do TE (VL53L0X Mounting Bracket)",
-  "mm3": 570,
-  "encaixe": true
- },
- {
-  "a": "VL53L0X TD (XSHUT no GPIO 4, endereço 0x36)",
-  "b": "Suporte de PLA do TD (VL53L0X Mounting Bracket)",
-  "mm3": 570,
+  "mm3": 580,
   "encaixe": true
  },
  {
@@ -102,18 +102,6 @@
   "encaixe": true
  },
  {
-  "a": "Hastes laterais (PLA)",
-  "b": "Suporte de PLA do TE (VL53L0X Mounting Bracket)",
-  "mm3": 412,
-  "encaixe": true
- },
- {
-  "a": "Hastes laterais (PLA)",
-  "b": "Suporte de PLA do TD (VL53L0X Mounting Bracket)",
-  "mm3": 412,
-  "encaixe": true
- },
- {
   "a": "Rampa da frente (PLA)",
   "b": "Suporte de PLA do LE (VL53L0X Mounting Bracket)",
   "mm3": 233,
@@ -123,6 +111,18 @@
   "a": "Rampa da frente (PLA)",
   "b": "Suporte de PLA do LD (VL53L0X Mounting Bracket)",
   "mm3": 230,
+  "encaixe": true
+ },
+ {
+  "a": "Laterais (PLA)",
+  "b": "Suporte de PLA do TE (VL53L0X Mounting Bracket)",
+  "mm3": 209,
+  "encaixe": true
+ },
+ {
+  "a": "Laterais (PLA)",
+  "b": "Suporte de PLA do TD (VL53L0X Mounting Bracket)",
+  "mm3": 209,
   "encaixe": true
  }
 ]

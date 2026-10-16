@@ -99,7 +99,7 @@ Na bancada (`GEOMETRIA_BANCADA 1`), a origem do referencial é o centro da proto
 | TE (7 sensores, posição prevista) | 16 | 0x35 | -80 | 25 | 160° |
 | TD (7 sensores, posição prevista) | 4 | 0x36 | -80 | -25 | -160° |
 
-No robô montado (`GEOMETRIA_BANCADA 0`), a origem fica no meio do eixo das rodas, no chão, e as posições saem do chassi do STEP: FE, FC e FD nas janelas da face inclinada da frente, LE e LD na janela da lateral à frente do eixo e TE e TD na janela da lateral mais perto do eixo, retos como o LE e o LD:
+No robô montado (`GEOMETRIA_BANCADA 0`), a origem fica no meio do eixo das rodas, no chão, e as posições saem do chassi do STEP: FE, FC e FD nas janelas da face inclinada da frente, LE e LD na janela da lateral à frente do eixo e TE e TD na janela da lateral mais perto do eixo, inclinados a ±160° para trás e para fora (o LE e o LD ficam retos, a ±90°):
 
 | Sensor | XSHUT | Endereço | x | y | Ângulo |
 |---|---|---|---|---|---|
@@ -108,14 +108,14 @@ No robô montado (`GEOMETRIA_BANCADA 0`), a origem fica no meio do eixo das roda
 | FC | 19 | 0x32 | 95 | 0 | 0° |
 | FD | 18 | 0x33 | 85 | -35 | -17° |
 | LD | 5 | 0x34 | 55 | -72 | -90° |
-| TE (7 sensores) | 16 | 0x35 | 33 | 72 | 90° |
-| TD (7 sensores) | 4 | 0x36 | 33 | -72 | -90° |
+| TE (7 sensores) | 16 | 0x35 | 33 | 74 | 160° |
+| TD (7 sensores) | 4 | 0x36 | 33 | -74 | -160° |
 
 Os PDFs da pasta `doc/pdf/` trazem os gabaritos em escala 1:1 da bancada e do robô, o mapa de ligação na protoboard e uma lista de conferência antes de energizar. O `guia_montagem_sensores_7.pdf` faz o mesmo para a versão de 7 sensores e traz também a pinagem completa do ESP32.
 
 ### Posição dos sensores: 5 ou 7
 
-A constante `QTD_TOF` do `config.h` escolhe entre os 5 sensores originais e a versão de 7, que acrescenta um par atrás do eixo (TE e TD). Na bancada e na previsão do estudo abaixo o par fica nas quinas de trás, a ±160°; no robô montado as janelas do chassi só deixam o par reto, a ±90° (o `config.h` do robô já tem essa posição). Os 5 sensores de antes não mudam: FC no centro, que é quem decide o ataque, FE e FD a ±20° na bancada (±17° no robô montado) e LE e LD a ±90°. O par novo fica no fim da tabela, então os 5 sensores de antes mantêm XSHUT, endereço, cor no painel e calibração gravada; com `QTD_TOF 5` o firmware compilado é idêntico ao anterior.
+A constante `QTD_TOF` do `config.h` escolhe entre os 5 sensores originais e a versão de 7, que acrescenta um par atrás do eixo (TE e TD). Na bancada e na previsão do estudo abaixo o par fica nas quinas de trás, a ±160°; no robô montado o par fica nas janelas das laterais perto do eixo (x = 33 mm, y = ±74 mm, com a lente na face de fora da lateral), também a ±160°, com o suporte inclinado 20° para fora (o `config.h` do robô tem essa posição). O LE e o LD continuam retos, a ±90°, nas janelas à frente delas. A pendência do chassi é a largura do suporte inclinado, que passa do gabarito (veja a seção Montagem 3D). Os 5 sensores de antes não mudam: FC no centro, que é quem decide o ataque, FE e FD a ±20° na bancada (±17° no robô montado) e LE e LD a ±90°. O par novo fica no fim da tabela, então os 5 sensores de antes mantêm XSHUT, endereço, cor no painel e calibração gravada; com `QTD_TOF 5` o firmware compilado é idêntico ao anterior.
 
 O capítulo 2 do Sumo Robot Blackbook pede número ímpar de sensores, com um no centro para centralizar o oponente, e diz que os sensores precisam vigiar todas as áreas por onde o oponente pode atacar, principalmente os cantos [DEDE, s.d.]. O exemplo de 7 do livro acrescenta duas diagonais na frente, mas o livro não trata de sensores atrás. Com os 5 sensores de hoje, a frente já enxerga bem: o buraco entre FE e LE (de 32,5° a 77,5°) só existe a mais de uns 25 cm, porque os cones se cruzam perto do robô, e o oponente que vem por ali entra em algum cone antes de encostar. A traseira, de 115° a 180°, não tem nenhum sensor. Com o par atrás, o total continua ímpar, o FC continua sozinho no centro e a área sem cobertura passa a ser vigiada.
 
@@ -130,7 +130,7 @@ A escolha saiu de uma simulação com o rastreador do firmware compilado no comp
 | Erro de ângulo na frente, 90% dos casos | 7,5° | 6,1° | 7,5° |
 | Posições do dojô dentro de algum cone | 58% | 64% | 88% |
 
-O par na frente melhora um pouco a mira nas diagonais, mas não muda o que passa sem ser visto. O par atrás reduz os ataques sem aviso de 36% para 8% e deixa a busca cerca de 6 vezes mais rápida, sem mudar a precisão na frente. O ângulo de ±160° veio de uma varredura: com o par a ±140°, ±150°, ±160° e ±170°, os ataques por trás sem aviso ficaram em 17%, 12%, 9% e 8%, e a ±170° o ganho é pequeno e o aviso chega mais tarde. Os pontos sem cobertura que restam são o buraco diagonal a mais de 25 cm e uma faixa estreita bem atrás a mais de 30 cm. Esses números valem para o par a ±160°. Com o par reto a ±90° do robô montado, os dois ToF de cada lado olham para a mesma direção e a faixa de trás (de 115° a 180°) volta a ficar sem cobertura; o que cobre esse lado é o rastreador, que segue o oponente pela última posição vista e gira para o lado em que ele sumiu. Dois ToF olhando para o mesmo lado também somavam a plateia em volta do dojô: na bateria com pessoas em volta, o robô chegou a ficar 45 s mirando uma pessoa e a vitória sobre o oponente parado passou de 2,5 s para 13 s. O `TOF_ALCANCE_LATERAL_MM` limita o alcance dos laterais, e o valor saiu da bateria de 540 lutas com pessoas em volta (15 largadas): o maior tempo mirando uma pessoa foi de 49,7 s com 180 mm, 29,8 s com 150 mm, 5,9 s com 120 mm, 29,6 s com 100 mm e 1,0 s com 80 mm, com 347 a 355 vitórias em todos. O padrão ficou em 80 mm: o lado só enxerga o oponente encostado ou quase, e a frente cuida do resto. Esses números são de simulação, e o oponente que passa pela lateral a mais de 8 cm só aparece para os sensores da frente; o teste na bancada com o painel é o que confirma o ganho.
+O par na frente melhora um pouco a mira nas diagonais, mas não muda o que passa sem ser visto. O par atrás reduz os ataques sem aviso de 36% para 8% e deixa a busca cerca de 6 vezes mais rápida, sem mudar a precisão na frente. O ângulo de ±160° veio de uma varredura: com o par a ±140°, ±150°, ±160° e ±170°, os ataques por trás sem aviso ficaram em 17%, 12%, 9% e 8%, e a ±170° o ganho é pequeno e o aviso chega mais tarde. Os pontos sem cobertura que restam são o buraco diagonal a mais de 25 cm e uma faixa estreita bem atrás a mais de 30 cm. Esses números valem para o par a ±160°, que é o do robô montado. Com o par reto a ±90° (a primeira versão do chassi), os dois ToF de cada lado olhavam para a mesma direção e a faixa de trás (de 115° a 180°) ficava sem cobertura, e dois ToF olhando para o mesmo lado somavam a plateia em volta do dojô: na bateria com pessoas em volta, o robô chegou a ficar 45 s mirando uma pessoa e a vitória sobre o oponente parado passou de 2,5 s para 13 s. O par de trás a ±160° também enxerga a plateia: com o alcance inteiro de 600 mm ele mirou uma pessoa por até 53 s em 11 de 540 lutas. O `TOF_ALCANCE_LATERAL_MM` limita o alcance dos laterais (LE e LD) e o `TOF_ALCANCE_TRAS_MM`, o do par de trás (TE e TD). O valor dos laterais saiu da bateria de 540 lutas com pessoas em volta (15 largadas): o maior tempo mirando uma pessoa foi de 49,7 s com 180 mm, 29,8 s com 150 mm, 5,9 s com 120 mm, 29,6 s com 100 mm e 1,0 s com 80 mm, com 347 a 355 vitórias em todos. O padrão ficou em 80 mm: o lado só enxerga o oponente encostado ou quase, e a frente cuida do resto. Para o par de trás, a mesma bateria com o par a ±160° deu 350 vitórias com 80 mm e 352 com 200 mm (351 com o par reto), e o maior tempo mirando uma pessoa foi de 0,5 s e de 0,7 s; o padrão ficou em 200 mm, o que deixa o robô ver por trás o oponente que chega a 20 cm. As vitórias não separam as quatro configurações; o ganho do par a ±160° está na cobertura por trás do estudo acima, que a bateria de lutas não mede sozinha. Esses números são de simulação, e o oponente que passa pela lateral a mais de 8 cm só aparece para os sensores da frente; o teste na bancada com o painel é o que confirma o ganho.
 
 ![Radar 2D do painel com 7 sensores e o oponente atrás, visto só pelo TE](doc/img/radar_7_sensores.jpg)
 
@@ -355,27 +355,27 @@ A carga em cada apoio sai do equilíbrio de momentos com o peso, a aceleração 
 
 ### Resultado
 
-Na bateria de 180 lutas (3 estratégias, adversário preto e branco, 1000, 600 e 319 rpm, 10 largadas sorteadas cada, estratégia do adversário sorteada), com a física de Belo Horizonte e a geometria do STEP LAB3-Modelagem, o Grupo D venceu 65, perdeu 54 e empatou 61, sem nenhuma queda própria (TE e TD retos, a ±90°, como o chassi deixa).
+Na bateria de 180 lutas (3 estratégias, adversário preto e branco, 1000, 600 e 319 rpm, 10 largadas sorteadas cada, estratégia do adversário sorteada), com a física de Belo Horizonte e a geometria do STEP LAB3-Modelagem, o Grupo D venceu 64, perdeu 58 e empatou 58, sem nenhuma queda própria (TE e TD a ±160°, olhando para trás; com o par reto, a ±90°, foram 65, 54 e 61).
 
 | Adversário | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| 1000 rpm | 44 | 14 | 2 |
-| 600 rpm | 9 | 21 | 30 |
-| 319 rpm, igual | 12 | 19 | 29 |
+| 1000 rpm | 42 | 17 | 1 |
+| 600 rpm | 11 | 23 | 26 |
+| 319 rpm, igual | 11 | 18 | 31 |
 
 | Estratégia do Grupo D | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| Rush | 25 | 16 | 19 |
-| Flank | 24 | 18 | 18 |
-| Fan out | 16 | 20 | 24 |
+| Rush | 24 | 18 | 18 |
+| Flank | 22 | 20 | 18 |
+| Fan out | 18 | 20 | 22 |
 
 | Largada do Grupo D | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| de frente para o adversário | 30 | 2 | 22 |
-| de lado | 14 | 3 | 19 |
-| de costas | 21 | 49 | 20 |
+| de frente para o adversário | 30 | 1 | 23 |
+| de lado | 16 | 7 | 13 |
+| de costas | 18 | 50 | 22 |
 
-O motor de 1000 rpm tem um terço do torque: travado, ele empurra com uns 7,4 N (0,6 kgf.cm em cada roda de 16 mm de raio), abaixo dos 8,5 a 9,6 N que os pneus do Grupo D aguentam com 77% dos 980 g em cima deles (atrito de 1,15 parado e 1,30 escorregando). O empurrão de frente leva o adversário para fora em 2,8 s, em média. O motor de 600 rpm, de linha e à venda, empurra com 13,5 N travado (1,1 kgf.cm), acima do limite de tração do pneu: ele esbarra no mesmo limite do de 319 rpm e só chega mais rápido, então o resultado fica perto do robô igual. Contra os dois, os robôs encostam 0,8 s depois dos 5 s parados e ficam empurrando de frente até o fim dos 90 s. As derrotas vêm da largada de costas, em que o robô gasta o começo da luta girando e recebe o adversário na traseira, que é o ponto fraco (49 das 54 derrotas), e do Fan out, que perde um pouco mais (20 derrotas, contra 16 do Rush e 18 do Flank), sem que a bateria mostre o motivo. O motor mais quente chegou a 21,5 K acima do ambiente no modelo térmico do firmware, longe do limite de 60 K.
+O motor de 1000 rpm tem um terço do torque: travado, ele empurra com uns 7,4 N (0,6 kgf.cm em cada roda de 16 mm de raio), abaixo dos 8,5 a 9,6 N que os pneus do Grupo D aguentam com 77% dos 980 g em cima deles (atrito de 1,15 parado e 1,30 escorregando). O empurrão de frente leva o adversário para fora em 2,7 s, em média. O motor de 600 rpm, de linha e à venda, empurra com 13,5 N travado (1,1 kgf.cm), acima do limite de tração do pneu: ele esbarra no mesmo limite do de 319 rpm e só chega mais rápido, então o resultado fica perto do robô igual. Contra os dois, os robôs encostam 0,6 s depois dos 5 s parados e ficam empurrando de frente até o fim dos 90 s. As derrotas vêm da largada de costas, em que o robô gasta o começo da luta girando e recebe o adversário na traseira, que é o ponto fraco (50 das 58 derrotas); entre as estratégias a diferença é pequena (18 derrotas do Rush, 20 do Flank e 20 do Fan out) e a bateria não mostra o motivo. O motor mais quente chegou a 21,5 K acima do ambiente no modelo térmico do firmware, longe do limite de 60 K.
 
 O atrito do pneu e a restituição do choque são as estimativas com mais incerteza, então a mesma bateria rodou com cada um mudado. A tabela é da rodada anterior à troca do chassi (240 lutas cada, 20 largadas, só 1000 e 319 rpm); com o chassi novo e o atrito 20% menor, as 180 lutas deram 65 vitórias, 53 derrotas e 62 empates (contra o de 1000 rpm, 44 vitórias, 16 derrotas e nenhum empate), e o empurrão de 1000 rpm levou uns 13 s:
 
@@ -441,7 +441,7 @@ As posições dos componentes dentro do chassi são provisórias e foram conferi
 
 - os TCRT5000 da frente precisam de um rasgo de 10 x 15 x 6 mm na parede da rampa, porque o PCB passa por ela, e os VL53L0X FE, FD e FC precisam de janela na rampa;
 - os TCRT5000 de trás ficam atrás do motor, com a ponta para fora do chassi (a posição que o projetista do chassi indicou), e saem 32,6 mm atrás da base: o comprimento vira 181,6 mm contra os 152 mm do quadrado da classe de 1 kg (a largura fica em 149 mm);
-- as janelas do LE e do TE têm os centros a 22 mm um do outro e o suporte do VL53L0X tem 32 mm, então os dois suportes se sobrepõem 10 mm (o mesmo vale para o LD e o TD): afastar as janelas ou cortar o suporte;
+- o TE e o TD ficam a ±160°, com a lente na face de fora da lateral (y = ±74 mm): o suporte de 32 mm girado 20° sai uns 14 mm da lateral de cada lado e a largura vai de 149 para uns 177 mm, contra 152 mm do gabarito da largada; as saídas são um suporte só do módulo, em cunha, ou uma janela inclinada com o módulo mais para dentro. Com a lente recuada para y = 72 mm, a borda de trás da janela corta o terço de dentro do cone (de 167,5° a 172,5°), e a partir de y = 73,1 mm o cone fica livre. O suporte do TE deixou de se sobrepor ao do LE, que era a pendência da versão reta;
 - o módulo do LE encosta 91 mm³ no TCRT5000 BFE: afastar o BFE 3 mm para a frente.
 
 Com os STL do chassi remodelado:
@@ -729,7 +729,8 @@ Os ajustes principais ficam no `config.h`:
 | `I2C_CLOCK_HZ` | 100000 | velocidade do I2C; 400000 só com fios curtos |
 | `TOF_TIMING_US` | 20000 | tempo de cada medida do ToF no perfil claro |
 | `TOF_ALCANCE_MM` | 600 | alcance máximo a partir do centro do robô (pior caso dentro do dojô) |
-| `TOF_ALCANCE_LATERAL_MM` | 80 | alcance dos ToF laterais (LE, LD, TE e TD no robô montado): evita que dois sensores do mesmo lado somem a plateia em volta do dojô; aumente para 100 a 150 se perder o oponente que passa pela lateral, diminua para 50 a 60 se ainda mirar a plateia (1000 ou mais desliga o limite) |
+| `TOF_ALCANCE_LATERAL_MM` | 80 | alcance dos ToF laterais (LE e LD, ângulo de 80° a 120°): evita que dois sensores do mesmo lado somem a plateia em volta do dojô; aumente para 100 a 150 se perder o oponente que passa pela lateral, diminua para 50 a 60 se ainda mirar a plateia (1000 ou mais desliga o limite) |
+| `TOF_ALCANCE_TRAS_MM` | 200 | alcance do par que olha para trás (TE e TD, ângulo de 120° ou mais): com 600 mm o par de trás mirou a plateia por até 53 s; aumente se perder o oponente que chega por trás, diminua se mirar a plateia |
 | `TOF_MINIMO_PARA_LUTAR` | 3 | quantidade mínima de ToF para o robô iniciar |
 | `CENTRO_DEG` | 7 | ângulo máximo para o oponente contar como centrado |
 | `FUSAO_BAYES` | 1 | 1 usa o rastreador e 0 a fusão simples |

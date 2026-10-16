@@ -42,8 +42,8 @@ struct CfgToF {
 #endif
 
 // Quantidade de sensores de oponente: 5 (montagem original) ou 7, com um par a mais atrás do eixo
-// (TE e TD: a ±160 graus nas quinas da bancada; no robô montado, retos a ±90 graus, porque as
-// janelas do chassi não deixam girar o suporte). A frente continua com os 3 sensores de antes e o FC segue
+// (TE e TD: a ±160 graus, olhando para trás, nas quinas da bancada e nas janelas das laterais do robô montado,
+// com o suporte inclinado; a largura dele é pendência do chassi, veja PENDENTE NO CHASSI). A frente continua com os 3 sensores de antes e o FC segue
 // sozinho no centro, decidindo o ataque, como pede o capítulo 2 do Sumo Robot Blackbook (número
 // ímpar de sensores, com um no centro). Na simulação com o rastreador, o par de trás reduziu os
 // ataques que chegam sem ser vistos de 36% para 8% e o tempo médio de busca de 206 para 35 ms,
@@ -101,13 +101,20 @@ static const CfgToF TOF[] = {
 //   - FE, FC e FD olham pelas janelas da face inclinada da frente (FE e FD a 17 graus para fora);
 //   - LE e LD olham pela janela da lateral que fica à frente do eixo (janela de 20 x 13 mm com
 //     centro a 54,4 mm do eixo);
-//   - TE e TD ficam na janela da lateral mais perto do eixo (centro a 32,4 mm), retos como o LE
-//     e o LD: o suporte plano encaixa na janela e a lente olha para o lado (90 graus). A janela
-//     não deixa girar o suporte para olhar para trás (a 160 graus o suporte sairia 13 mm da lateral).
-//   PENDENTE NO CHASSI: as duas janelas têm os centros a 22 mm um do outro e o suporte tem 32 mm de
-//   largura, então o suporte do TE e o do LE se sobrepõem 10 mm (o do TE não pode ir mais para trás,
-//   por causa do pneu, nem o do LE mais para a frente, por causa da rampa). Saídas: afastar as duas
-//   janelas para 32 mm entre centros, ou cortar 10 mm do lado de dentro de cada suporte (doc/montagem).
+//   - TE e TD ficam na janela da lateral mais perto do eixo (centro a 32,4 mm) e olham para trás, a
+//     160 graus, como no estudo de 7 sensores (par atrás, ±160°): o suporte vai inclinado, com a
+//     lente virada 20 graus para fora da linha de trás, e o cone cobre de 147,5 a 172,5 graus.
+//   PENDENTE NO CHASSI (medido no 3D, doc/montagem/README.md):
+//   1. Detecção: a lente do TE e do TD fica em y = ±74 mm, no plano da face de fora da lateral (que
+//      vai até 74,5): com ela entre 73,1 e 74,5 mm ou mais para fora, o chassi não corta o cone. Com
+//      a lente recuada para y = 72, o terço de dentro do cone (167,5 a 172,5 graus) bate na borda de
+//      trás da janela a 10,7 mm.
+//   2. Largura: o suporte de 32 mm girado 20 graus sai uns 14 mm da lateral de cada lado (largura
+//      total de 177 mm, contra 152 mm do gabarito da largada): precisa de suporte só do módulo, em
+//      cunha, ou de janela inclinada com o módulo mais para dentro.
+//   3. Com o TE inclinado, o suporte dele deixa de se sobrepor ao do LE (na versão reta, a 90 graus,
+//      os dois se sobrepunham 10 mm, 945 mm³); o módulo do TE ainda encosta 71 mm³ na lateral, que
+//      precisa de recorte maior que a janela de 20 x 13 mm.
 static const CfgToF TOF[] = {
   //  nome   xshut  endereço   x     y    ang   offset
   {  "LE",   17,    0x30,     55,    72,   90,    0  },   // janela da lateral esquerda, à frente
@@ -116,8 +123,8 @@ static const CfgToF TOF[] = {
   {  "FD",   18,    0x33,     85,   -35,  -17,    0  },   // janela direita da face da frente
   {  "LD",    5,    0x34,     55,   -72,  -90,    0  },   // janela da lateral direita, à frente
 #if QTD_TOF == 7
-  {  "TE",   16,    0x35,     33,    72,   90,    0  },   // janela da lateral esquerda, perto do eixo
-  {  "TD",    4,    0x36,     33,   -72,  -90,    0  },   // janela da lateral direita, perto do eixo
+  {  "TE",   16,    0x35,     33,    74,  160,    0  },   // lateral esquerda, perto do eixo, lente na face de fora, para trás
+  {  "TD",    4,    0x36,     33,   -74, -160,    0  },   // lateral direita, perto do eixo, lente na face de fora, para trás
 #endif
 };
 #define CORPO_FRENTE_MM   118.0f   // ponta da rampa
@@ -139,17 +146,24 @@ static const CfgToF TOF[] = {
 // 340 + 309 - 76 = 573 mm do centro do robô; com 27 mm de folga, o alcance fica em 600 mm. O que
 // passa desse raio, ou cai fora do dojô pela localização (arena.cpp), não vira oponente.
 #define TOF_ALCANCE_MM    600
-// Os ToF laterais (|ângulo| de 80 graus ou mais: LE, LD e, no robô montado, TE e TD) só valem
-// até este alcance, a partir da face do sensor. No robô montado os quatro olham para o mesmo lado
-// (duas janelas por lateral), e a plateia em volta do dojô aparecia nos dois ao mesmo tempo: o
-// rastreador somava as duas leituras e mirava uma pessoa por dezenas de segundos. Com 80 mm o lado
-// só enxerga o oponente encostado ou quase (a frente, a 600 mm, cuida do resto). Na bateria com
-// pessoas em volta do dojô (540 lutas) o maior tempo mirando uma pessoa foi de 49,7 s com 180 mm,
-// 29,8 s com 150 mm, 5,9 s com 120 mm, 29,6 s com 100 mm e 1,0 s com 80 mm, e as vitórias ficaram
-// entre 347 e 355 em todos. COMO AJUSTAR: aumente (100 a 150) se o robô perder o oponente que passa
-// pela lateral a mais de 8 cm; diminua (50 a 60) se ainda mirar a plateia. Um valor alto (1000 ou
-// mais) desliga o limite.
+// Os ToF laterais (|ângulo| de 80 a 120 graus: LE e LD) só valem
+// até este alcance, a partir da face do sensor. No robô montado os dois sensores de cada lado
+// olham para o mesmo lado ou quase (duas janelas por lateral), e a plateia em volta do dojô aparecia
+// nos dois ao mesmo tempo: o rastreador somava as duas leituras e mirava uma pessoa por dezenas de
+// segundos. Com 80 mm o lado só enxerga o oponente encostado ou quase (a frente, a 600 mm, cuida do
+// resto). Na bateria com pessoas em volta do dojô (540 lutas) o maior tempo mirando uma pessoa foi
+// de 49,7 s com 180 mm, 29,8 s com 150 mm, 5,9 s com 120 mm, 29,6 s com 100 mm e 1,0 s com 80 mm, e
+// as vitórias ficaram entre 347 e 355 em todos. COMO AJUSTAR: aumente (100 a 150) se o robô perder o
+// oponente que passa pela lateral a mais de 8 cm; diminua (50 a 60) se ainda mirar a plateia. Um
+// valor alto (1000 ou mais) desliga o limite.
+// TOF_ALCANCE_TRAS_MM vale para o par que olha para trás (TE e TD, |ângulo| de 120 graus ou mais, a
+// 160 no robô montado). Na bateria de 540 lutas com pessoas em volta do dojô, o par de trás com o
+// alcance inteiro de 600 mm mirou a plateia por até 53 s em 11 lutas; limitado a 80 mm (o mesmo dos
+// laterais) ou a 200 mm, o maior tempo mirando uma pessoa foi de 0,5 s e de 0,7 s, com 350 e 352
+// vitórias (351 com o par reto a 90 graus). COMO AJUSTAR: o mesmo dos laterais; com 7 sensores o
+// robô enxerga por trás o oponente que chega a até esta distância do sensor.
 #define TOF_ALCANCE_LATERAL_MM 80
+#define TOF_ALCANCE_TRAS_MM 200
 #define TOF_MIN_MM        15      // leitura menor que isso é descartada
 #define TOF_TIMEOUT_MS    150     // sem medida nova por esse tempo, a leitura é descartada
 #define TOF_PERDIDO_MS    500     // sem responder por esse tempo, o sensor fica marcado como FALHOU
