@@ -1306,7 +1306,7 @@ const S = {
         {n:"BTE",x:-75,y:34,alt:2.7,lim:600,preto:0,branco:0,nvs:false,abaixo:true},{n:"BTD",x:-60,y:-34,alt:2.7,lim:600,preto:0,branco:0,nvs:false,abaixo:true} ],
   bmask: 0, bcru: 0, bmv: [], bTempo: 0,
   v: [-1,-1,-1,-1,-1], r: [-1,-1,-1,-1,-1],
-  tgt: {visto:false}, acao: 0, lado: 0, estado: 0, saude: 0, alcance: 600, tD: 0, arena: null, luta: null,
+  tgt: {visto:false}, acao: 0, lado: 0, estado: 0, saude: 0, alcance: 600, alcLat: 80, alcTras: 200, tD: 0, arena: null, luta: null,
   jan: [], trail: [], reg: null,
   bayes: false, opLado: 152, alcPreto: 550, mapa: null
 };
@@ -1322,9 +1322,15 @@ const rad = d => d * Math.PI / 180, deg = r => r * 180 / Math.PI;
 const normA = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
 const okS = i => S.ok[i] !== false;
 // maior leitura do sensor que ainda cai dentro do círculo de raio "alcance" em volta do robô (igual ao firmware)
+// Os sensores laterais (80 a 120 graus) só leem até S.alcLat e os que olham para trás (120 graus ou mais) até
+// S.alcTras, como o rastreador_alcance_sensor do firmware; o config.h manda os dois na linha X.
 function alcSensor(g) {
   const ux = Math.cos(rad(g.a)), uy = Math.sin(rad(g.a)), su = g.x * ux + g.y * uy, d = su * su - (g.x * g.x + g.y * g.y) + S.alcance * S.alcance;
-  return Math.max(15, d > 0 ? -su + Math.sqrt(d) : 0);
+  let z = d > 0 ? -su + Math.sqrt(d) : 0;
+  const aa = Math.abs(normA(g.a));
+  if (aa >= 120) z = Math.min(z, S.alcTras);
+  else if (aa >= 80) z = Math.min(z, S.alcLat);
+  return Math.max(15, z);
 }
 
 // ============================== TERMINAL ==============================
@@ -1351,7 +1357,7 @@ function linha(l) {
     case "Q": return dadosBorda(p.slice(1).map(Number));
     case "K": S.alcance = +p[1] || 600; return;
     case "A": return dadosLuta(p.slice(1).map(Number));
-    case "X": S.bayes = p[1] === "1"; S.opLado = +p[2] || 152; S.alcPreto = +p[3] || 550; return;
+    case "X": S.bayes = p[1] === "1"; S.opLado = +p[2] || 152; S.alcPreto = +p[3] || 550; S.alcLat = +p[5] || 80; S.alcTras = +p[6] || 200; return;
     case "M": return dadosMapa(p);
     case "H": return;
   }
@@ -2300,7 +2306,7 @@ function iniciarDemo() {
   demo = true; $("status").textContent = "demo"; $("status").className = "pill demo"; $("bDemo").textContent = "Parar demo";
   S.ok = S.geo.map(() => true); S.cal = S.geo.map(() => ({g: 1, o: 0, nvs: false}));
   S.bg.forEach(g => { g.nvs = true; g.preto = 3000; g.branco = 450; g.lim = Math.round(450 + 0.35 * 2550); });
-  S.bayes = true; S.opLado = 152; S.alcPreto = 550; S.alcance = 600; fz.ja = false; fz.lado = 0; dObj.presente = true; rtInit();
+  S.bayes = true; S.opLado = 152; S.alcPreto = 550; S.alcance = 600; S.alcLat = 80; S.alcTras = 200; fz.ja = false; fz.lado = 0; dObj.presente = true; rtInit();
   Object.assign(rob, {x: 0, y: 0, h: 0}); Object.assign(dm, {avanca: false, t: 0, w: 0, v: 0});
   $("bOp").style.display = ""; $("bOp").textContent = "Tirar oponente"; $("lMexe").style.display = "";
   log("[demo] oponente quadrado PRETO simulado (lado informado), com o mesmo rastreador do firmware. Arraste no radar 2D para mover.", "u");
