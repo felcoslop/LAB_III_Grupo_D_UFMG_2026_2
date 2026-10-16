@@ -7,7 +7,8 @@
 # simuladas com o firmware de verdade (nenhuma queda própria e nenhuma perseguição longa de
 # objeto fora do dojô) e a conferência de que o painel/painel_sumo.html, a página do combate
 # (site/combate.html) e a da montagem (site/montagem.html) foram gerados a partir do código
-# atual e de que a página do simulador (site) usa as mesmas constantes do config.h.
+# atual e de que a página do simulador (site) usa as mesmas constantes do config.h. Mais um
+# job roda o simulador de combate com a física do MuJoCo (empurrão frente a frente e uma bateria).
 name: Compilação
 
 on:
@@ -176,6 +177,42 @@ jobs:
             echo "::error::site/combate.html desatualizado: compile o wasm, rode python ferramentas/gera_combate.py --wasm teste/combate/combate.wasm e faça o commit"
             exit 1
           }
+
+  combate-mujoco:
+    name: Combate com a física do MuJoCo
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: MuJoCo
+        run: pip install mujoco==3.16.0
+      - name: Simulador de combate e empurrão com o MuJoCo
+        run: |
+          MUJOCO=1 bash teste/combate/compila.sh nativo teste/combate/combate_mj
+          MUJOCO=1 bash teste/combate/compila.sh empurrao teste/combate/empurrao
+      # o empurrão frente a frente nas duas físicas: o MuJoCo precisa decidir quase todos em 3 s, dois
+      # robôs iguais precisam ficar perto de 50 a 50 e o robô com o nariz levantado precisa perder
+      - name: Empurrão frente a frente nas duas físicas
+        run: |
+          python teste/combate/compara_fisicas.py teste/combate/empurrao --lutas 40 --exige | tee empurrao.txt
+      # as 3 estratégias contra o adversário de 1000, 600 e 319 rpm, com o firmware nos dois robôs
+      - name: Bateria de combate com o MuJoCo
+        run: |
+          python teste/combate/bateria.py teste/combate/combate_mj --sementes 3 --extra "-F mujoco" \
+            --exige-quedas-proprias 0 --csv combate_mj.csv | tee combate_mj.txt
+      - name: Resumo
+        if: always()
+        run: |
+          { echo "### Empurrão nas duas físicas"; echo '```'; cat empurrao.txt; echo '```'; \
+            echo "### Combate com o MuJoCo"; echo '```'; cat combate_mj.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: combate-mujoco
+          path: combate_mj.csv
 
   painel:
     name: Painel e página do simulador
