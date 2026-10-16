@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Monta a página da montagem 3D (doc/site/montagem.html) a partir do config.h e do montagem.json.
+"""Monta a página da montagem 3D (site/montagem.html) a partir do config.h e do montagem.json.
 
 O config.h dá a posição de cada sensor (a mesma que o firmware usa) e o GPIO de cada ligação; o
 montagem.json dá a posição dos outros componentes, os pinos de cada modelo, a ordem dos pinos do
@@ -9,7 +9,7 @@ de fios; os sete VL53L0X vão no suporte de PLA (vl53l0x-bracket); o pecas.js
 tipo de jumper (macho-fêmea, fêmea-fêmea, macho-macho ou soldado), o caminho e o comprimento, a
 lista de compras de jumpers e as interferências entre as peças (voxels de 1,5 mm).
 
-Uso: python doc/montagem/gera_montagem.py [--saida doc/site/montagem.html] [--fragmento] [--interferencias]
+Uso: python ferramentas/gera_montagem.py [--saida site/montagem.html] [--fragmento] [--interferencias]
      --interferencias refaz a lista de interferências (trimesh e scipy) e grava
      doc/montagem/interferencias.json; sem ele a página usa a lista gravada, e o CI confere que a
      página do repositório é igual à gerada.
@@ -23,11 +23,12 @@ import re
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-RAIZ = os.path.dirname(os.path.dirname(AQUI))
+RAIZ = os.path.dirname(AQUI)
+DADOS = os.path.join(RAIZ, "doc", "montagem")
 
 # ---------------------------------------------------------------- config.h
 def le_config():
-    txt = open(os.path.join(RAIZ, "config.h"), encoding="utf-8").read()
+    txt = open(os.path.join(RAIZ, "firmware", "sumo_esp32", "config.h"), encoding="utf-8").read()
     defs = {}
     for linha in txt.splitlines():
         m = re.match(r"\s*#define\s+([A-Z_][A-Z0-9_]*)\s+(-?[0-9.]+)f?\b", linha)
@@ -92,7 +93,7 @@ def arred(v, n):
 
 
 def le_pecas_js():
-    txt = open(os.path.join(AQUI, "pecas.js"), encoding="utf-8").read()
+    txt = open(os.path.join(DADOS, "pecas.js"), encoding="utf-8").read()
     return txt, json.loads(txt[txt.index("{"):txt.rindex("}") + 1])
 
 
@@ -480,20 +481,20 @@ ESQUELETO = ('<!doctype html>\n<html lang="pt-BR">\n<head>\n<meta charset="utf-8
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--saida", default=os.path.join(RAIZ, "doc", "site", "montagem.html"))
-    ap.add_argument("--modelo", default=os.path.join(RAIZ, "doc", "montagem_src.html"))
+    ap.add_argument("--saida", default=os.path.join(RAIZ, "site", "montagem.html"))
+    ap.add_argument("--modelo", default=os.path.join(DADOS, "montagem_src.html"))
     ap.add_argument("--interferencias", action="store_true",
                     help="refaz a conferência de interferências (precisa de trimesh e scipy) e grava doc/montagem/interferencias.json")
     ap.add_argument("--fragmento", action="store_true", help="sem <!doctype>, <head> e <body> (página publicada como artefato)")
     a = ap.parse_args()
-    cfg = json.load(open(os.path.join(AQUI, "montagem.json"), encoding="utf-8"))
+    cfg = json.load(open(os.path.join(DADOS, "montagem.json"), encoding="utf-8"))
     conf = le_config()
     pecas_js, pecas_dados = le_pecas_js()
     pecas, M = monta_pecas(cfg, conf)
     P = Pinos(cfg, pecas, M)
     L = ligacoes(conf, cfg, P)
     caminhos(L, P, cfg)
-    arq_inter = os.path.join(AQUI, "interferencias.json")
+    arq_inter = os.path.join(DADOS, "interferencias.json")
     if a.interferencias:
         malhas = {k: malha(v) for k, v in pecas_dados.items()}
         inter = interferencias(pecas, malhas, cfg)

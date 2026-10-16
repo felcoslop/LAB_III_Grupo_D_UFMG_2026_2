@@ -5,7 +5,7 @@
 // testes do fim conferem as estratégias da chave DIP (Rush, Flank e Fan out), a fuga lateral, o
 // ataque de ré e o contato segurado.
 // Uso (uma linha só):
-//   g++ -std=c++11 -Wall -Wextra -I teste/stub -I . teste/teste_estados.cpp estados.cpp cinematica.cpp arena.cpp chave.cpp -o t
+//   g++ -std=c++11 -Wall -Wextra -I teste/unidade/stub -I . teste/unidade/teste_estados.cpp estados.cpp cinematica.cpp arena.cpp chave.cpp -o t
 //   ./t
 #include <cstdio>
 #include <cstdlib>

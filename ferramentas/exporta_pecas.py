@@ -8,13 +8,13 @@ próprio STL (o montagem.json posiciona cada um). Os modelos "procedural" (proto
 são desenhados pela página e não passam por aqui.
 
 Referencial "step_robo": STL gerado do STEP do projeto mecânico (LAB3-Modelagem, por
-doc/montagem/step_para_stl.py), com a frente em -x, o eixo das rodas em x = 51 mm e o plano de
+ferramentas/step_para_stl.py), com a frente em -x, o eixo das rodas em x = 51 mm e o plano de
 simetria em y = 0; o chão fica 3,0 mm abaixo do z = 0 do desenho. O modelo pode juntar várias
 peças ("arquivos"). Referencial "local_gira": o STL é movido para a origem dada e girado pela matriz
 dada (usado no suporte do VL53L0X, para a lente ficar na origem e o feixe em +z). Referencial
 "roda": cubo ou pneu do projeto antigo, com o eixo no x ou no z local.
 
-Uso: python doc/montagem/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES [saída]
+Uso: python ferramentas/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES [saída]
      (PASTA_DO_CHASSI é a saída do step_para_stl.py; saída padrão: doc/montagem/pecas.js). Os
      arquivos de cada modelo ficam no montagem.json, no grupo "chassi", "componentes" ou "repo" (a
      pasta doc/montagem/modelos).
@@ -32,6 +32,7 @@ import trimesh
 
 warnings.filterwarnings("ignore")
 AQUI = os.path.dirname(os.path.abspath(__file__))
+DADOS = os.path.join(os.path.dirname(AQUI), "doc", "montagem")
 EIXO_X, DZ = 51.0, 3.0
 R_RODA = 16.0
 
@@ -100,9 +101,9 @@ def compacta(m):
 def main():
     if len(sys.argv) < 3:
         raise SystemExit(__doc__)
-    pastas = {"chassi": sys.argv[1], "componentes": sys.argv[2], "repo": os.path.join(AQUI, "modelos")}
-    saida = sys.argv[3] if len(sys.argv) > 3 else os.path.join(AQUI, "pecas.js")
-    cfg = json.load(open(os.path.join(AQUI, "montagem.json"), encoding="utf-8"))
+    pastas = {"chassi": sys.argv[1], "componentes": sys.argv[2], "repo": os.path.join(DADOS, "modelos")}
+    saida = sys.argv[3] if len(sys.argv) > 3 else os.path.join(DADOS, "pecas.js")
+    cfg = json.load(open(os.path.join(DADOS, "montagem.json"), encoding="utf-8"))
     pecas = {}
     for nome, mod in cfg["modelos"].items():
         if "arquivo" not in mod and "arquivos" not in mod:

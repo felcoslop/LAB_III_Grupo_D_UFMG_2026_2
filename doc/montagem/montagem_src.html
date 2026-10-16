@@ -167,9 +167,9 @@ ol.passos code, .mono code { font-family: var(--f-mono); font-size: 0.82rem; bac
     <h2>Quando os STL finais chegarem</h2>
     <ol class="passos">
       <li>Coloque os STL do chassi numa pasta e os dos componentes em outra (os nomes ficam no <code>doc/montagem/montagem.json</code>, bloco <code>modelos</code>).</li>
-      <li>Rode <code>python doc/montagem/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES</code>, que refaz o <code>doc/montagem/pecas.js</code>.</li>
+      <li>Rode <code>python ferramentas/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES</code>, que refaz o <code>doc/montagem/pecas.js</code>.</li>
       <li>Ajuste <code>pos</code> e <code>rot</code> de cada peça no bloco <code>pecas</code> do mesmo arquivo; os sensores saem sozinhos do <code>config.h</code>.</li>
-      <li>Rode <code>python doc/montagem/gera_montagem.py</code> e confira a tabela de interferências até ela ficar vazia.</li>
+      <li>Rode <code>python ferramentas/gera_montagem.py</code> e confira a tabela de interferências até ela ficar vazia.</li>
     </ol>
   </section>
 </div>

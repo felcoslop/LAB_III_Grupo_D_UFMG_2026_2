@@ -4,15 +4,15 @@
 O STEP vem do projeto mecânico com a montagem inteira: base, frente, laterais, hastes, suportes e
 tampa (PLA), os dois motorredutores JGB37-520, os cubos, os pneus StickyMAX e os parafusos. Este
 script percorre a árvore da montagem, aplica a posição de cada peça e grava um STL (milímetros,
-binário) com o nome da peça. As malhas dos dois outros scripts (doc/montagem/exporta_pecas.py e
-doc/combate/exporta_malhas.py) saem desta pasta.
+binário) com o nome da peça. As malhas dos dois outros scripts (ferramentas/exporta_pecas.py e
+ferramentas/exporta_malhas.py) saem desta pasta.
 
 Referencial do STEP: o x do projeto aponta para trás (a frente do robô é -x), o eixo das rodas fica
 em x = 51 mm e z = 13 mm no desenho, e o plano de simetria é y = 0. O exporta_pecas.py leva tudo
 para o referencial do robô (origem no meio do eixo das rodas, no chão, x para a frente, y para a
 esquerda): x_robô = 51 - x, y_robô = -y, z_robô = z + 3,0.
 
-Uso: python doc/montagem/step_para_stl.py LAB3-Modelagem.step PASTA_DE_SAIDA
+Uso: python ferramentas/step_para_stl.py LAB3-Modelagem.step PASTA_DE_SAIDA
 Precisa de: pip install cadquery-ocp
 """
 import os

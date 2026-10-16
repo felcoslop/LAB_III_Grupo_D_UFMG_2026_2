@@ -1,5 +1,5 @@
 # Gera "gabarito_bancada.pdf": montagem dos 5 sensores na protoboard (1:1) + vista lateral e cotas.
-# Uso: python doc/gera_bancada.py (lê o config.h da pasta do sketch). O gabarito da bancada com
+# Uso: python ferramentas/gera_bancada.py (lê o firmware/sumo_esp32/config.h). O gabarito da bancada com
 # 7 sensores fica no guia_montagem_sensores_7.pdf, gerado pelo gera_guia.py.
 import math, os, re
 from reportlab.lib.pagesizes import A4
@@ -14,7 +14,8 @@ pdfmetrics.registerFont(TTFont("SB", "/usr/share/fonts/truetype/dejavu/DejaVuSan
 pdfmetrics.registerFont(TTFont("M", "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"))
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-cfg = open(os.path.join(AQUI, "..", "config.h"), encoding="utf-8").read()
+RAIZ = os.path.dirname(AQUI)
+cfg = open(os.path.join(RAIZ, "firmware", "sumo_esp32", "config.h"), encoding="utf-8").read()
 bloco = cfg[cfg.index("#if GEOMETRIA_BANCADA\n//"):cfg.index("\n#else\n")]
 bloco = re.sub(r"#if QTD_TOF == 7.*?#endif", "", bloco, flags=re.S)       # este gabarito é o de 5 sensores
 TOF = [dict(nome=m[1], xshut=int(m[2]), x=int(m[4]), y=int(m[5]), ang=int(m[6]))
@@ -32,7 +33,7 @@ HL = float(re.search(r"LENTE_ALTURA_MM\s+([\d.]+)", bloco)[1])
 COR = {"LE": "#8e5bd6", "FE": "#2f7fd8", "FC": "#1f9e6e", "FD": "#e07b1a", "LD": "#d6457f"}
 PCB_L, PCB_E, CHIP_E, PAL_L, PAL_E = 24.6, 1.6, 1.0, 12.0, 2.0
 
-c = canvas.Canvas(os.path.join(AQUI, "gabarito_bancada.pdf"), pagesize=A4)
+c = canvas.Canvas(os.path.join(RAIZ, "doc", "pdf", "gabarito_bancada.pdf"), pagesize=A4)
 c.setTitle("Gabarito da bancada (protoboard + 5 sensores)")
 W, H = A4
 def txt(x, y, s, size=9, font="S", color=colors.black, anchor="l"):

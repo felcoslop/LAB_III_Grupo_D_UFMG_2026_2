@@ -12,7 +12,7 @@
 //   - reamostragem quando poucas partículas concentram o peso, com um sorteio pequeno na posição
 //     e na escala do modelo das rodas de cada cópia (cada partícula carrega o seu erro de escala).
 // Com 600 partículas, o passo leva uns 20 us no PC e deve ficar abaixo de 1 ms no ESP32 (núcleo
-// 1, a cada 5 ms). Resultado do teste/teste_arena.cpp (150 lutas, modelo das rodas certo ou
+// 1, a cada 5 ms). Resultado do teste/unidade/teste_arena.cpp (150 lutas, modelo das rodas certo ou
 // errado em 15%): depois de 5 toques na borda, erro mediano do centro de 20 a 25 mm e 90% das
 // lutas abaixo de 60 mm.
 // Usos: a fuga da borda gira na direção do centro e volta para o meio do dojô; a busca e o

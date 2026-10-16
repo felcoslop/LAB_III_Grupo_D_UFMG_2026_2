@@ -1,8 +1,8 @@
 # gera_guia.py
 # Este script gera o guia de montagem dos sensores de oponente a partir das tabelas do config.h,
 # então o desenho sempre bate com o código. Uso:
-#   python doc/gera_guia.py              guia de 5 sensores (doc/guia_montagem_sensores.pdf)
-#   python doc/gera_guia.py --sensores 7 guia de 7 sensores (doc/guia_montagem_sensores_7.pdf)
+#   python ferramentas/gera_guia.py              guia de 5 sensores (doc/pdf/guia_montagem_sensores.pdf)
+#   python ferramentas/gera_guia.py --sensores 7 guia de 7 sensores (doc/pdf/guia_montagem_sensores_7.pdf)
 # As três primeiras páginas têm a mesma estrutura nas duas versões: gabarito 1:1 do robô, mapa de
 # ligação e tabela fio a fio com a lista de conferência. A versão de 7 sensores ganha mais duas
 # páginas: o gabarito 1:1 da bancada com o par novo (TE e TD) e a pinagem completa do ESP32 com o
@@ -27,7 +27,7 @@ pdfmetrics.registerFont(TTFont("SB", os.path.join(FONTES, "DejaVuSans-Bold.ttf")
 pdfmetrics.registerFont(TTFont("M", os.path.join(FONTES, "DejaVuSansMono.ttf")))
 
 # ---- leitura das tabelas do config.h ----
-cfg = open(os.path.join(RAIZ, "config.h"), encoding="utf-8").read()
+cfg = open(os.path.join(RAIZ, "firmware", "sumo_esp32", "config.h"), encoding="utf-8").read()
 ini = cfg.index("#if GEOMETRIA_BANCADA\n//")                      # primeiro bloco: sensores de oponente
 BLOCO_BANCADA = cfg[ini:cfg.index("\n#else\n", ini)]
 BLOCO_ROBO = cfg[cfg.index("\n#else\n", ini):cfg.index('#define GEOMETRIA_NOME    "ROBO"')]
@@ -59,7 +59,7 @@ PCB_L, PCB_E = 25.0, 1.6      # placa do sensor vista de cima (em pé): 25 mm x 
 RED, BLU, GRN, YEL = colors.HexColor("#d62828"), colors.HexColor("#1d4ed8"), colors.HexColor("#16a34a"), colors.HexColor("#ca8a04")
 CINZA = colors.HexColor("#555555")
 
-saida = os.path.join(AQUI, "guia_montagem_sensores.pdf" if QTD == 5 else "guia_montagem_sensores_7.pdf")
+saida = os.path.join(RAIZ, "doc", "pdf", "guia_montagem_sensores.pdf" if QTD == 5 else "guia_montagem_sensores_7.pdf")
 c = canvas.Canvas(saida, pagesize=A4)
 c.setTitle(f"Guia de montagem dos sensores ToF ({QTD} sensores)")
 c.setAuthor("Grupo D, Laboratório de Sistemas III, UFMG")
