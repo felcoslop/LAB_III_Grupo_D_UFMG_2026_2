@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Simulador da cinemática das rodas do robô sumô do Grupo D (UFMG, Lab. de Sistemas III), com as mesmas contas do firmware.">
+<title>Cinemática do Robô Sumô</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: bancada de engenharia. O dojô visto de cima é o centro da página; ao lado, o caminho
+   do pedido da máquina de estados até o PWM de cada roda. Embaixo, a conta da borda e as tabelas. */
+:root {
+  --papel: #eef1ef;        /* fundo da página, cinza levemente esverdeado */
+  --painel: #f8faf9;       /* superfícies */
+  --tinta: #15191c;        /* texto principal */
+  --tinta2: #4c5760;       /* texto secundário */
+  --linha: #c9d1cd;        /* divisórias */
+  --dojo: #121416;         /* dojô preto */
+  --faixa: #f4f4f0;        /* faixa branca */
+  --mesa: #d9ddd9;         /* chão fora do dojô */
+  --rodaE: #2a6fdb;        /* roda esquerda */
+  --rodaD: #d07a12;        /* roda direita */
+  --borda: #cf2e2e;        /* alerta de borda */
+  --ok: #1f8a4c;
+  --cone: rgba(120, 200, 255, 0.16);
+  --seguro: #d7eadf;       /* zona da régua em que o robô ainda para a tempo */
+  --perigo: #f2d3d0;       /* zona em que as rodas já passariam da borda */
+  --robo: #3b4650;
+  --oponente: #6b2b2b;
+  --fonte-titulo: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --fonte-texto: "Source Sans 3", "Segoe UI", Roboto, sans-serif;
+  --fonte-dado: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --papel: #121618; --painel: #1a1f22; --tinta: #e6ebe8; --tinta2: #9aa6ad; --linha: #2c3438;
+    --dojo: #050607; --faixa: #e9e9e2; --mesa: #2a3033; --rodaE: #5b95f0; --rodaD: #f0a03a;
+    --borda: #f05a5a; --ok: #3fbf74; --cone: rgba(120, 200, 255, 0.14); --robo: #8d9aa5; --oponente: #c46a6a;
+    --seguro: #1e3a2a; --perigo: #46211f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --papel: #121618; --painel: #1a1f22; --tinta: #e6ebe8; --tinta2: #9aa6ad; --linha: #2c3438;
+  --dojo: #050607; --faixa: #e9e9e2; --mesa: #2a3033; --rodaE: #5b95f0; --rodaD: #f0a03a;
+  --borda: #f05a5a; --ok: #3fbf74; --cone: rgba(120, 200, 255, 0.14); --robo: #8d9aa5; --oponente: #c46a6a;
+  --seguro: #1e3a2a; --perigo: #46211f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--papel); color: var(--tinta); font-family: var(--fonte-texto); font-size: 15px; line-height: 1.5; padding-inline: 16px; padding-block: 20px 48px; }
+.pagina { max-width: 1160px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 600; letter-spacing: 0.01em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.05; }
+h2 { font-size: 26px; }
+h3 { font-size: 19px; }
+p { margin: 0; max-width: 68ch; }
+.rotulo { font-family: var(--fonte-titulo); font-size: 13px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--tinta2); }
+.dado { font-family: var(--fonte-dado); font-variant-numeric: tabular-nums; }
+header { display: grid; gap: 10px; }
+.sub { color: var(--tinta2); }
+
+.bancada { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .bancada { grid-template-columns: minmax(0, 1fr); } }
+.palco { background: var(--painel); border: 1px solid var(--linha); border-radius: 10px; padding: 12px; display: grid; gap: 10px; min-width: 0; }
+canvas { width: 100%; height: auto; aspect-ratio: 1 / 1; display: block; border-radius: 6px; touch-action: none; cursor: grab; }
+.controles { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button { font: 600 14px var(--fonte-texto); color: var(--tinta); background: var(--papel); border: 1px solid var(--linha); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+button:hover { border-color: var(--tinta2); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--rodaE); outline-offset: 2px; }
+button.primario { background: var(--tinta); color: var(--papel); border-color: var(--tinta); }
+label.chk { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; color: var(--tinta2); }
+.dica { font-size: 13px; color: var(--tinta2); }
+
+.leitura { background: var(--painel); border: 1px solid var(--linha); border-radius: 10px; padding: 14px; display: grid; gap: 14px; min-width: 0; }
+.estado-linha { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; justify-content: space-between; }
+.chip { font-family: var(--fonte-titulo); font-size: 22px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 12px; border-radius: 999px; border: 2px solid currentColor; }
+.chip.borda { color: var(--borda); }
+.chip.luta { color: var(--tinta); }
+.perfil { font-size: 13px; color: var(--tinta2); }
+.etapas { display: grid; gap: 0; border-top: 1px solid var(--linha); }
+.etapa { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--linha); align-items: baseline; }
+.etapa .n { font-family: var(--fonte-dado); color: var(--tinta2); font-size: 12px; }
+.etapa .t { font-size: 14px; }
+.etapa .t small { display: block; color: var(--tinta2); font-size: 12.5px; line-height: 1.35; }
+.etapa .v { font-family: var(--fonte-dado); font-size: 13px; text-align: right; white-space: nowrap; }
+.etapa.ativa .v { color: var(--borda); }
+.rodas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.roda { display: grid; gap: 4px; }
+.roda .nome { font-family: var(--fonte-titulo); font-size: 15px; font-weight: 600; }
+.roda.e .nome { color: var(--rodaE); } .roda.d .nome { color: var(--rodaD); }
+.barra { position: relative; height: 14px; background: var(--papel); border: 1px solid var(--linha); border-radius: 3px; overflow: hidden; }
+.barra::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--tinta2); }
+.barra i { position: absolute; top: 0; bottom: 0; }
+.roda.e .barra i { background: var(--rodaE); } .roda.d .barra i { background: var(--rodaD); }
+
+.secao { display: grid; gap: 14px; }
+.duas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 860px) { .duas { grid-template-columns: minmax(0, 1fr); } }
+.cartao { background: var(--painel); border: 1px solid var(--linha); border-radius: 10px; padding: 14px; display: grid; gap: 12px; min-width: 0; }
+.campo { display: grid; grid-template-columns: 130px minmax(0, 1fr) 70px; gap: 10px; align-items: center; }
+.campo label { font-size: 14px; color: var(--tinta2); }
+.campo output { font-family: var(--fonte-dado); font-size: 13px; text-align: right; }
+input[type="range"] { width: 100%; accent-color: var(--tinta); }
+.regua { position: relative; height: 64px; border-radius: 4px; background: var(--perigo); overflow: hidden; border: 1px solid var(--linha); }
+.regua .seguro { position: absolute; top: 0; bottom: 0; left: 0; background: var(--seguro); }
+.regua .parada { position: absolute; top: 10px; height: 12px; left: 0; background: var(--borda); border-radius: 2px; }
+.regua .marca { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed var(--tinta2); }
+.regua .txt { position: absolute; bottom: 4px; font: 11px var(--fonte-dado); color: var(--tinta2); white-space: nowrap; }
+.resultado { font-size: 15px; }
+.resultado b { font-family: var(--fonte-dado); font-weight: 500; }
+.tabela { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--linha); vertical-align: top; }
+th { font-family: var(--fonte-titulo); font-size: 15px; font-weight: 600; letter-spacing: 0.03em; }
+td.num { font-family: var(--fonte-dado); font-size: 13px; white-space: nowrap; }
+.fontes { font-size: 13.5px; color: var(--tinta2); display: grid; gap: 4px; }
+.fontes a { color: var(--tinta2); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="pagina">
+  <header>
+    <span class="rotulo">Grupo D · ELE635 Lab. de Sistemas III · JGB37-520 de 319 rpm + ponte H de 10 A</span>
+    <h1>Cinemática do Robô Sumô</h1>
+    <p class="sub">Cada estado da máquina pede um avanço em mm/s e um giro em graus/s. A cinemática transforma esse pedido no PWM de cada roda, com o modelo do motor tirado da tabela do fabricante. A simulação abaixo roda as mesmas contas do firmware: arraste o oponente, aperte Rodar e veja as rodas, o caminho e a fuga da borda.</p>
+  </header>
+
+  <section class="bancada" aria-label="Simulação">
+    <div class="palco">
+      <canvas id="tela" width="900" height="900" aria-label="Dojô visto de cima com o robô e o oponente"></canvas>
+      <div class="controles">
+        <button id="rodar" class="primario" type="button">Rodar</button>
+        <button id="reiniciar" type="button">Reiniciar</button>
+        <label class="chk"><input id="temOp" type="checkbox" checked> oponente</label>
+        <label class="chk"><input id="sete" type="checkbox" checked> 7 sensores</label>
+        <label class="chk"><input id="cones" type="checkbox" checked> cones</label>
+      </div>
+      <p class="dica">Arraste o quadrado vermelho para mudar o oponente de lugar. O robô verde começa no meio, virado para a direita. No robô de verdade, a luta começa 5 s depois do start; aqui começa direto na BUSCA. A busca do firmware usa o mapa do rastreador; na simulação, ela gira para o último lado em que o oponente apareceu.</p>
+    </div>
+
+    <div class="leitura" aria-live="polite">
+      <div class="estado-linha">
+        <span id="chip" class="chip luta">ESPERA</span>
+        <span id="perfil" class="perfil">parado</span>
+      </div>
+      <div class="dado" id="situacao" style="font-size:13px;color:var(--tinta2)">oponente: -</div>
+      <div class="etapas">
+        <div class="etapa" id="e1"><span class="n">1</span><span class="t">Pedido do estado<small>avanço v e giro w</small></span><span class="v" id="v1">-</span></div>
+        <div class="etapa" id="e2"><span class="n">2</span><span class="t">Desaturação<small>o giro fica, o avanço cede se não couber nas rodas</small></span><span class="v" id="v2">-</span></div>
+        <div class="etapa" id="e3"><span class="n">3</span><span class="t">Limitador de aceleração<small>6 m/s²; o perfil da borda pula esta etapa</small></span><span class="v" id="v3">-</span></div>
+        <div class="etapa" id="e4"><span class="n">4</span><span class="t">Cinemática inversa<small>vE = v − w·B/2 e vD = v + w·B/2, B = 132 mm</small></span><span class="v" id="v4">-</span></div>
+        <div class="etapa" id="e5"><span class="n">5</span><span class="t">Feed-forward<small>tensão = kS + kV·v + kA·a, sobre 10,9 V no motor</small></span><span class="v" id="v5">-</span></div>
+      </div>
+      <div class="rodas">
+        <div class="roda e"><span class="nome">Roda esquerda</span><div class="barra"><i id="be"></i></div><span class="dado" id="te" style="font-size:13px">PWM 0</span></div>
+        <div class="roda d"><span class="nome">Roda direita</span><div class="barra"><i id="bd"></i></div><span class="dado" id="td" style="font-size:13px">PWM 0</span></div>
+      </div>
+      <div class="dado" id="estimativa" style="font-size:13px;color:var(--tinta2)">estimativa do firmware: -</div>
+    </div>
+  </section>
+
+  <section class="secao" aria-label="Parada na borda">
+    <h2>A borda vem antes de tudo</h2>
+    <div class="duas">
+      <div class="cartao">
+        <p>O RECUO e o AVANCO_BORDA usam a tensão toda no sentido da fuga já na primeira volta do loop, sem rampa. A distância de parada soma o trecho percorrido durante a confirmação da borda (6 ms) e a frenagem com a roda patinando para trás. O firmware confere essa conta na compilação e não compila se ela passar da margem até as rodas.</p>
+        <div class="campo"><label for="bat">Bateria 3S</label><input id="bat" type="range" min="10.8" max="12.6" step="0.1" value="12.6"><output id="obat">12,6 V</output></div>
+        <div class="campo"><label for="mu">Atrito pneu e dojô</label><input id="mu" type="range" min="0.5" max="1.3" step="0.05" value="0.7"><output id="omu">0,70</output></div>
+      </div>
+      <div class="cartao">
+        <span class="rotulo">Quanto o robô anda depois que o sensor vê o branco (0 a 100 mm)</span>
+        <div class="regua" id="regua" aria-label="Distância de parada comparada com a margem">
+          <div class="seguro" id="rSeguro"></div>
+          <div class="parada" id="rParada"></div>
+          <div class="marca" id="mLamina"></div><span class="txt" id="tLamina" style="bottom:22px">lâmina na borda</span>
+          <div class="marca" id="mSensor"></div><span class="txt" id="tSensor">sensor na borda</span>
+          <div class="marca" id="mRoda"></div><span class="txt" id="tRoda">rodas na borda</span>
+        </div>
+        <p class="resultado" id="resBorda">-</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="secao" aria-label="Modelo e estados">
+    <div class="duas">
+      <div class="cartao">
+        <h3>Modelo do motor e da roda</h3>
+        <div class="tabela"><table>
+          <thead><tr><th>Grandeza</th><th>Valor</th></tr></thead>
+          <tbody>
+            <tr><td>Rotação livre a 12 V, redução</td><td class="num">319 rpm, 18,8:1</td></tr>
+            <tr><td>Corrente livre e travada</td><td class="num">0,1 A e 1,2 A</td></tr>
+            <tr><td>Torque travado (o anúncio diz 21 kgf.cm, que não fecha com 1,2 A)</td><td class="num">1,9 kgf.cm</td></tr>
+            <tr><td>Queda na ponte H de MOSFET (10 A)</td><td class="num">cerca de 0,2 V</td></tr>
+            <tr><td>Roda StickyMAX S20, bitola</td><td class="num">32 mm, 132 mm</td></tr>
+            <tr><td>kS, kV, kA por roda</td><td class="num">1,5 V; 19,6 mV/(mm/s); 1,25 mV/(mm/s²)</td></tr>
+            <tr><td>Velocidade máxima (11,1 V)</td><td class="num">478 mm/s</td></tr>
+            <tr><td>Giro máximo no eixo</td><td class="num">415 °/s</td></tr>
+            <tr><td>Valores antigos do config.h</td><td class="num">600 °/s e 1500 mm/s</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="cartao">
+        <h3>Cada estado em avanço e giro</h3>
+        <div class="tabela"><table>
+          <thead><tr><th>Estado</th><th>Avanço v</th><th>Giro w</th></tr></thead>
+          <tbody>
+            <tr><td>BUSCA</td><td class="num">0 ou 240</td><td class="num">±200</td></tr>
+            <tr><td>MIRA até 40°</td><td class="num">478·cos(â)</td><td class="num">6·â, até 370</td></tr>
+            <tr><td>MIRA acima de 40°</td><td class="num">0</td><td class="num">±370</td></tr>
+            <tr><td>ATAQUE</td><td class="num">478</td><td class="num">6·â</td></tr>
+            <tr><td>RECUO (borda)</td><td class="num">−478, tensão toda</td><td class="num">0</td></tr>
+            <tr><td>AVANCO_BORDA (borda)</td><td class="num">478, tensão toda</td><td class="num">0</td></tr>
+            <tr><td>GIRO_BORDA</td><td class="num">0</td><td class="num">±370 até 135°</td></tr>
+          </tbody>
+        </table></div>
+        <p class="dica">â é o ângulo do oponente em graus, positivo para a esquerda. Velocidades em mm/s e giros em graus/s.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="fontes" aria-label="Fontes">
+    <span class="rotulo">Bases usadas</span>
+    <span>Firmware e documentação: <a href="https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2" target="_blank" rel="noopener">repositório do Grupo D no GitHub</a>. Esta página é publicada pelo GitHub Pages a cada mudança na <code>main</code>, e o CI confere se as constantes do simulador batem com o <code>config.h</code>.</span>
+    <span>Cinemática inversa e limitador: <a href="https://github.com/ros-controls/ros2_controllers" target="_blank" rel="noopener">diff_drive_controller, ros2_controllers</a>. Saturação das rodas: <a href="https://github.com/linorobot/linorobot2_hardware" target="_blank" rel="noopener">linorobot2_hardware</a>. Feed-forward kS, kV, kA: <a href="https://github.com/wpilibsuite/allwpilib" target="_blank" rel="noopener">WPILib SimpleMotorFeedforward</a>. Motor: <a href="https://rcdrone.top/products/jgb37-520-dc-gear-motor" target="_blank" rel="noopener">tabela do JGB37-520</a>. Pneu: <a href="https://www.robocore.net/pneus-s20-32mm-para-roda-stickymax-par" target="_blank" rel="noopener">RoboCore StickyMAX S20</a>. Táticas e borda: Sumo Robot Blackbook, capítulos 2, 10 e 11.</span>
+  </section>
+</div>
+
+<script>
+// ===================== constantes (as mesmas do config.h e do cinematica.h) =====================
+const C = {
+  B: 132, RAIO: 16, KS: 1.5, KA: 0.00125, VDISP: 10.9, QUEDA: 0.2, TAU: 0.06, ACEL: 6000,
+  K_MIRA: 6, ANG_CURVA: 40, GIRO_MIRA_MAX: 370, GIRO_BUSCA: 200, VEL_BUSCA: 240,
+  GIRO_BORDA: 370, ANG_GIRO_BORDA: 135, T_GIRO_MAX: 900, T_RECUO_EXTRA: 10,
+  T_BUSCA_GIRO: 1500, T_BUSCA_AVANCO: 250, CENTRO: 7, ALCANCE: 542, PERDE_MS: 100,
+  R_DOJO: 385, FAIXA: 25, LADO: 152, FREIO_FRAC: 0.8 * 0.8, BORDA_X: 60
+};
+C.KV = (12 - C.KS) / (319 * 2 * Math.PI / 60 * C.RAIO);   // V por mm/s
+C.VEL_MAX = (C.VDISP - C.KS) / C.KV;
+const RAD = Math.PI / 180;
+const TOF = [
+  { n: "LE", x: 10, y: 70, a: 90 }, { n: "FE", x: 66, y: 40, a: 20 }, { n: "FC", x: 68, y: 0, a: 0 },
+  { n: "FD", x: 66, y: -40, a: -20 }, { n: "LD", x: 10, y: -70, a: -90 },
+  { n: "TE", x: -60, y: 62, a: 160 }, { n: "TD", x: -60, y: -62, a: -160 }
+];
+const BORDA = [ { n: "BFE", x: 60, y: 60, lado: -1, frente: true }, { n: "BFD", x: 60, y: -60, lado: 1, frente: true },
+                { n: "BTE", x: -60, y: 60, lado: -1, frente: false }, { n: "BTD", x: -60, y: -60, lado: 1, frente: false } ];
+
+const norm = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
+const sinal = x => x > 0 ? 1 : (x < 0 ? -1 : 0);
+const fmt = (x, d = 0) => x.toFixed(d).replace(".", ",").replace("-", "−");
+
+// ===================== cinemática (porte do cinematica.cpp) =====================
+let cin;
+function cinZera() { cin = { vCmd: 0, wCmd: 0, rodaE: 0, rodaD: 0, giro: 0, pwmE: 0, pwmD: 0, passos: null }; }
+function limita(alvo, atual, passo) { const d = Math.max(-passo, Math.min(passo, alvo - atual)); return atual + d; }
+function fracao(v, a) {
+  if (Math.abs(v) < 2) return 0;
+  const u = (C.KS * sinal(v) + C.KV * v + C.KA * a) / C.VDISP;
+  return Math.max(-1, Math.min(1, u));
+}
+function estima(roda, u, dt) {
+  const vm = Math.abs(u) * C.VDISP;
+  const alvo = vm > C.KS ? sinal(u) * (vm - C.KS) / C.KV : 0;
+  return roda + (alvo - roda) * dt / (C.TAU + dt);
+}
+function comanda(v, wDps, borda, dt) {
+  const ped = { v, w: wDps };
+  let w = wDps * RAD, desat = false;
+  let dif = Math.abs(w) * C.B / 2;
+  if (dif > C.VEL_MAX) { w = sinal(w) * C.VEL_MAX * 2 / C.B; dif = C.VEL_MAX; desat = true; }
+  const vLim = C.VEL_MAX - dif;
+  if (Math.abs(v) > vLim + 1e-6) { v = sinal(v) * vLim; desat = true; }
+  const eAnt = cin.vCmd - cin.wCmd * C.B / 2, dAnt = cin.vCmd + cin.wCmd * C.B / 2;
+  if (borda) { cin.vCmd = v; cin.wCmd = w; }
+  else { cin.vCmd = limita(v, cin.vCmd, C.ACEL * dt); cin.wCmd = limita(w, cin.wCmd, C.ACEL * dt * 2 / C.B); }
+  const aE = cin.vCmd - cin.wCmd * C.B / 2, aD = cin.vCmd + cin.wCmd * C.B / 2;
+  let uE, uD;
+  if (borda) { uE = sinal(aE); uD = sinal(aD); }
+  else { uE = fracao(aE, (aE - eAnt) / dt); uD = fracao(aD, (aD - dAnt) / dt); }
+  cin.pwmE = Math.round(uE * 255); cin.pwmD = Math.round(uD * 255);
+  cin.rodaE = estima(cin.rodaE, uE, dt); cin.rodaD = estima(cin.rodaD, uD, dt);
+  cin.giro += (cin.rodaD - cin.rodaE) / C.B / RAD * dt;
+  cin.passos = { ped, desat, vDes: v, wDes: w / RAD, vLim: cin.vCmd, wLim: cin.wCmd / RAD, aE, aD, VE: uE * C.VDISP, VD: uD * C.VDISP, borda };
+  return { uE, uD };
+}
+
+// ===================== robô de verdade (planta): bateria, tração e patinagem =====================
+let mundo, est;
+function reinicia() {
+  cinZera();
+  mundo = { x: 0, y: 0, th: 0, pE: 0, pD: 0, op: { x: -190, y: 170, th: 0.4 }, t: 0, caiu: false, fora: false, rodando: false, rastro: [] };
+  est = { e: "ESPERA", tEnt: 0, tBordaLimpa: 0, ladoBorda: 0, buscaAvanca: false, tBusca: 0, ladoUlt: 1, tVisto: -1e9, ang: 0,
+          visto: false, centrado: false, borda: { det: false, frente: false, tras: false, lado: 0 }, cont: [0, 0, 0, 0] };
+}
+function temOponente() { return document.getElementById("temOp").checked; }
+function bateria() { return parseFloat(document.getElementById("bat").value); }
+function atrito() { return parseFloat(document.getElementById("mu").value); }
+function planta(u, dt) {
+  const vReal = bateria() - C.QUEDA;
+  const aTrac = atrito() * 9810 * 0.8;                    // força máxima de cada roda no chão, em aceleração
+  const passo = (p, uu) => {
+    const vm = Math.abs(uu) * vReal;
+    const alvo = vm > C.KS ? sinal(uu) * (vm - C.KS) / C.KV : 0;
+    let novo = p + (alvo - p) * dt / (C.TAU + dt);
+    const lim = (Math.abs(novo - p) > aTrac * dt) ? aTrac * 0.8 * dt : Infinity;   // patinou: atrito dinâmico
+    return p + Math.max(-lim, Math.min(lim, novo - p));
+  };
+  mundo.pE = passo(mundo.pE, u.uE); mundo.pD = passo(mundo.pD, u.uD);
+  const v = (mundo.pE + mundo.pD) / 2, w = (mundo.pD - mundo.pE) / C.B;
+  mundo.th += w * dt;
+  mundo.x += v * Math.cos(mundo.th) * dt; mundo.y += v * Math.sin(mundo.th) * dt;
+  // empurrão: oponente passivo encostado na frente anda junto com o robô
+  if (!temOponente()) return;
+  const o = mundo.op, dx = o.x - mundo.x, dy = o.y - mundo.y, d = Math.hypot(dx, dy);
+  const rel = norm(Math.atan2(dy, dx) / RAD - mundo.th / RAD);
+  if (d < C.LADO + 4 && Math.abs(rel) < 50 && v > 0) {
+    const empurra = (C.LADO + 4 - d) + v * dt * 0.6;
+    o.x += Math.cos(mundo.th) * empurra; o.y += Math.sin(mundo.th) * empurra;
+  }
+}
+function paraMundo(px, py) { const c = Math.cos(mundo.th), s = Math.sin(mundo.th); return [mundo.x + px * c - py * s, mundo.y + px * s + py * c]; }
+
+// ===================== percepção simplificada =====================
+function raioQuadrado(ox, oy, dx, dy, q) {
+  // interseção de raio com o quadrado do oponente (no referencial dele)
+  const c = Math.cos(-q.th), s = Math.sin(-q.th);
+  const px = (ox - q.x) * c - (oy - q.y) * s, py = (ox - q.x) * s + (oy - q.y) * c;
+  const vx = dx * c - dy * s, vy = dx * s + dy * c, h = C.LADO / 2;
+  let t0 = -Infinity, t1 = Infinity;
+  for (const [p, v] of [[px, vx], [py, vy]]) {
+    if (Math.abs(v) < 1e-9) { if (Math.abs(p) > h) return Infinity; continue; }
+    let a = (-h - p) / v, b = (h - p) / v; if (a > b) [a, b] = [b, a];
+    t0 = Math.max(t0, a); t1 = Math.min(t1, b);
+  }
+  return (t1 >= t0 && t1 > 0) ? Math.max(t0, 0) : Infinity;
+}
+function percebe(tms) {
+  const sete = document.getElementById("sete").checked;
+  const lista = sete ? TOF : TOF.slice(0, 5);
+  const veem = [];
+  for (const s of temOponente() ? lista : []) {
+    const [sx, sy] = paraMundo(s.x, s.y);
+    let viu = false;
+    for (let k = -2; k <= 2 && !viu; k++) {
+      const a = mundo.th + (s.a + k * 6.25) * RAD;
+      const t = raioQuadrado(sx, sy, Math.cos(a), Math.sin(a), mundo.op);
+      if (t < C.ALCANCE - Math.hypot(s.x, s.y) * 0.5) viu = true;
+    }
+    if (viu) veem.push(s.n);
+  }
+  const o = mundo.op;
+  const ang = norm(Math.atan2(o.y - mundo.y, o.x - mundo.x) / RAD - mundo.th / RAD);
+  if (veem.length) { est.tVisto = tms; est.ang = ang; if (Math.abs(ang) >= 3) est.ladoUlt = sinal(ang); }
+  est.visto = tms - est.tVisto <= C.PERDE_MS;
+  if (est.visto) est.ang = ang;
+  est.centrado = est.visto && veem.includes("FC") && Math.abs(ang) <= C.CENTRO;
+  est.veem = veem;
+  // borda: confirmada com duas leituras seguidas no branco (3 ms no firmware)
+  const b = { det: false, frente: false, tras: false, lado: 0, cru: [] }; let esq = false, dir = false;
+  BORDA.forEach((s, i) => {
+    const [x, y] = paraMundo(s.x, s.y);
+    const branco = Math.hypot(x, y) >= C.R_DOJO - C.FAIXA;
+    est.cont[i] = branco ? est.cont[i] + 1 : 0;
+    b.cru.push(branco);
+    if (est.cont[i] >= 2) { b.det = true; if (s.frente) b.frente = true; else b.tras = true; if (s.lado < 0) esq = true; else dir = true; }
+  });
+  b.lado = esq && dir ? 0 : (esq ? -1 : (dir ? 1 : 0));
+  est.borda = b;
+}
+
+// ===================== máquina de estados (porte do estados.cpp) =====================
+const EM_LUTA = ["BUSCA", "MIRA", "ATAQUE", "RECUO", "GIRO_BORDA", "AVANCO_BORDA"];
+function entra(novo, tms) {
+  if (novo === est.e) return;
+  est.e = novo; est.tEnt = tms; est.tBordaLimpa = tms;
+  if (novo === "BUSCA") { est.buscaAvanca = false; est.tBusca = tms; }
+  if (novo === "GIRO_BORDA") cin.giro = 0;
+}
+function passoEstados(tms, dt) {
+  let t = tms - est.tEnt;
+  const B = est.borda;
+  const emFuga = est.e === "RECUO" || est.e === "AVANCO_BORDA" || (est.e === "GIRO_BORDA" && B.frente && B.tras);
+  if (EM_LUTA.includes(est.e) && !emFuga && B.det) {
+    est.ladoBorda = B.lado;
+    if (B.frente && B.tras) entra("GIRO_BORDA", tms); else if (B.frente) entra("RECUO", tms); else entra("AVANCO_BORDA", tms);
+    t = 0;
+  }
+  const mira = ang => {
+    const w = Math.max(-C.GIRO_MIRA_MAX, Math.min(C.GIRO_MIRA_MAX, C.K_MIRA * ang));
+    const v = Math.abs(ang) <= C.ANG_CURVA ? C.VEL_MAX * Math.cos(ang * RAD) : 0;
+    return comanda(v, w, false, dt);
+  };
+  switch (est.e) {
+    case "ESPERA": return comanda(0, 0, true, dt);
+    case "BUSCA": {
+      if (est.centrado) { entra("ATAQUE", tms); return comanda(0, 0, false, dt); }
+      if (est.visto) { entra("MIRA", tms); return comanda(0, 0, false, dt); }
+      if (est.buscaAvanca) {
+        if (tms - est.tBusca >= C.T_BUSCA_AVANCO) { est.buscaAvanca = false; est.tBusca = tms; }
+        return comanda(C.VEL_BUSCA, 0, false, dt);
+      }
+      const s = est.ladoUlt >= 0 ? 1 : -1;
+      if (tms - est.tBusca >= C.T_BUSCA_GIRO) { est.buscaAvanca = true; est.tBusca = tms; }
+      return comanda(0, s * C.GIRO_BUSCA, false, dt);
+    }
+    case "MIRA":
+      if (!est.visto) { entra("BUSCA", tms); return comanda(0, 0, false, dt); }
+      if (est.centrado) { entra("ATAQUE", tms); return comanda(C.VEL_MAX, C.K_MIRA * est.ang, false, dt); }
+      return mira(est.ang);
+    case "ATAQUE":
+      if (!est.visto) { entra("BUSCA", tms); return comanda(0, 0, false, dt); }
+      if (!est.centrado) { entra("MIRA", tms); return mira(est.ang); }
+      return comanda(C.VEL_MAX, C.K_MIRA * est.ang, false, dt);
+    case "RECUO": {
+      const u = comanda(-C.VEL_MAX, 0, true, dt);
+      if (B.tras) entra("GIRO_BORDA", tms);
+      else if (B.frente) est.tBordaLimpa = tms;
+      else if (tms - est.tBordaLimpa >= C.T_RECUO_EXTRA) entra("GIRO_BORDA", tms);
+      return u;
+    }
+    case "AVANCO_BORDA": {
+      const u = comanda(C.VEL_MAX, 0, true, dt);
+      if (B.frente) entra("GIRO_BORDA", tms);
+      else if (B.tras) est.tBordaLimpa = tms;
+      else if (tms - est.tBordaLimpa >= C.T_RECUO_EXTRA) entra("BUSCA", tms);
+      return u;
+    }
+    case "GIRO_BORDA": {
+      const sentido = est.ladoBorda !== 0 ? est.ladoBorda : (est.ladoUlt || 1);
+      const u = comanda(0, sentido * C.GIRO_BORDA, false, dt);
+      if (est.centrado) entra("ATAQUE", tms);
+      else if (est.visto) entra("MIRA", tms);
+      else if (Math.abs(cin.giro) >= C.ANG_GIRO_BORDA || t >= C.T_GIRO_MAX) entra("BUSCA", tms);
+      return u;
+    }
+  }
+  return comanda(0, 0, true, dt);
+}
+
+// ===================== laço da simulação =====================
+const tela = document.getElementById("tela"), g = tela.getContext("2d");
+function cor(nome) { return getComputedStyle(document.documentElement).getPropertyValue(nome).trim(); }
+function simula(ms) {
+  const dt = 0.002;
+  for (let i = 0; i < ms / 2; i++) {
+    mundo.t += 2;
+    percebe(mundo.t);
+    const u = passoEstados(mundo.t, dt);
+    planta(u, dt);
+    // queda: roda fora do dojô; oponente fora: centro além da borda
+    for (const yy of [66, -66]) { const [x, y] = paraMundo(0, yy); if (Math.hypot(x, y) > C.R_DOJO) mundo.caiu = true; }
+    if (temOponente() && Math.hypot(mundo.op.x, mundo.op.y) > C.R_DOJO + C.LADO * 0.35) mundo.fora = true;
+    if (mundo.caiu || mundo.fora) { mundo.rodando = false; est.e = "ESPERA"; break; }
+  }
+  if (mundo.rodando && (mundo.rastro.length === 0 || Math.hypot(mundo.x - mundo.rastro[mundo.rastro.length - 1][0], mundo.y - mundo.rastro[mundo.rastro.length - 1][1]) > 6)) {
+    mundo.rastro.push([mundo.x, mundo.y]); if (mundo.rastro.length > 400) mundo.rastro.shift();
+  }
+}
+
+function desenha() {
+  const W = tela.width, H = tela.height, k = (W / 2 - 20) / (C.R_DOJO + 30);
+  const X = x => W / 2 + x * k, Y = y => H / 2 - y * k;
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = cor("--mesa"); g.fillRect(0, 0, W, H);
+  g.fillStyle = cor("--faixa"); g.beginPath(); g.arc(W / 2, H / 2, C.R_DOJO * k, 0, 2 * Math.PI); g.fill();
+  g.fillStyle = cor("--dojo"); g.beginPath(); g.arc(W / 2, H / 2, (C.R_DOJO - C.FAIXA) * k, 0, 2 * Math.PI); g.fill();
+  // rastro
+  g.strokeStyle = "rgba(140,160,170,0.55)"; g.lineWidth = 2; g.beginPath();
+  mundo.rastro.forEach(([x, y], i) => i ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y))); g.stroke();
+  // oponente
+  const o = mundo.op;
+  if (temOponente()) {
+  g.save(); g.translate(X(o.x), Y(o.y)); g.rotate(-o.th);
+  g.fillStyle = cor("--oponente"); g.fillRect(-C.LADO / 2 * k, -C.LADO / 2 * k, C.LADO * k, C.LADO * k);
+  g.strokeStyle = cor("--borda"); g.lineWidth = 3; g.strokeRect(-C.LADO / 2 * k, -C.LADO / 2 * k, C.LADO * k, C.LADO * k);
+  g.restore();
+  }
+  // robô
+  g.save(); g.translate(X(mundo.x), Y(mundo.y)); g.rotate(-mundo.th);
+  const lista = document.getElementById("sete").checked ? TOF : TOF.slice(0, 5);
+  if (document.getElementById("cones").checked) {
+    for (const s of lista) {
+      const viu = est.veem && est.veem.includes(s.n);
+      g.fillStyle = viu ? "rgba(255,90,90,0.30)" : cor("--cone");
+      g.beginPath(); g.moveTo(s.x * k, -s.y * k);
+      const L = (C.ALCANCE - 60) * k;
+      g.arc(s.x * k, -s.y * k, L, -(s.a + 12.5) * RAD, -(s.a - 12.5) * RAD); g.closePath(); g.fill();
+    }
+  }
+  g.fillStyle = "#2f8f5b"; g.fillRect(-76 * k, -76 * k, 152 * k, 152 * k);
+  g.fillStyle = "#c9ced2"; g.fillRect(70 * k, -76 * k, 8 * k, 152 * k);                // lâmina na frente
+  // rodas e vetores de velocidade
+  const rodaDes = (yy, v, c) => {
+    g.fillStyle = "#16191b"; g.fillRect(-16 * k, (-yy - 10) * k, 32 * k, 20 * k);
+    g.strokeStyle = c; g.fillStyle = c; g.lineWidth = 4;
+    const L = v * 0.18 * k;
+    g.beginPath(); g.moveTo(0, -yy * k); g.lineTo(L, -yy * k); g.stroke();
+    if (Math.abs(L) > 6) { const sg = sinal(L); g.beginPath(); g.moveTo(L + sg * 8, -yy * k); g.lineTo(L - sg * 4, -yy * k - 7); g.lineTo(L - sg * 4, -yy * k + 7); g.fill(); }
+  };
+  rodaDes(66, mundo.pE, cor("--rodaE")); rodaDes(-66, mundo.pD, cor("--rodaD"));
+  // sensores de borda
+  BORDA.forEach((s, i) => { g.fillStyle = est.borda.cru && est.borda.cru[i] ? cor("--borda") : "#e7e7e7"; g.beginPath(); g.arc(s.x * k, -s.y * k, 5, 0, 2 * Math.PI); g.fill(); });
+  g.fillStyle = "#ffffff"; g.beginPath(); g.arc(0, 0, 4, 0, 2 * Math.PI); g.fill();
+  g.restore();
+  // caminho previsto nos próximos 0,6 s (arco com v e w atuais)
+  const v = (mundo.pE + mundo.pD) / 2, w = (mundo.pD - mundo.pE) / C.B;
+  g.strokeStyle = cor("--tinta2"); g.setLineDash([6, 6]); g.lineWidth = 2; g.beginPath();
+  let px = mundo.x, py = mundo.y, th = mundo.th; g.moveTo(X(px), Y(py));
+  for (let i = 0; i < 30; i++) { th += w * 0.02; px += v * Math.cos(th) * 0.02; py += v * Math.sin(th) * 0.02; g.lineTo(X(px), Y(py)); }
+  g.stroke(); g.setLineDash([]);
+  if (mundo.caiu || mundo.fora) {
+    g.fillStyle = mundo.caiu ? cor("--borda") : cor("--ok");
+    g.font = "600 44px " + cor("--fonte-titulo"); g.textAlign = "center";
+    g.fillText(mundo.caiu ? "ROBÔ CAIU" : "OPONENTE FORA", W / 2, 70);
+  }
+}
+
+// ===================== leitura ao lado =====================
+const $ = id => document.getElementById(id);
+function barra(el, pwm) { const f = Math.abs(pwm) / 255 * 50; el.style.left = (pwm >= 0 ? 50 : 50 - f) + "%"; el.style.width = f + "%"; }
+function atualizaLeitura() {
+  const chip = $("chip"); chip.textContent = est.e;
+  chip.className = "chip " + (["RECUO", "AVANCO_BORDA", "GIRO_BORDA"].includes(est.e) ? "borda" : "luta");
+  const p = cin.passos;
+  $("perfil").textContent = p ? (p.borda ? "perfil da borda: tensão toda, sem rampa" : "perfil normal") : "parado";
+  $("situacao").textContent = !temOponente() ? "arena vazia: busca e borda sozinhas" : est.visto ? `oponente a ${fmt(est.ang)}° ${est.centrado ? "(centrado)" : ""} visto por ${est.veem.join(", ")}` : "oponente fora dos cones";
+  if (p) {
+    $("v1").textContent = `${fmt(p.ped.v)} mm/s  ${fmt(p.ped.w)} °/s`;
+    $("v2").textContent = `${fmt(p.vDes)} mm/s  ${fmt(p.wDes)} °/s`;
+    $("e2").classList.toggle("ativa", p.desat);
+    $("v3").textContent = p.borda ? "pulado" : `${fmt(p.vLim)} mm/s  ${fmt(p.wLim)} °/s`;
+    $("v4").textContent = `E ${fmt(p.aE)}  D ${fmt(p.aD)} mm/s`;
+    $("v5").textContent = `E ${fmt(p.VE, 1)} V  D ${fmt(p.VD, 1)} V`;
+  }
+  barra($("be"), cin.pwmE); barra($("bd"), cin.pwmD);
+  $("te").textContent = `PWM ${fmt(cin.pwmE)} · ${fmt(mundo.pE)} mm/s`;
+  $("td").textContent = `PWM ${fmt(cin.pwmD)} · ${fmt(mundo.pD)} mm/s`;
+  $("estimativa").textContent = `estimativa do firmware: ${fmt((cin.rodaE + cin.rodaD) / 2)} mm/s, ${fmt((cin.rodaD - cin.rodaE) / C.B / RAD)} °/s` +
+    (est.e === "GIRO_BORDA" ? ` · giro acumulado ${fmt(Math.abs(cin.giro))}° de 135°` : "");
+}
+
+// ===================== conta da borda =====================
+function contaBorda() {
+  const vb = bateria(), mu = atrito();
+  $("obat").textContent = fmt(vb, 1) + " V"; $("omu").textContent = fmt(mu, 2);
+  const v = (vb - C.QUEDA - C.KS) / C.KV;                  // mm/s
+  const a = C.FREIO_FRAC * mu * 9810;                      // mm/s²
+  const d = v * 0.006 + v * v / (2 * a);
+  const margem = C.FAIXA + C.BORDA_X;
+  const esc = 1;                                           // régua de 0 a 100 mm, 1% por mm
+  const marca = (m, t, mm) => { $(m).style.left = (mm * esc) + "%"; $(t).style.left = (mm * esc + 0.8) + "%"; };
+  $("rSeguro").style.width = (margem * esc) + "%";
+  $("rParada").style.width = Math.min(100, d * esc) + "%";
+  marca("mLamina", "tLamina", 9); marca("mSensor", "tSensor", C.FAIXA); marca("mRoda", "tRoda", margem);
+  const ok = d < margem;
+  $("resBorda").innerHTML = `Com ${fmt(vb, 1)} V o robô chega a <b>${fmt(v)} mm/s</b>. A parada leva <b>${fmt(d, 1)} mm</b> ` +
+    `(${fmt(v * 0.006, 1)} mm de reação e ${fmt(d - v * 0.006, 1)} mm de frenagem a ${fmt(a / 1000, 1)} m/s²). ` +
+    `A margem até as rodas é de <b>${margem} mm</b> (25 mm de faixa branca e 60 mm do sensor até o eixo): ` +
+    (ok ? `sobram <b style="color:var(--ok)">${fmt(margem - d)} mm</b>. A ponta da lâmina, 16 mm à frente do sensor, pode passar da borda por ${fmt(Math.max(0, d - 9))} mm por um instante.`
+        : `<b style="color:var(--borda)">não cabe</b>, e o firmware não compilaria.`);
+}
+
+// ===================== interação =====================
+let arrastando = false;
+function pontoTela(ev) {
+  const r = tela.getBoundingClientRect(), W = tela.width, k = (W / 2 - 20) / (C.R_DOJO + 30);
+  const px = (ev.clientX - r.left) * W / r.width, py = (ev.clientY - r.top) * tela.height / r.height;
+  return [(px - W / 2) / k, -(py - tela.height / 2) / k];
+}
+tela.addEventListener("pointerdown", ev => {
+  const [x, y] = pontoTela(ev);
+  if (Math.hypot(x - mundo.op.x, y - mundo.op.y) < C.LADO) { arrastando = true; tela.setPointerCapture(ev.pointerId); tela.style.cursor = "grabbing"; }
+});
+tela.addEventListener("pointermove", ev => {
+  if (!arrastando) return;
+  const [x, y] = pontoTela(ev); const r = Math.hypot(x, y), lim = C.R_DOJO - 40;
+  mundo.op.x = r > lim ? x * lim / r : x; mundo.op.y = r > lim ? y * lim / r : y;
+});
+tela.addEventListener("pointerup", () => { arrastando = false; tela.style.cursor = "grab"; });
+$("rodar").addEventListener("click", () => {
+  if (mundo.caiu || mundo.fora) reinicia();
+  mundo.rodando = !mundo.rodando;
+  if (mundo.rodando && est.e === "ESPERA") entra("BUSCA", mundo.t);
+  $("rodar").textContent = mundo.rodando ? "Pausar" : "Rodar";
+});
+$("reiniciar").addEventListener("click", () => { reinicia(); $("rodar").textContent = "Rodar"; });
+$("bat").addEventListener("input", contaBorda); $("mu").addEventListener("input", contaBorda);
+
+let tAnt = performance.now();
+function quadro(agora) {
+  const ms = Math.min(50, agora - tAnt); tAnt = agora;
+  if (mundo.rodando) simula(Math.round(ms / 2) * 2);
+  else percebe(mundo.t);                                   // pausado: só atualiza o que os sensores veem
+  if (!mundo.rodando) $("rodar").textContent = (mundo.caiu || mundo.fora) ? "De novo" : "Rodar";
+  desenha(); atualizaLeitura();
+  requestAnimationFrame(quadro);
+}
+reinicia(); contaBorda(); requestAnimationFrame(quadro);
+</script>
+</body>
+</html>

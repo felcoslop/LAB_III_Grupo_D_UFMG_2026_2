@@ -143,8 +143,7 @@ static const CfgToF TOF[] = {
                                   // (medida afastando um objeto preto até a leitura começar a piscar)
 #define OP_VEL_MAX_MMS    1500    // velocidade máxima considerada para o oponente (mm/s)
 #define GIRO_DESCONHECIDO_DPS 200 // sem motores (bancada girada na mão): giro possível sem aviso (°/s)
-#define GIRO_MAX_DPS      600     // com motores: giro no eixo com comando 255 (precisa ser medido)
-#define ROBO_VEL_MAX_MMS  1500    // com motores: velocidade em linha reta com 255 (precisa ser medida)
+                                  // com motores, o giro e o avanço vêm da cinemática (cinematica.cpp)
 #define FUSAO_MASSA_MIN   0.25f   // concentração mínima do mapa (0 a 1) para contar como "visto"
 #define FUSAO_EXISTE_MIN  0.5f    // chance mínima de existir oponente para contar como "visto"
                                   // (arena vazia e leitura falsa isolada ficam abaixo disso)
@@ -185,6 +184,7 @@ static const CfgBorda BORDA[] = {
   {  "BTD",   33,    -60,  -34,  +1,   false },   // trás direita
 };
 #define BORDA_ALTURA_MM   2.7f     // altura da face do sensor ao chão, só para o painel 3D
+#define BORDA_ATE_RODA_MM 40.0f    // menor distância em x entre um sensor de borda e o centro (rodas)
 #else
 static const CfgBorda BORDA[] = {
   {  "BFE",   34,     60,   60,  -1,   true  },
@@ -193,6 +193,7 @@ static const CfgBorda BORDA[] = {
   {  "BTD",   33,    -60,  -60,  +1,   false },
 };
 #define BORDA_ALTURA_MM   4.0f
+#define BORDA_ATE_RODA_MM 60.0f    // menor distância em x entre um sensor de borda e o eixo das rodas
 #endif
 #define N_BORDA  (sizeof(BORDA) / sizeof(BORDA[0]))
 
@@ -208,22 +209,53 @@ static const CfgBorda BORDA[] = {
                                    // (a linha de 2,5 cm passa em 25 ms com o robô a 1 m/s)
 
 // ============================================================================
-// Motores: ponte H dupla L298N com os jumpers de ENA e ENB no lugar (EN sempre ligado).
-// O PWM vai no próprio pino IN: para a frente o IN1 recebe o PWM e o IN2 fica em LOW, e no
-// tempo desligado do PWM os dois ficam em LOW, o que freia o motor (modo acionar/frear).
-// Com os dois IN em LOW o motor fica freado, e não solto. Na bancada USAR_MOTORES fica em 0.
+// Motores: módulo HW-956 (v0.0.2), ponte H dupla de MOSFET de 10 A por canal (15 A de pico,
+// 3 a 18 V), com as entradas GND, IN1, IN2, IN3 e IN4. O esquema da placa mostra um L298N, mas
+// o módulo usado é este. O anúncio do módulo aceita sinal de 3,3 V, limita o PWM a 2 kHz e pede
+// parada antes de inverter o sentido, por causa do pico de corrente. Com o JGB37-520 esse pico,
+// na inversão em velocidade máxima, fica perto de 2,4 A por motor (12,4 V da bateria somados a
+// uns 11,4 V gerados pelo motor, sobre os cerca de 10 ohms do enrolamento), bem abaixo dos 10 A
+// do módulo. Por isso a fuga da borda inverte na hora, sem pausa.
+// O PWM vai no próprio pino IN: para a frente o IN1 recebe o PWM e o IN2 fica em LOW, e para
+// trás o contrário. O módulo aceita PWM de até 2 kHz. Com os dois IN em LOW o motor para.
+// Na bancada USAR_MOTORES fica em 0.
 // O valor também pode vir da compilação (-DUSAR_MOTORES=1), como o CI faz.
 // ============================================================================
 #ifndef USAR_MOTORES
 #define USAR_MOTORES      0
 #endif
-#define PINO_IN1          25     // motor esquerdo (saídas OUT1 e OUT2 do L298N)
+#define PINO_IN1          25     // motor esquerdo (saída do motor A do módulo)
 #define PINO_IN2          26
-#define PINO_IN3          27     // motor direito (saídas OUT3 e OUT4)
+#define PINO_IN3          27     // motor direito (saída do motor B)
 #define PINO_IN4          13
 #define INVERTE_ESQ       0      // 1 quando o motor esquerdo gira ao contrário
 #define INVERTE_DIR       0
-#define TROCA_MOTORES     0      // 1 quando o motor da esquerda está ligado em OUT3 e OUT4
+#define TROCA_MOTORES     0      // 1 quando o motor da esquerda está ligado na saída do motor B
+#define PWM_MOTOR_HZ      1000   // frequência do PWM nos pinos IN (o módulo aceita até 2000)
+
+// ============================================================================
+// Cinemática das rodas e modelo do acionamento (cinematica.cpp)
+// Motor JGB37-520 de 12 V e 319 rpm, redução de 18,8:1. Tabela do fabricante para essa linha:
+// 0,1 A livre, 1,2 A e 1,9 kgf.cm com o eixo travado e partida com 1,5 V. O anúncio fala em
+// 21 kgf.cm, valor que não fecha com 1,2 A nem com a redução de 18,8:1 e por isso fica de fora.
+// Roda com o pneu StickyMAX S20 de 32 mm. Bateria 3S de Li-ion: 11,1 V nominal e 12,6 V cheia.
+// A ponte H de MOSFET perde só alguns décimos de volt; um L298N perderia de 1,8 a 3,2 V com 1 A.
+// Os valores marcados com "medir" ficam certos só com o robô montado: o Blackbook (capítulo 11)
+// manda medir a distância percorrida em um tempo fixo e o tempo de uma volta completa no eixo.
+// ============================================================================
+#define MOTOR_V_NOMINAL   12.0f    // V
+#define MOTOR_RPM_LIVRE   319.0f   // rpm no eixo de saída a 12 V, sem carga
+#define MOTOR_V_PARTIDA   1.5f     // V, menor tensão que tira o motor do lugar (kS do feed-forward)
+#define MOTOR_KA          1.25f    // V por m/s² em cada roda (estimado pela inércia do rotor; medir)
+#define MOTOR_TAU_MS      60.0f    // atraso de cada roda com o robô em cima (estimado; medir)
+#define BATERIA_V         11.1f    // V, usado para transformar tensão em PWM
+#define BATERIA_V_CHEIA   12.6f    // V, usado só na conta da distância de parada
+#define PONTE_QUEDA_V     0.2f     // V perdidos na ponte H de MOSFET (estimado; medir)
+#define RODA_DIAMETRO_MM  32.0f
+#define BITOLA_MM         132.0f   // distância entre os centros das duas rodas (medir no chassi)
+#define ACEL_MAX_MMS2     6000.0f  // limite das manobras normais, abaixo da tração (atrito ~1)
+#define FREIO_MIN_MMS2    4400.0f  // pior frenagem: roda patinando, atrito 0,7 e 80% do peso nas rodas
+#define BORDA_FAIXA_MM    25.0f    // largura da faixa branca da borda (regra RoboCore)
 
 // ============================================================================
 // Interface. O robô é autônomo: a telemetria sai só pela USB, para o Monitor Serial e para
@@ -243,16 +275,20 @@ static const CfgBorda BORDA[] = {
 #define STREAM_MS         20     // dados para o painel a 50 Hz, o mesmo ritmo dos sensores
 
 // ============================================================================
-// Estratégia: velocidades de -255 a 255 e tempos em ms
+// Estratégia: avanço em mm/s, giro em graus/s (positivo é para a esquerda) e tempos em ms.
+// A cinemática transforma cada par (avanço, giro) na velocidade e no PWM de cada roda. O
+// ataque e a fuga da borda usam a velocidade máxima (VEL_MAX_MMS, calculada no cinematica.h).
 // ============================================================================
 #define T_CONTAGEM_MS     5000   // regra RoboCore: 5 s depois do comando de início
-#define VEL_ATAQUE        255
-#define VEL_MIRA_IN       80     // velocidade da roda de dentro quando a mira é corrigida em curva
-#define VEL_GIRO          200
-#define VEL_BUSCA         120
-#define VEL_RECUO         220
+#define VEL_BUSCA_MMS     240    // avanço curto da BUSCA, cerca de metade da velocidade máxima
+#define GIRO_BUSCA_DPS    200    // giro da BUSCA, cerca de metade do giro máximo
+#define K_MIRA            6.0f   // mira: graus/s de giro para cada grau de erro (erro cai a 37% em ~0,17 s)
+#define ANG_MIRA_CURVA    40     // até esse ângulo a mira é uma curva; acima, giro no eixo
+#define GIRO_MIRA_MAX_DPS 370    // giro máximo na mira, 90% do giro máximo do robô
+#define GIRO_BORDA_DPS    370    // giro de recuperação depois da borda
+#define ANG_GIRO_BORDA    135    // tamanho desse giro em graus, estimado pela cinemática
+#define T_GIRO_BORDA_MAX_MS 900  // segurança: o giro termina mesmo se a estimativa não chegar lá
 #define T_RECUO_EXTRA_MS  10     // folga depois que a borda some (Blackbook, capítulo 10)
-#define T_GIRO_BORDA_MS   250    // tempo de giro na borda, cerca de 135 graus a VEL_GIRO (precisa ser medido)
 #define T_BUSCA_GIRO_MS   1500   // BUSCA: tempo girando nos pontos cegos sem achar nada
 #define T_BUSCA_AVANCO_MS 250    // BUSCA: tempo do avanço curto que muda o ponto de vista
 #define MODO_DEFENSIVO    0      // 1 faz o robô só mirar e nunca avançar

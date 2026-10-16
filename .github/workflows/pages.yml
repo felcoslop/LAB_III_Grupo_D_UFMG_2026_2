@@ -1,0 +1,47 @@
+# Publicação da página do simulador da cinemática (doc/site) no GitHub Pages.
+# A página roda no navegador as mesmas contas do firmware e fica no endereço
+# https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/ depois de cada mudança na main.
+# O GitHub Pages precisa estar ligado em Settings > Pages com a fonte "GitHub Actions"
+# (o publicar.sh do pacote de publicação faz isso pela API).
+name: Página do simulador
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "doc/site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# uma publicação por vez, sem cancelar a que já começou
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publica:
+    name: Publicação no GitHub Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # a página só sai se as constantes ainda baterem com o config.h
+      - name: Conferência das constantes
+        run: python doc/confere_site.py
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: doc/site
+      - id: deploy
+        uses: actions/deploy-pages@v4

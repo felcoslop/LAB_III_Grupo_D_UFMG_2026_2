@@ -10,17 +10,20 @@
 // padrão já comporta o firmware.
 //
 // Fluxo de dados: sensores (percepcao) geram a struct P, a máquina de estados (estados)
-// lê P e manda nos motores, e o debug mostra tudo pela USB no terminal e no painel.
+// lê P e pede avanço e giro para a cinemática (cinematica), que comanda os motores, e o debug
+// mostra tudo pela USB no terminal e no painel.
 
 #include "config.h"
 #include "telemetria.h"
 #include "percepcao.h"
 #include "motores.h"
+#include "cinematica.h"
 #include "estados.h"
 #include "debug.h"
 
 void setup() {
   motores_init();          // os motores são configurados primeiro para o robô nascer parado
+  cinematica_init();       // modelo das rodas zerado, com o robô freado (cinematica.cpp)
   Serial.setTxBufferSize(4096);   // buffer de 4 KB na serial: um print grande não segura o loop
   Serial.begin(SERIAL_BAUD);
   delay(300);
@@ -33,6 +36,7 @@ void setup() {
 void loop() {
   percepcao_atualiza();    // passo 1: a percepção lê todos os sensores e monta a struct P
   estados_passo();         // passo 2: a máquina de estados decide e comanda os motores
-  if (estado_atual() == ESPERA) percepcao_manutencao();   // com o robô parado, o código tenta religar sensor que caiu
+  // com o robô parado (e fora dos testes mov e pwm), o código tenta religar sensor que caiu
+  if (estado_atual() == ESPERA && !estados_teste_ativo()) percepcao_manutencao();
   debug_passo();           // passo 3: o debug trata os comandos e envia os dados para o painel pela USB
 }

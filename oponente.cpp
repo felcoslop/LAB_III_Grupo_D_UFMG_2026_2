@@ -14,7 +14,7 @@
 #include "config.h"
 #include "telemetria.h"
 #include "rastreador.h"
-#include "motores.h"
+#include "cinematica.h"
 #include <Wire.h>
 #include <VL53L0X.h>
 #include <Preferences.h>
@@ -358,10 +358,9 @@ static void fundeBayes(Oponente& op) {
       z[i] = (ok[i] && ultZ[i] > 0) ? ultZ[i] : -1;
     }
 #if USAR_MOTORES
-    // com motores, o giro e o avanço saem dos comandos dados (motores.cpp) e o mapa gira junto
-    float esq = motores_esq(), dir = motores_dir();
-    rastreador_passo(z, novo, GIRO_MAX_DPS * (dir - esq) / 510.0f, true,
-                     ROBO_VEL_MAX_MMS * (esq + dir) / 510.0f, dt);
+    // com motores, o giro e o avanço vêm do modelo do acionamento (cinematica.cpp), que já
+    // conta a rampa e o atraso das rodas, e o mapa gira junto
+    rastreador_passo(z, novo, cinematica_w_dps(), true, cinematica_v_mms(), dt);
 #else
     // na bancada o robô é girado na mão, sem aviso, e esse giro entra como incerteza
     rastreador_passo(z, novo, 0, false, 0, dt);
