@@ -6,8 +6,10 @@ semente, em paralelo, e mostra o placar de cada combinação: vitórias, derrota
 saindo sozinho) e empates por tempo. A estratégia do adversário é sorteada em cada luta.
 
 Uso: python teste/combate/bateria.py BIN [--sementes N] [--estrategias rush,flank,fanout]
-         [--cores preto,branco] [--motores 1000,319] [--mu 1.10] [--csv ARQ] [--json ARQ]
-         [--exige-quedas-proprias N]
+         [--cores preto,branco] [--motores 1000,319] [--atrito 1] [--restit 0.4] [--extra "-p 0"]
+         [--csv ARQ] [--json ARQ] [--exige-quedas-proprias N]
+  --atrito: fator no atrito do pneu (0,8 com pó no dojô); --restit: restituição do choque;
+  --extra: opções a mais para o executável (por exemplo a largada de frente, -p 0)
 """
 import argparse
 import csv
@@ -24,10 +26,8 @@ CAMPOS = ["semente", "estr_a", "estr_b", "cor_b", "motor_b", "vencedor", "motivo
           "largada_a", "largada_b"]
 
 
-def roda(binario, semente, estr, cor, motor, mu, tempo):
-    cmd = [binario, "-s", str(semente), "-a", estr, "-c", cor, "-m", str(motor), "-t", str(tempo)]
-    if mu is not None:
-        cmd += ["-u", str(mu)]
+def roda(binario, semente, estr, cor, motor, extra, tempo):
+    cmd = [binario, "-s", str(semente), "-a", estr, "-c", cor, "-m", str(motor), "-t", str(tempo)] + extra
     saida = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout.strip().splitlines()[-1]
     d = dict(zip(CAMPOS, next(csv.reader(io.StringIO(saida)))))
     for k in ("semente", "motor_b", "vencedor", "motivo", "destravas_a", "destravas_b", "largada_a", "largada_b"):
@@ -108,7 +108,9 @@ def main():
     ap.add_argument("--estrategias", default="rush,flank,fanout")
     ap.add_argument("--cores", default="preto,branco")
     ap.add_argument("--motores", default="1000,319")
-    ap.add_argument("--mu", type=float, default=None)
+    ap.add_argument("--atrito", type=float, default=None)
+    ap.add_argument("--restit", type=float, default=None)
+    ap.add_argument("--extra", default="")
     ap.add_argument("--tempo", type=float, default=90)
     ap.add_argument("--csv")
     ap.add_argument("--json")
@@ -117,8 +119,13 @@ def main():
     a = ap.parse_args()
     tarefas = [(s, e, c, int(m)) for e in a.estrategias.split(",") for c in a.cores.split(",")
                for m in a.motores.split(",") for s in range(a.semente0, a.semente0 + a.sementes)]
+    extra = a.extra.split()
+    if a.atrito is not None:
+        extra += ["-u", str(a.atrito)]
+    if a.restit is not None:
+        extra += ["-e", str(a.restit)]
     with ThreadPoolExecutor(max_workers=os.cpu_count() or 2) as ex:
-        lutas = list(ex.map(lambda t: roda(a.binario, t[0], t[1], t[2], t[3], a.mu, a.tempo), tarefas))
+        lutas = list(ex.map(lambda t: roda(a.binario, t[0], t[1], t[2], t[3], extra, a.tempo), tarefas))
     if a.csv:
         with open(a.csv, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=CAMPOS)
@@ -141,7 +148,7 @@ def main():
           f"{total['derrotas_saiu_sozinho']:6d} {total['empates']:6d}")
     if a.json:
         with open(a.json, "w") as f:
-            json.dump({"resumo": resumo, "total": total, "sementes": a.sementes, "mu": a.mu, "agregados": agregados(lutas)},
+            json.dump({"resumo": resumo, "total": total, "sementes": a.sementes, "atrito": a.atrito, "restit": a.restit, "agregados": agregados(lutas)},
                       f, indent=1, ensure_ascii=False)
     if a.exige_quedas_proprias is not None and total["derrotas_saiu_sozinho"] > a.exige_quedas_proprias:
         print(f"ERRO: {total['derrotas_saiu_sozinho']} quedas próprias (limite {a.exige_quedas_proprias})")

@@ -17,11 +17,11 @@ static float pessoas[1 + 3 * 8];
 static std::string json;
 
 EXPORTA(cb_inicia) void cb_inicia(uint32_t semente, int estrA, int estrB, int brancoA, int brancoB, int b1000,
-                                  int posA, int posB, double tRound, double muEst, double muDin, int comPessoas) {
+                                  int posA, int posB, double tRound, double atrito, double restit, int comPessoas) {
   Config c;
   c.semente = semente; c.estrA = estrA; c.estrB = estrB;
   c.brancoA = brancoA != 0; c.brancoB = brancoB != 0; c.b1000 = b1000 != 0;
-  c.posA = posA; c.posB = posB; c.tRound = tRound; c.muEst = muEst; c.muDin = muDin; c.pessoas = comPessoas != 0;
+  c.posA = posA; c.posB = posB; c.tRound = tRound; c.atrito = atrito; c.restit = restit; c.pessoas = comPessoas != 0;
   inicia(c);
 }
 

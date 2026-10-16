@@ -313,37 +313,53 @@ A página mostra a luta em 3D com as peças do STL do projeto mecânico (base, c
 | Massa | 980 g em cada robô | pedido da equipe |
 | Centro de massa | 26,9 mm à frente do eixo, 24 mm acima do chão | balanço de massa do projeto mecânico |
 | Apoios | pneus com 77% do peso, ponta da rampa com 23% | estática com a ponta a 117,7 mm do eixo |
-| Pneu StickyMAX S20 na madeira laminada | atrito 1,10, parado ou patinando | estimativa; borracha macia não perde atrito ao patinar [GROSCH, 1963]; medir com o robô de lado no dojô inclinado |
+| Pneu StickyMAX S20 (silicone de 20 Shore A, pegajoso, 32 x 20 mm, 10 g) na madeira pintada | atrito 1,15 parado e 1,30 escorregando, com a transição em 5 cm/s | borracha macia em superfície lisa: 1,2 a 2,0 parado e atrito escorregando maior que o parado, subindo com a velocidade [ROTH; DRISCOLL; HOLT, 1942; GROSCH, 1963]; perto do mínimo dessas medidas por causa da tinta e do pó; medir com o robô de rodas travadas puxado por um dinamômetro; medidas do pneu [ROBOCORE, 2024] |
 | PLA arrastando no dojô e PLA contra PLA | 0,35 e 0,30 | estimativa |
+| Choque entre os robôs | modelo contínuo de contato com restituição de 0,4 e rigidez de 30 N/mm | [FLORES et al., 2011]; restituição estimada para corpos de PLA com parafusos e placas, conferida com 0,2 e 0,6 |
+| Gravidade | 9,7847 m/s² | gravidade normal do GRS80 na latitude da UFMG (-19,87°) com as correções de ar livre e de Bouguer para 830 m [MORITZ, 2000; HOFMANN-WELLENHOF; MORITZ, 2006] |
+| Ar | 1,065 kg/m³, arrasto de caixa (Cd de 1) na frente de 14,9 x 5,15 cm | atmosfera padrão a 830 m (91,7 kPa) com 25 °C e 50% de umidade [ISO, 1975; HOERNER, 1965]; 0,009 N a 1,5 m/s |
 | JGB37-520, 319 rpm | 18,8:1, 1,9 kgf.cm e 1,2 A travado | [RCDRONE, s.d.] |
 | JGB37-520, 1000 rpm | o mesmo motor com redução de 6:1, 0,6 kgf.cm e 1,2 A travado | [RCDRONE, s.d.] |
 | Bateria 3S | 12,0 a 12,5 V sem carga, 0,15 ohm com o BMS e os fios | estimativa |
-| Dojô | 77 cm, 2,5 cm de altura, faixa de 2,5 cm, Shikiri de 1 x 10 cm afastadas 10 cm | [ROBOCORE, s.d.a] |
+| Dojô | madeira pintada de 77 cm, 2,5 cm de altura, faixa de 2,5 cm, Shikiri de 1 x 10 cm afastadas 10 cm | [ROBOCORE, s.d.a]; regulamento da CoRA 2026 |
 
-A carga em cada apoio sai do equilíbrio de momentos com o peso, a aceleração e a força do contato, e o pneu sem peso não tem tração. Quando a frente de um robô encosta na lateral ou na traseira do outro, a rampa de 17,7 graus transforma o empurrão em força vertical (1,46 vez a horizontal) até o pneu mais próximo do outro ficar sem peso. Com as duas frentes encostadas, a ponta mais baixa vence, mas levanta só a ponta da rampa do outro. Os VL53L0X lançam raios no cone de 25 graus contra as faces do outro robô: a face da frente inclinada devolve menos luz, os pneus pretos quase nada e as caixas de redução metálicas aparecem com qualquer cor de PLA [STMICROELECTRONICS, s.d.b]. Na sala à noite, só com a lâmpada de LED, quase não existe infravermelho de fundo, e as leituras falsas ficam na metade do modelo da bancada.
+A carga em cada apoio sai do equilíbrio de momentos com o peso, a aceleração e a força do contato, e o pneu sem peso não tem tração. O choque entre os corpos usa a força de Flores e coautores, k.d.(1 + 8(1 - e)/(5e) . d'/v0), com a penetração d, a taxa de penetração d' e a velocidade v0 do começo do choque: a força começa em zero, nunca puxa os robôs um para o outro e tira no choque a energia que o coeficiente de restituição e manda [FLORES et al., 2011]. O ar entra como arrasto no centro de massa de cada robô; na velocidade máxima ele fica abaixo de 0,1% do atrito do pneu, e a gravidade de Belo Horizonte é 0,26% menor que os 9,81 m/s² de antes. Quando a frente de um robô encosta na lateral ou na traseira do outro, a rampa de 17,7 graus transforma o empurrão em força vertical (1,46 vez a horizontal) até o pneu mais próximo do outro ficar sem peso. Com as duas frentes encostadas, a ponta mais baixa vence, mas levanta só a ponta da rampa do outro. Os VL53L0X lançam raios no cone de 25 graus contra as faces do outro robô: a face da frente inclinada devolve menos luz, os pneus pretos quase nada e as caixas de redução metálicas aparecem com qualquer cor de PLA [STMICROELECTRONICS, s.d.b]. Na sala à noite, só com a lâmpada de LED, quase não existe infravermelho de fundo, e as leituras falsas ficam na metade do modelo da bancada.
 
 ### Resultado
 
-Na bateria de 360 lutas (3 estratégias, adversário preto e branco, 1000 e 319 rpm, 30 largadas sorteadas cada, estratégia do adversário sorteada), o Grupo D venceu 168, perdeu 38 e empatou 154, sem nenhuma queda própria.
+Na bateria de 360 lutas (3 estratégias, adversário preto e branco, 1000 e 319 rpm, 30 largadas sorteadas cada, estratégia do adversário sorteada), com a física de Belo Horizonte, o Grupo D venceu 169, perdeu 41 e empatou 150, sem nenhuma queda própria.
 
 | Adversário | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| 1000 rpm | 157 | 21 | 2 |
-| 319 rpm, igual | 11 | 17 | 152 |
+| 1000 rpm | 157 | 22 | 1 |
+| 319 rpm, igual | 12 | 19 | 149 |
 
 | Estratégia do Grupo D | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| Rush | 60 | 8 | 52 |
-| Flank | 50 | 22 | 48 |
-| Fan out | 58 | 8 | 54 |
+| Rush | 60 | 9 | 51 |
+| Flank | 51 | 23 | 46 |
+| Fan out | 58 | 9 | 53 |
 
 | Largada do Grupo D | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| de frente para o adversário | 75 | 13 | 56 |
-| de lado | 54 | 4 | 50 |
-| de costas | 39 | 21 | 48 |
+| de frente para o adversário | 74 | 14 | 56 |
+| de lado | 56 | 3 | 49 |
+| de costas | 39 | 24 | 45 |
 
-O motor de 1000 rpm tem um terço do torque: travado, ele empurra com uns 7,4 N (0,6 kgf.cm em cada roda de 16 mm de raio), abaixo dos cerca de 8 N que os pneus do Grupo D aguentam com 77% dos 980 g em cima deles. O empurrão de frente anda devagar e leva o adversário para fora em 12,2 s, em média; as derrotas vêm de choques em que o adversário chega rápido na lateral ou na traseira do Grupo D. Contra o de 319 rpm, os robôs encostam 0,5 s depois dos 5 s parados e ficam empurrando de frente até o fim dos 90 s, porque os dois têm o mesmo limite de tração. O arco do Flank perde mais que o Rush e o Fan out: o adversário com o mesmo firmware vira para ele e às vezes encontra a lateral exposta. De costas, o robô gasta o começo da luta girando e pode receber o adversário na traseira, que é o ponto fraco. O motor mais quente chegou a 22 K acima do ambiente no modelo térmico do firmware, longe do limite de 60 K.
+O motor de 1000 rpm tem um terço do torque: travado, ele empurra com uns 7,4 N (0,6 kgf.cm em cada roda de 16 mm de raio), abaixo dos 8,5 a 9,6 N que os pneus do Grupo D aguentam com 77% dos 980 g em cima deles (atrito de 1,15 parado e 1,30 escorregando). O empurrão de frente leva o adversário para fora em 2,2 s, em média; com o atrito antigo de 1,10 eram 12,2 s, porque a sobra de tração era pequena. As derrotas vêm de choques em que o adversário chega rápido na lateral ou na traseira do Grupo D. Contra o de 319 rpm, os robôs encostam 0,5 s depois dos 5 s parados e ficam empurrando de frente até o fim dos 90 s, porque os dois têm o mesmo limite de tração. O arco do Flank perde mais que o Rush e o Fan out: o adversário com o mesmo firmware vira para ele e às vezes encontra a lateral exposta. De costas, o robô gasta o começo da luta girando e pode receber o adversário na traseira, que é o ponto fraco. O motor mais quente chegou a 22 K acima do ambiente no modelo térmico do firmware, longe do limite de 60 K.
+
+O atrito do pneu e a restituição do choque são as estimativas com mais incerteza, então a mesma bateria rodou com cada um mudado (240 lutas cada, 20 largadas):
+
+| Física | Contra o de 1000 rpm | Tempo da vitória | Contra o de 319 rpm |
+|---|---|---|---|
+| atrito 1,15 e 1,30, restituição 0,4 (padrão) | 101 V, 18 D, 1 E | 2,2 s | 11 V, 16 D, 93 E |
+| atrito 20% menor (pó no dojô) | 93 V, 25 D, 2 E | 20,0 s | 13 V, 13 D, 94 E |
+| atrito 20% maior | 95 V, 20 D, 5 E | 2,0 s | 7 V, 14 D, 99 E |
+| restituição 0,2 | 101 V, 18 D, 1 E | 2,3 s | 12 V, 18 D, 90 E |
+| restituição 0,6 | 100 V, 19 D, 1 E | 2,2 s | 10 V, 16 D, 94 E |
+| física antiga (9,81 m/s², sem ar, atrito 1,10, mola amortecida) | 99 V, 19 D, 2 E | 13,5 s | 10 V, 12 D, 98 E |
+
+O resultado contra o robô igual quase não muda com a física: os dois têm o mesmo pneu e o mesmo limite de tração. Contra o de 1000 rpm, o atrito decide o tempo do empurrão: com pó no dojô, a sobra de tração cai e o empurrão leva uns 20 s.
 
 Com as rodas atrás e o centro de massa 26,9 mm à frente do eixo, 23% do peso fica na ponta da rampa, que arrasta no dojô e não traciona; com o centro de massa sobre o eixo, esse peso iria para os pneus e o empurrão máximo subiria uns 30%. A rampa do outro robô que entra por baixo da frente levanta só a ponta e não tira peso dos pneus. A lateral e a traseira são os pontos fracos: ali a rampa do outro tira o peso do pneu mais próximo. O par de sensores de borda "de trás" fica 54 mm à frente do eixo, então, andando de ré, a roda chega à borda antes do sensor.
 
@@ -750,11 +766,21 @@ ESPRESSIF SYSTEMS. **Arduino core for the ESP32**. [S.l.]: Espressif Systems, [s
 
 ESPRESSIF SYSTEMS. **Set Flash Voltage**: espefuse, esptool documentation (ESP32). [S.l.]: Espressif Systems, [s.d.b]. Disponível em: https://docs.espressif.com/projects/esptool/en/latest/esp32/espefuse/set-flash-voltage-cmd.html. Acesso em: 14 out. 2026.
 
+FLORES, Paulo; MACHADO, Margarida; SILVA, Miguel T.; MARTINS, Jorge M. On the continuous contact force models for soft materials in multibody dynamics. **Multibody System Dynamics**, v. 25, n. 3, p. 357-375, 2011. DOI: 10.1007/s11044-010-9237-4.
+
 GROSCH, K. A. The relation between the friction and visco-elastic properties of rubber. **Proceedings of the Royal Society of London A**, v. 274, n. 1356, p. 21-39, 1963.
 
 GRUPO D. **Slides sobre máquinas de estados**: estratégias Rush, Flank e Fan out. Belo Horizonte: UFMG, ELE635 Laboratório de Sistemas III, 2026. Apresentação.
 
+HOERNER, Sighard F. **Fluid-dynamic drag**: practical information on aerodynamic drag and hydrodynamic resistance. Midland Park: Hoerner, 1965.
+
+HOFMANN-WELLENHOF, Bernhard; MORITZ, Helmut. **Physical geodesy**. 2. ed. Viena: Springer, 2006.
+
+INTERNATIONAL ORGANIZATION FOR STANDARDIZATION. **ISO 2533**: standard atmosphere. Genebra: ISO, 1975.
+
 JIMENO, Juan Miguel. **linorobot2_hardware**: firmware for linorobot2 compatible robots. [S.l.]: Linorobot, 2021. Disponível em: https://github.com/linorobot/linorobot2_hardware. Acesso em: 13 out. 2026.
+
+MORITZ, Helmut. Geodetic Reference System 1980. **Journal of Geodesy**, v. 74, n. 1, p. 128-133, 2000.
 
 POLOLU. **VL53L0X library for Arduino**. [S.l.]: Pololu, [s.d.]. Disponível em: https://github.com/pololu/vl53l0x-arduino. Acesso em: 13 out. 2026.
 
@@ -764,7 +790,11 @@ ROBOCORE. **Regras de Sumô**. São Paulo: RoboCore, [s.d.a]. Documento das regr
 
 ROBOCORE. **Pneus S20 32 mm para roda StickyMAX (par)**. São Paulo: RoboCore, [s.d.b]. Disponível em: https://www.robocore.net/pneus-s20-32mm-para-roda-stickymax-par. Acesso em: 13 out. 2026.
 
+ROBOCORE. **Desenho técnico do pneu StickyMAX 32 mm**: borracha de silicone amarela de 20 Shore A, versão 1.1. São Paulo: RoboCore, 2024. Desenho em PDF.
+
 ROS-CONTROLS. **ros2_controllers**: diff_drive_controller. [S.l.]: ros-controls, [s.d.]. Disponível em: https://github.com/ros-controls/ros2_controllers. Acesso em: 13 out. 2026.
+
+ROTH, F. L.; DRISCOLL, R. L.; HOLT, W. L. Frictional properties of rubber. **Journal of Research of the National Bureau of Standards**, v. 28, p. 439-462, 1942.
 
 STMICROELECTRONICS. **L298**: dual full-bridge driver. Genebra: STMicroelectronics, [s.d.a]. Folha de dados.
 

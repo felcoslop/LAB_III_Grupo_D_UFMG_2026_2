@@ -20,7 +20,8 @@ struct Config {
   int      posA     = -1;      // rumo do Grupo D na largada: -1 sorteado, 0 de frente para o adversário,
   int      posB     = -1;      // 1 e 2 de lado, 3 de costas (posB: o mesmo para o adversário)
   double   tRound   = 90;      // segundos de luta depois dos 5 s parados
-  double   muEst    = 1.10, muDin = 1.10;   // pneu no dojô, parado e escorregando
+  double   atrito   = 1.0;     // fator no atrito do pneu (fisica.h: 1,15 parado e 1,30 escorregando; 0,8 com pó)
+  double   restit   = 0.4;     // coeficiente de restituição do choque entre os corpos
   bool     pessoas  = true;    // operadores e juiz em volta do dojô
   double   massa    = 0.98;
 };
