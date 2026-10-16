@@ -313,8 +313,13 @@ void mujocoLiga(Mundo& w) {
 #include <cstdlib>
 namespace cb {
 void mujocoLiga(Mundo&) {
+#ifdef __wasm__
+  // No WebAssembly da página 3D a opção nunca é pedida; sem o exit(), o módulo não importa proc_exit do WASI
+  // (a página só fornece fd_write e parentes), e o navegador deixa de carregá-lo.
+#else
   fprintf(stderr, "este executável foi compilado sem o MuJoCo (MUJOCO=1 bash teste/combate/compila.sh)\n");
   exit(2);
+#endif
 }
 }  // namespace cb
 #endif
