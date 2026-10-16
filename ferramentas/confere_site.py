@@ -108,6 +108,32 @@ def main():
             print("::error::site/index.html desatualizada: " + e)
         sys.exit(1)
     print(f"página do simulador confere com o config.h ({len(MAPA) + 2} constantes)")
+    confere_alcances(defs)
+
+
+# alcance dos ToF desenhado na página 3D do combate (constante da página -> nome no config.h); sem isso os cones
+# saem mais compridos que o alcance real dos sensores laterais e traseiros e o oponente "no feixe" não é visto
+ALCANCES_COMBATE = {
+    "ALCANCE_MM": "TOF_ALCANCE_MM",
+    "ALCANCE_LATERAL_MM": "TOF_ALCANCE_LATERAL_MM",
+    "ALCANCE_TRAS_MM": "TOF_ALCANCE_TRAS_MM",
+}
+
+
+def confere_alcances(defs):
+    fonte = (RAIZ / "doc" / "combate_src.html").read_text(encoding="utf-8")
+    erros = []
+    for nome, define in ALCANCES_COMBATE.items():
+        m = re.search(r"\b" + nome + r" = (\d+)", fonte)
+        if not m:
+            erros.append(f"{nome}: falta no doc/combate_src.html")
+        elif int(m.group(1)) != avalia(define, defs):
+            erros.append(f"{nome}: página {m.group(1)} e config.h {avalia(define, defs)} ({define})")
+    if erros:
+        for e in erros:
+            print("::error::doc/combate_src.html desatualizada: " + e)
+        sys.exit(1)
+    print(f"alcances da página do combate conferem com o config.h ({len(ALCANCES_COMBATE)} constantes)")
 
 
 if __name__ == "__main__":

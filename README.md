@@ -331,7 +331,7 @@ python teste/sim/roda_lutas.py teste/sim/luta --dips 1,2,4 --fora --perfil-pela-
 
 A pasta `teste/combate` coloca dois robôs com o mesmo firmware no mesmo dojô: o do Grupo D e um adversário igual, com motores de 1000, 600 ou 319 rpm. Cada módulo do firmware entra duas vezes no mesmo programa, uma no namespace `fa` e outra no `fb` (`fw_modulo.cpp`), sem nenhuma linha do firmware mudar, e o Arduino de mentira (`hal_combate.cpp`) atende o robô da vez com o relógio, a chave DIP, o botão de start, os quatro TCRT5000, os sete VL53L0X e o PWM da ponte H. O mesmo código vira um executável para a bateria de lutas e um módulo WebAssembly para a página [Combate Grupo D](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/combate.html), compilado com o Zig 0.14 [ZIG SOFTWARE FOUNDATION, 2025].
 
-A página mostra a luta em 3D com as peças do STL do projeto mecânico (base, corpo, suporte da eletrônica, abraçadeiras, JGB37-520, cubos e pneus), numa sala em Belo Horizonte às 20h00 de 2 de setembro, só com a lâmpada de LED do teto acesa. Na tela entram a estratégia do Grupo D, a cor e os motores do adversário, a estratégia dele e a posição na largada de cada um dos dois robôs; o placar mostra o estado de cada firmware, e a telemetria mostra velocidade, PWM, corrente, bateria e o peso em cada apoio. A camada de detecção mostra só o que o firmware do Grupo D enxerga, como no painel: o cone de cada VL53L0X com a calota na distância medida, o mapa de probabilidade do rastreador, a caixa vermelha do oponente na posição estimada e um círculo embaixo de cada TCRT5000. No controle manual, as setas (ou W A S D) dirigem o robô do Grupo D ou o adversário depois dos 5 s parados.
+A página mostra a luta em 3D com as peças do STL do projeto mecânico (base, corpo, suporte da eletrônica, abraçadeiras, JGB37-520, cubos e pneus), numa sala em Belo Horizonte às 20h00 de 2 de setembro, só com a lâmpada de LED do teto acesa. Na tela entram a estratégia do Grupo D, a cor e os motores do adversário, a estratégia dele e a posição na largada de cada um dos dois robôs; o placar mostra o estado de cada firmware, e a telemetria mostra velocidade, PWM, corrente, bateria e o peso em cada apoio. A camada de detecção mostra só o que o firmware do Grupo D enxerga, como no painel: o cone de cada VL53L0X com a calota na distância medida, o mapa de probabilidade do rastreador, a caixa vermelha do oponente na posição estimada e um círculo embaixo de cada TCRT5000. Cada cone tem o alcance que o firmware aceita para aquele sensor: 600 mm na frente, `TOF_ALCANCE_LATERAL_MM` (80 mm) no LE e no LD e `TOF_ALCANCE_TRAS_MM` (200 mm) no par de trás. Um oponente além do cone curto não é lido, não entra no rastreador e por isso não ganha a caixa vermelha, mesmo que esteja na direção do sensor; o `confere_site.py` compara essas três constantes da página com o `config.h`. No controle manual, as setas (ou W A S D) dirigem o robô do Grupo D ou o adversário depois dos 5 s parados.
 
 ### Física
 
@@ -584,7 +584,7 @@ O arquivo `painel/painel_sumo.html` abre direto no Chrome ou no Edge do computad
 |---|---|
 | ![Radar 2D com o oponente à frente e a seta vermelha de ataque](doc/img/radar_atacar.jpg) | ![Radar 2D sem oponente e a seta azul de busca apontando para o ponto cego](doc/img/radar_procurar.jpg) |
 
-No radar, cada cone colorido é um sensor, a mancha laranja é o mapa de probabilidade do rastreador, o quadrado vermelho é o oponente na posição estimada e a seta é o rumo entregue para a máquina de estados. O círculo cinza é a borda simulada do dojô no modo demo.
+No radar, cada cone colorido é um sensor, a mancha laranja é o mapa de probabilidade do rastreador, o quadrado vermelho é o oponente na posição estimada e a seta é o rumo entregue para a máquina de estados. O comprimento do cone é o alcance daquele sensor, com os limites lateral e de trás que o firmware manda na linha `X`. O círculo cinza é a borda simulada do dojô no modo demo.
 
 ### Calibração
 
@@ -762,7 +762,7 @@ Comandos de teste e calibração, os modos contínuos (`ver`, `id`, `borda`) e o
 |---|---|---|
 | `G`, `I`, `C` | geometria, status e calibração de cada ToF | comando `s1`, enviado pelo painel ao conectar |
 | `R` | posição, limiar e calibração de cada sensor de borda | comando `s1` e depois de cada calibração |
-| `B`, `E`, `K`, `X` | corpo do robô, nomes dos estados, alcance e parâmetros do rastreador | comando `s1` |
+| `B`, `E`, `K`, `X` | corpo do robô, nomes dos estados, alcance e parâmetros do rastreador (a `X` traz também `TOF_ALCANCE_LATERAL_MM` e `TOF_ALCANCE_TRAS_MM`) | comando `s1` |
 | `D` | leituras, oponente, estado, saúde, incerteza, existência e rumo | a cada 20 ms |
 | `Q` | borda confirmada, borda crua e mV de cada sensor | a cada 20 ms |
 | `M` | mapa de probabilidade comprimido | a cada 250 ms |

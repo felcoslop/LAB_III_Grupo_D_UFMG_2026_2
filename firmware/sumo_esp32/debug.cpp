@@ -425,7 +425,8 @@ static void streamCabecalho() {
   Log.printf("K,%d", TOF_ALCANCE_MM);
   for (uint8_t i = 0; i < N_TOF; i++) Log.printf(",%u", i);
   Log.printf(",%d,%d,0,0\n", TOF_TIMING_US > 25000 ? 1 : 0, MODO_DEFENSIVO);
-  Log.printf("X,%d,%d,%d,%.2f\n", oponente_bayes() ? 1 : 0, OPONENTE_LADO_MM, ALCANCE_PRETO_MM, FUSAO_MASSA_MIN);
+  Log.printf("X,%d,%d,%d,%.2f,%d,%d\n", oponente_bayes() ? 1 : 0, OPONENTE_LADO_MM, ALCANCE_PRETO_MM, FUSAO_MASSA_MIN,
+                TOF_ALCANCE_LATERAL_MM, TOF_ALCANCE_TRAS_MM);
 }
 
 // Linha M com o mapa de probabilidade comprimido pelo rastreador.cpp.

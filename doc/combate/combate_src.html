@@ -479,11 +479,17 @@ const RODA_Y = 0.016, RODA_Z = 0.0634;
 const TOF = [[55, 72, 90], [85, 35, 17], [95, 0, 0], [85, -35, -17], [55, -72, -90], [33, 74, 160], [33, -74, -160]];
 const CORES_TOF = ["#b98cff", "#4fa3ff", "#35d49a", "#ff9f43", "#ff6fae", "#6fe3ff", "#ffd36f"];
 const BORDA = [[88, 62], [88, -62], [-60, 34], [-60, -34]];
-const ALCANCE_MM = 600, OP_LADO_MM = 152, LENTE_MM = 19.8, MEIO_CONE = 12.5 * Math.PI / 180;
-// alcance de cada ToF como no firmware: a maior leitura que ainda cai no círculo de 600 mm em volta do eixo
+const ALCANCE_MM = 600, ALCANCE_LATERAL_MM = 80, ALCANCE_TRAS_MM = 200, OP_LADO_MM = 152, LENTE_MM = 19.8, MEIO_CONE = 12.5 * Math.PI / 180;
+// alcance de cada ToF como no firmware (rastreador_alcance_sensor): a maior leitura que ainda cai no círculo de 600 mm
+// em volta do eixo, limitada a TOF_ALCANCE_LATERAL_MM nos laterais (80 a 120 graus) e a TOF_ALCANCE_TRAS_MM nos que
+// olham para trás (120 graus ou mais); uma leitura além disso o firmware descarta e o oponente nem aparece
 function alcanceSensor([x, y, a]) {
   const ux = Math.cos(a * Math.PI / 180), uy = Math.sin(a * Math.PI / 180), b = x * ux + y * uy;
-  return -b + Math.sqrt(b * b - (x * x + y * y) + ALCANCE_MM * ALCANCE_MM);
+  let z = -b + Math.sqrt(b * b - (x * x + y * y) + ALCANCE_MM * ALCANCE_MM);
+  const aa = Math.abs(a);
+  if (aa >= 120) z = Math.min(z, ALCANCE_TRAS_MM);
+  else if (aa >= 80) z = Math.min(z, ALCANCE_LATERAL_MM);
+  return z;
 }
 function adesivo(texto, cor) {
   return texturaCanvas(512, 128, (g, w, h) => {
