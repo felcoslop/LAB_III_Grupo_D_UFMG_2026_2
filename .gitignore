@@ -10,3 +10,6 @@ __pycache__/
 /teste/combate/combate.wasm
 /teste/combate/combate_mj
 /teste/combate/empurrao
+
+# Guia local do Claude Code (cada um mantém o seu, fora do repositório)
+/CLAUDE.md
