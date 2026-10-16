@@ -406,7 +406,64 @@ python ferramentas/gera_combate.py --wasm teste/combate/combate.wasm  # refaz si
 
 A página do combate fica no repositório (`site/combate.html`), como o painel: depois de mudar o firmware, o simulador ou a página, rode as três últimas linhas e faça o commit da página e do `doc/combate/bateria.json`. O CI compila o WebAssembly de novo e falha se a página versionada for diferente da gerada. O `--fragmento` gera a mesma página sem o `<head>`, para publicar como artefato.
 
-A simulação deixa de fora a rampa entrando fundo embaixo do outro robô (o ponto de apoio não anda), o tombamento, a deformação do pneu, a poeira no dojô e o feixe do VL53L0X batendo no chão. O atrito real do pneu e o centro de massa medido na balança (robô apoiado numa régua, até equilibrar) deixam o resultado mais perto da luta de verdade.
+A física à mão deixa de fora a rampa entrando fundo embaixo do outro robô (o ponto de apoio não anda), o tombamento, a deformação do pneu, a poeira no dojô e o feixe do VL53L0X batendo no chão. O atrito real do pneu e o centro de massa medido na balança (robô apoiado numa régua, até equilibrar) deixam o resultado mais perto da luta de verdade. A seção seguinte traz a segunda física, que resolve em 3D o encaixe da rampa e o tombamento, mas continua dependendo dos mesmos números estimados.
+
+### Física do MuJoCo
+
+A física do `fisica.cpp` é escrita à mão: cada robô apoia em três pontos e a rampa do outro só tira peso de um deles. O MuJoCo [TODOROV; EREZ; TASSA, 2012] é um motor de física de código aberto que resolve o contato em 3D entre corpos rígidos, e entra como segunda física do mesmo simulador, escolhida pela opção `-F mujoco`. O firmware dos dois robôs, o Arduino de mentira, os sensores (ToF e TCRT5000) e a regra de quem saiu do dojô são os mesmos; muda só quem calcula como os corpos se movem e se tocam. A física à mão continua como padrão, porque roda no CI sem nenhuma dependência, vai para o WebAssembly da página 3D e é mais rápida. O MuJoCo é a ferramenta de validação: a mesma bateria nas duas físicas mostra o que o modelo à mão não enxerga.
+
+```
+pip install mujoco==3.16.0
+MUJOCO=1 bash teste/combate/compila.sh nativo teste/combate/combate_mj
+teste/combate/combate_mj -s 7 -a rush -c preto -m 319 -F mujoco -v           # uma luta
+python teste/combate/bateria.py teste/combate/combate_mj --sementes 10 --extra "-F mujoco" --json mj.json
+MUJOCO=1 bash teste/combate/compila.sh empurrao                              # só a física, sem firmware
+python teste/combate/compara_fisicas.py teste/combate/empurrao --lutas 100   # empurrão nas duas físicas
+python teste/combate/mujoco/prepara_malhas.py PASTA_DO_CHASSI teste/combate/mujoco/malhas   # refaz as malhas do STEP
+```
+
+| Item | Física à mão | MuJoCo |
+|---|---|---|
+| Corpo | três apoios (dois pneus e a ponta), carga por equilíbrio de momentos, inclinação só no desenho | corpo rígido de seis graus de liberdade, com as malhas do STEP (base, duas peças da rampa, tampa e duas laterais, cada uma em casca convexa), 980 g, centro de massa 26,9 mm à frente do eixo e 24 mm acima do chão |
+| Pneu | curva de Stribeck, 1,15 parado e 1,30 escorregando | cilindro de 32 x 20,2 mm, com um atrito só (o MuJoCo tem um valor por par): a média, 1,225 |
+| Ponta da rampa | altura sorteada de 0,1 a 0,6 mm, atrito de 0,35 | a do STEP: a base fica 3 mm acima do dojô e a ponta toca o chão quando o nariz desce uns 1,5°; atrito de 0,35 |
+| Choque entre os robôs | força de Flores, restituição 0,4, atrito de 0,30 | contato do MuJoCo (solref de 4 ms, solimp de 0,95 a 0,99), atrito de 0,30 entre os PLA |
+| Motor, bateria e ponte H | `forcasRobo` | as mesmas contas (tensão do PWM, força contraeletromotriz, queda da bateria e da ponte H, atrito do rotor), com o torque aplicado nas rodas; inércia do eixo na armadura da junta |
+| Passo | 0,125 ms | 0,5 ms (o firmware roda a cada 1 ms) |
+| Saída do dojô | roda, centro de massa ou ponta com a quina atrás do centro de massa | roda ou centro de massa fora do círculo de 77 cm, ou corpo 2 cm abaixo do dojô |
+| Sensores | `tofMede` e `bordaMv` na pose do Robo | os mesmos, com a pose lida do MuJoCo (posição do eixo e rumo) |
+
+O MuJoCo desempata contatos pela ordem e pela posição dos corpos. Na primeira versão, dois robôs idênticos (319 rpm contra 319 rpm) davam 84 a 16 para o que largava em +x. Agora cada luta gira a cena inteira de um ângulo sorteado (o dojô é redondo) e sorteia qual robô entra primeiro no modelo, voltando ao referencial do mundo na saída; com isso os robôs iguais ficam perto de 50 a 50.
+
+**Empurrão frente a frente** (`empurrao.cpp`, sem firmware, PWM em 100% nos dois, a 40 cm um do outro, com o desalinhamento de até 30 mm, o giro de até 3° e o lado de largada sorteados; 100 empurrões por linha, até 15 s):
+
+| Física | Adversário | Decididos | Tempo médio | Grupo D (319 rpm) vence | Perde o robô levantado |
+|---|---|---|---|---|---|
+| à mão | 319 rpm | 0 de 100 | sem decisão | 0 | |
+| à mão | 600 rpm | 0 de 100 | sem decisão | 0 | |
+| à mão | 1000 rpm | 100 de 100 | 1,76 s | 100 | |
+| MuJoCo | 319 rpm | 100 de 100 | 0,95 s | 46 | 99 de 100 |
+| MuJoCo | 600 rpm | 100 de 100 | 0,90 s | 70 | 99 de 100 |
+| MuJoCo | 1000 rpm | 100 de 100 | 0,92 s | 60 | 100 de 100 |
+
+"Levantado" é o robô com a maior arfagem, quando as duas diferem em mais de 5°. Na física à mão, os robôs com o mesmo torque ou com um torque maior que o limite de tração ficam empurrando de frente até o fim: nada quebra a simetria. No MuJoCo a rampa de um robô entra por baixo da do outro, levanta o nariz do outro até uns 12° e o resultado sai em menos de 1 s. O robô que fica levantado perde quase sempre (a explicação em detalhe, com a força em cada pneu, ainda não foi extraída do MuJoCo). Isso vale também quando a altura da ponta muda: com a ponta a 3 mm (STEP), a 1,5 mm e a 0,3 mm, o robô levantado perdeu 59, 60 e 52 de 60 empurrões contra o de 319 rpm (variável de ambiente `CB_PONTA_MM`); com a ponta encostada no chão (0 mm) o levantamento quase não acontece e o empurrão ainda é decidido, em 1,5 s. O resultado não mudou com o atrito do pneu de 1,0 a 1,5, o atrito do PLA de 0,2 a 0,45, a altura do centro de massa de 14 a 34 mm, a rigidez do contato nem o passo de 0,25 ms (varredura de 60 empurrões contra os motores de 319 e 600 rpm, feita na primeira versão do teste, em Python).
+
+**Bateria de combate com o firmware** (180 lutas, 3 estratégias, preto e branco, 1000, 600 e 319 rpm, 10 largadas, mesmo sorteio da bateria à mão):
+
+| Física | Vitórias | Derrotas | Empates | Quedas próprias | Tempo médio da vitória |
+|---|---|---|---|---|---|
+| à mão | 64 | 58 | 58 | 0 | 3,2 s |
+| MuJoCo | 94 | 86 | 0 | 0 | 1,9 s |
+
+Por adversário, no MuJoCo: 32 vitórias e 28 derrotas contra o de 319 rpm, 27 e 33 contra o de 600 rpm, 35 e 25 contra o de 1000 rpm; por largada: de frente 38 e 16, de lado 21 e 15, de costas 35 e 55; por estratégia: Rush 34 e 26, Flank 33 e 27, Fan out 27 e 33. Não há empate, porque todas as lutas se decidem em uns 2 s, a mais longa em 16 s. A física à mão deixa 58 das 180 lutas empatadas por tempo, quase todas contra os motores de 319 e 600 rpm. Nas duas, o robô do Grupo D nunca saiu do dojô sozinho.
+
+O que isso mostra e o que não mostra:
+
+- O MuJoCo desfaz o empate e é robusto aos números que ele usa, mas prevê que **entrar por baixo da lâmina do outro ajuda quem entra**, e o dojô real mostrou o contrário (o de 319 rpm tirava o Grupo D com facilidade). A física à mão concorda com o dojô nesse ponto, mas só porque não tem como representar o encaixe. Então a divergência está aberta, e o que falta é medida: o atrito do pneu na madeira (dinamômetro com as rodas travadas), a altura real da ponta da rampa impressa, o centro de massa pesado (robô apoiado numa régua) e um vídeo de luta no dojô com os dois robôs.
+- O teste do empurrão é em malha aberta, sem firmware, e o MuJoCo guarda um único atrito por par de superfícies, sem a curva de Stribeck.
+- As malhas são cascas convexas: janelas, rasgos e o suporte dos sensores não entram, e o motor e a caixa de redução ficam como massa no centro de massa, sem forma.
+- O CI roda o empurrão (40 por motor) e uma bateria pequena com o MuJoCo, só para o código não quebrar; os números de cima valem para esta versão e mudam se os parâmetros estimados mudarem.
+
 
 ## Montagem 3D
 
@@ -835,7 +892,7 @@ LAB_III_Grupo_D_UFMG_2026_2/
       gera_rastros.py       rastros das lutas para a página
       stub/                 cabeçalhos de mentira do simulador
     combate/                combate com o mesmo firmware nos dois robôs
-      compila.sh            compila o executável (nativo) ou o módulo WebAssembly (wasm)
+      compila.sh            compila o executável (nativo, com MUJOCO=1 também a física do MuJoCo), o módulo WebAssembly (wasm) ou o empurrão (empurrao)
       fisica.h / .cpp       dojô da RoboCore, apoios, rampa, pneus, motores, bateria, ToF e TCRT5000
       hal_combate.h / .cpp  Arduino de mentira para dois robôs
       fw_pre.h              cabeçalhos incluídos fora do namespace de cada robô
@@ -845,6 +902,10 @@ LAB_III_Grupo_D_UFMG_2026_2/
       main_nativo.cpp       linha de comando (resultado em CSV e rastro em JSON)
       wasm_api.cpp          funções exportadas para a página 3D
       bateria.py            bateria de lutas em paralelo, com tabela e falha no CI
+      fisica_mujoco.cpp     segunda física (MuJoCo): malhas do STEP, pneus, motores e saída do dojô (só com MUJOCO=1)
+      empurrao.cpp          empurrão frente a frente, sem firmware, nas duas físicas
+      compara_fisicas.py    tabela do empurrão nas duas físicas, com limites no CI
+      mujoco/               malhas convexas do chassi (malhas/*.stl) e prepara_malhas.py, que as refaz do STEP
       stub/                 Preferences.h de mentira para os dois robôs
   .github/workflows/
     compilacao.yml          CI: firmware, testes no computador, lutas simuladas, combate e conferência do painel e das páginas
@@ -855,7 +916,7 @@ A divisão segue o que cada pasta entrega: o firmware que vai para o ESP32, o pa
 
 ## Integração contínua
 
-O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados, e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/unidade/stub`), o `cinematica.cpp`, o `estados.cpp`, o `arena.cpp`, o `chave.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/unidade/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro, a escolha da estratégia pela chave, a fuga em cada combinação de sensores de borda, a localização no dojô nas duas geometrias (erro, coerência da incerteza e descarte) e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x). Um terceiro teste compila o simulador de lutas e roda 288 lutas (3 estratégias, 6 oponentes, claro e escuro, 8 largadas) com pessoas em volta do dojô; ele falha com qualquer queda própria ou com mais de 2 s mirando algo fora do dojô numa luta, e guarda a tabela no resumo da execução e o CSV como artefato. Um quarto teste compila o simulador de combate e roda 48 lutas com o mesmo firmware nos dois robôs (3 estratégias, adversário preto e branco, 1000 e 319 rpm), falhando com qualquer queda própria, compila o mesmo código para WebAssembly e falha se o `site/combate.html` versionado for diferente da página gerada com esse WebAssembly e a bateria do `doc/combate/bateria.json`. Um quinto teste gera o painel de novo a partir do `painel/painel_src.html` e a página da montagem a partir do `config.h` e do `doc/montagem/montagem.json`, falha se o `painel/painel_sumo.html` ou o `site/montagem.html` versionados estiverem diferentes, e confere se as constantes da página do simulador (`site/index.html`) são as mesmas do `config.h`. O workflow `pages.yml` publica as páginas no GitHub Pages a cada push na `main`, com os rastros e o placar das lutas gerados na hora; o combate e a montagem vão como estão no repositório. O GitHub Pages precisa estar ligado uma vez em Settings > Pages, com a fonte GitHub Actions.
+O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados, e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/unidade/stub`), o `cinematica.cpp`, o `estados.cpp`, o `arena.cpp`, o `chave.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/unidade/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro, a escolha da estratégia pela chave, a fuga em cada combinação de sensores de borda, a localização no dojô nas duas geometrias (erro, coerência da incerteza e descarte) e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x). Um terceiro teste compila o simulador de lutas e roda 288 lutas (3 estratégias, 6 oponentes, claro e escuro, 8 largadas) com pessoas em volta do dojô; ele falha com qualquer queda própria ou com mais de 2 s mirando algo fora do dojô numa luta, e guarda a tabela no resumo da execução e o CSV como artefato. Um quarto teste compila o simulador de combate e roda 48 lutas com o mesmo firmware nos dois robôs (3 estratégias, adversário preto e branco, 1000 e 319 rpm), falhando com qualquer queda própria, compila o mesmo código para WebAssembly e falha se o `site/combate.html` versionado for diferente da página gerada com esse WebAssembly e a bateria do `doc/combate/bateria.json`. Um quinto teste gera o painel de novo a partir do `painel/painel_src.html` e a página da montagem a partir do `config.h` e do `doc/montagem/montagem.json`, falha se o `painel/painel_sumo.html` ou o `site/montagem.html` versionados estiverem diferentes, e confere se as constantes da página do simulador (`site/index.html`) são as mesmas do `config.h`. Um sexto teste instala o MuJoCo 3.16.0, compila o simulador de combate e o empurrão com ele, falha se o MuJoCo não decidir 95% dos 40 empurrões por motor em 3 s, se dois robôs iguais ficarem fora de 30% a 70% de vitórias ou se o robô levantado não perder em 85% dos empurrões, e roda uma bateria de 54 lutas com o firmware, falhando com qualquer queda própria. O workflow `pages.yml` publica as páginas no GitHub Pages a cada push na `main`, com os rastros e o placar das lutas gerados na hora; o combate e a montagem vão como estão no repositório. O GitHub Pages precisa estar ligado uma vez em Settings > Pages, com a fonte GitHub Actions.
 
 As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem, sempre com merge commit. Com isso, o botão Revert de cada pull request no GitHub desfaz só aquela mudança, por meio de um pull request novo, sem reescrever o histórico. Quando vários pull requests foram empilhados, um em cima do outro, a reversão segue a ordem contrária à do merge, do mais novo para o mais antigo, porque cada um parte do anterior.
 
@@ -917,6 +978,8 @@ STMICROELECTRONICS. **VL53L0X**: world's smallest time-of-flight ranging and ges
 THREE.JS. **three.js r147**. [S.l.]: three.js authors, 2022. Disponível em: https://github.com/mrdoob/three.js. Acesso em: 13 out. 2026.
 
 THRUN, Sebastian; BURGARD, Wolfram; FOX, Dieter. **Probabilistic Robotics**. Cambridge: MIT Press, 2005.
+
+TODOROV, Emanuel; EREZ, Tom; TASSA, Yuval. MuJoCo: a physics engine for model-based control. In: IEEE/RSJ INTERNATIONAL CONFERENCE ON INTELLIGENT ROBOTS AND SYSTEMS, 2012, Vilamoura. **Anais** [...]. Piscataway: IEEE, 2012. p. 5026-5033. DOI: 10.1109/IROS.2012.6386109.
 
 WPILIB. **WPILib**: SimpleMotorFeedforward. [S.l.]: FIRST e WPILib, [s.d.]. Disponível em: https://github.com/wpilibsuite/allwpilib. Acesso em: 13 out. 2026.
 

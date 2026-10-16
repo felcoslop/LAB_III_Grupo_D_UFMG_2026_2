@@ -14,6 +14,7 @@
 // Unidades internas no SI (m, s, kg, N); os sensores trabalham em mm, como o firmware.
 #pragma once
 #include <stdint.h>
+#include <functional>
 #include <random>
 #include <vector>
 
@@ -139,6 +140,10 @@ public:
   double arranhoes = 0.0003;        // chance por ms de um risco ou poeira passar por um sensor de borda
   double ambienteToF = 0.85;        // sala à noite com lâmpada de LED: limiar de sinal menor
   std::mt19937 rng;
+  // Física de outro motor (o MuJoCo, em fisica_mujoco.cpp): quando existe, o passo() entrega o
+  // avanço a ela em vez de usar as contas deste arquivo. Os sensores e a regra de saída do dojô
+  // continuam os mesmos, e a função grava no Robo a pose, as velocidades e as cargas.
+  std::function<void(Mundo&, double)> motorFisico;
 
   void   passo(double dt);
   void   ajustaApoioInicial(Robo& rb);   // carga parada nos apoios (nS0)
@@ -156,6 +161,10 @@ private:
   void   confereFora(Robo& rb);
   double liftMaximo(const Robo& rb, double bx, double by);
 };
+
+// Liga o MuJoCo como física deste mundo (precisa da compilação com MUJOCO=1, veja compila.sh).
+// Chamar depois de posicionar os robôs: o modelo nasce no primeiro passo.
+void mujocoLiga(Mundo& w);
 
 // estáticos usados pelo desenho e pelos testes
 double kappaRampa(double muPP);       // força vertical por força horizontal na rampa
