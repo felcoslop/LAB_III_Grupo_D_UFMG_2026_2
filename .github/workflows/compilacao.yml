@@ -1,7 +1,8 @@
 # Integração contínua do firmware.
-# Toda branch enviada e todo pull request para a main passam por dois testes: a compilação do
-# firmware para o ESP32 Dev Module (na linha 2.x e na linha 3.x do core da Espressif) e a
-# conferência de que o painel_sumo.html foi gerado a partir do doc/painel_src.html atual.
+# Todo pull request para a main e todo push na main passam por dois testes: a compilação do
+# firmware para o ESP32 Dev Module (na linha 2.x e na linha 3.x do core da Espressif, com 5 e com
+# 7 sensores de oponente) e a conferência de que o painel_sumo.html foi gerado a partir do
+# doc/painel_src.html atual.
 name: Compilação
 
 on:
@@ -23,13 +24,14 @@ env:
 
 jobs:
   firmware:
-    name: Firmware (core ESP32 ${{ matrix.core }})
+    name: Firmware (core ${{ matrix.core }}, ${{ matrix.sensores }} sensores)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         core: ["2.0.17", "3.3.0"]
+        sensores: [5, 7]
     steps:
       # a pasta precisa ter o mesmo nome do .ino para a Arduino CLI aceitar o sketch
       - uses: actions/checkout@v4
@@ -55,6 +57,7 @@ jobs:
       - name: Compilação
         run: |
           arduino-cli compile --fqbn esp32:esp32:esp32 --warnings default \
+            --build-property "compiler.cpp.extra_flags=-DQTD_TOF=${{ matrix.sensores }}" \
             --additional-urls "$URL_ESP32" sumo_esp32 2>&1 | tee compilacao.log
           exit ${PIPESTATUS[0]}
 
@@ -62,7 +65,7 @@ jobs:
         if: always()
         run: |
           {
-            echo "### Core ESP32 ${{ matrix.core }}"
+            echo "### Core ESP32 ${{ matrix.core }}, ${{ matrix.sensores }} sensores"
             echo '```'
             grep -E "Sketch uses|Global variables" compilacao.log || echo "sem resumo de memória"
             echo '```'

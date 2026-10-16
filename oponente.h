@@ -1,7 +1,7 @@
 // oponente.h
 // Interface do módulo dos sensores de oponente (VL53L0X). O oponente.cpp liga os sensores,
-// lê as distâncias, aplica a calibração e entrega tudo para a fusão, que transforma as 5
-// leituras em um único "sensor de oponente" dentro de P.op. Quem chama essas funções é o
+// lê as distâncias, aplica a calibração e entrega tudo para a fusão, que transforma as
+// leituras (5 ou 7, conforme o QTD_TOF) em um único "sensor de oponente" dentro de P.op. Quem chama essas funções é o
 // percepcao.cpp (leitura e fusão) e o debug.cpp (comandos de teste e calibração).
 
 #pragma once

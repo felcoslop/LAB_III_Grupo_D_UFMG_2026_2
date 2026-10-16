@@ -7,7 +7,7 @@
 ![Status](https://img.shields.io/badge/status-bancada%20de%20teste-orange)
 [![Compilação](https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2/actions/workflows/compilacao.yml/badge.svg)](https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2/actions/workflows/compilacao.yml)
 
-Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **Grupo D**, desenvolvido na disciplina ELE635 Laboratório de Sistemas III da UFMG. O ESP32 lê cinco sensores de distância VL53L0X e quatro sensores de linha TCRT5000, estima onde está o oponente com um filtro bayesiano em grade e decide o movimento com uma máquina de estados. Um painel web, que abre direto no navegador e conversa com o robô pela USB, mostra sensores, mapa de probabilidade, rumo e estado em 2D e 3D.
+Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **Grupo D**, desenvolvido na disciplina ELE635 Laboratório de Sistemas III da UFMG. O ESP32 lê cinco ou sete sensores de distância VL53L0X e quatro sensores de linha TCRT5000, estima onde está o oponente com um filtro bayesiano em grade e decide o movimento com uma máquina de estados. Um painel web, que abre direto no navegador e conversa com o robô pela USB, mostra sensores, mapa de probabilidade, rumo e estado em 2D e 3D.
 
 ![Painel do robô em modo demo, com radar 2D, ambiente 3D, tabela de precisão e sensores de borda](doc/img/painel_demo.jpg)
 
@@ -33,7 +33,7 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 
 ## Funcionalidades
 
-- Identificação dos cinco VL53L0X pelo pino XSHUT, com endereço I2C próprio para cada sensor e nova tentativa automática quando algum para de responder.
+- Identificação dos VL53L0X (5 ou 7, escolhidos no `config.h`) pelo pino XSHUT, com endereço I2C próprio para cada sensor e nova tentativa automática quando algum para de responder.
 - Leitura escalonada e sem bloqueio dos ToF, com mediana de 3 leituras e calibração de 2 pontos gravada na memória do ESP32.
 - Rastreador bayesiano em grade polar, rodando no segundo núcleo, que aproveita também a informação dos sensores que não veem nada e reconhece a arena vazia.
 - Rumo (a seta do painel) até o oponente ou até os pontos cegos, usado pela máquina de estados na busca.
@@ -48,15 +48,16 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 | Componente | Qtd. | Uso no projeto |
 |---|---|---|
 | ESP32 DevKit V1 (30 pinos) com placa de expansão | 1 | microcontrolador de dois núcleos, com ADC (o rádio fica desligado) |
-| VL53L0X (placas CJVL53L0XV2 / GY-530) | 5 | distância até o oponente: LE, FE, FC, FD e LD |
+| VL53L0X (placas CJVL53L0XV2 / GY-530) | 5 ou 7 | distância até o oponente: LE, FE, FC, FD e LD, mais TE e TD na versão de 7 |
 | TCRT5000 com comparador LM393 | 4 | linha branca da borda, lida pela saída analógica A0 |
 | TB6612FNG | 1 | ponte H dos dois motores (desativada na bancada) |
 | Botão | 1 | start, ligado entre o GPIO 32 e o GND |
 
 | Função | GPIO | Observação |
 |---|---|---|
-| I2C SDA / SCL | 21 / 22 | barramento comum dos cinco ToF, a 100 kHz |
+| I2C SDA / SCL | 21 / 22 | barramento comum dos ToF, a 100 kHz |
 | XSHUT LE / FE / FC / FD / LD | 13 / 14 / 27 / 26 / 25 | um fio por sensor, define o nome de cada um |
+| XSHUT TE / TD (só com 7 sensores) | 33 / 15 | o 15 é pino de boot, mas precisa de nível alto no boot, o mesmo do XSHUT ligado |
 | Borda BFE / BFD (frente) | 34 / 35 | ADC1, pinos só de entrada |
 | Borda BTE / BTD (trás) | 36 (VP) / 39 (VN) | ADC1, pinos só de entrada |
 | Botão de start | 32 | `INPUT_PULLUP`, nível baixo indica botão apertado |
@@ -75,8 +76,33 @@ Na bancada (`GEOMETRIA_BANCADA 1`), a origem do referencial é o centro da proto
 | FC | 27 | 0x32 | 87 | -1 | 0° |
 | FD | 26 | 0x33 | 73 | -27 | -20° |
 | LD | 25 | 0x34 | -2 | -30 | -90° |
+| TE (7 sensores, posição prevista) | 33 | 0x35 | -80 | 25 | 160° |
+| TD (7 sensores, posição prevista) | 15 | 0x36 | -80 | -25 | -160° |
 
-Os PDFs da pasta `doc/` trazem os gabaritos em escala 1:1 da bancada e do robô, o mapa de ligação na protoboard e uma lista de conferência antes de energizar.
+Os PDFs da pasta `doc/` trazem os gabaritos em escala 1:1 da bancada e do robô, o mapa de ligação na protoboard e uma lista de conferência antes de energizar. O `guia_montagem_sensores_7.pdf` faz o mesmo para a versão de 7 sensores e traz também a pinagem completa do ESP32.
+
+### Posição dos sensores: 5 ou 7
+
+A constante `QTD_TOF` do `config.h` escolhe entre os 5 sensores originais e a versão de 7, que acrescenta um par nas quinas de trás (TE e TD a ±160°). Os 5 sensores de antes não mudam: FC no centro, que é quem decide o ataque, FE e FD a ±20° e LE e LD a ±90°. O par novo fica no fim da tabela, então os 5 sensores de antes mantêm XSHUT, endereço, cor no painel e calibração gravada; com `QTD_TOF 5` o firmware compilado é idêntico ao anterior.
+
+O capítulo 2 do Sumo Robot Blackbook pede número ímpar de sensores, com um no centro para centralizar o oponente, e diz que os sensores precisam vigiar todas as áreas por onde o oponente pode atacar, principalmente os cantos [DEDE, s.d.]. O exemplo de 7 do livro acrescenta duas diagonais na frente, mas o livro não trata de sensores atrás. Com os 5 sensores de hoje, a frente já enxerga bem: o buraco entre FE e LE (de 32,5° a 77,5°) só existe a mais de uns 25 cm, porque os cones se cruzam perto do robô, e o oponente que vem por ali entra em algum cone antes de encostar. A traseira, de 115° a 180°, não tem nenhum sensor. Com o par atrás, o total continua ímpar, o FC continua sozinho no centro e a área sem cobertura passa a ser vigiada.
+
+A escolha saiu de uma simulação com o rastreador do firmware compilado no computador, robô de 152 mm e oponente preto de 15,2 cm: 500 ataques em linha reta a 0,4 a 1,2 m/s com o robô parado, 300 buscas seguindo o rumo do firmware a partir de posições sorteadas dentro do dojô e 240 sequências de rastreio com o oponente andando.
+
+| Robô de 152 mm | 5 (hoje) | 7, par na frente a ±45° | 7, par atrás a ±160° |
+|---|---|---|---|
+| Ataques que chegam sem ser vistos | 36% | 36% | 8% |
+| Ataques por trás que chegam sem ser vistos | 83% | 82% | 9% |
+| Tempo médio de busca com o oponente parado (90% dos casos) | 206 ms (700 ms) | 185 ms (660 ms) | 35 ms (140 ms) |
+| Tempo médio de busca com o oponente andando (90% dos casos) | 317 ms (922 ms) | 268 ms (880 ms) | 34 ms (120 ms) |
+| Erro de ângulo na frente, 90% dos casos | 7,5° | 6,1° | 7,5° |
+| Posições do dojô dentro de algum cone | 58% | 64% | 88% |
+
+O par na frente melhora um pouco a mira nas diagonais, mas não muda o que passa sem ser visto. O par atrás reduz os ataques sem aviso de 36% para 8% e deixa a busca cerca de 6 vezes mais rápida, sem mudar a precisão na frente. O ângulo de ±160° veio de uma varredura: com o par a ±140°, ±150°, ±160° e ±170°, os ataques por trás sem aviso ficaram em 17%, 12%, 9% e 8%, e a ±170° o ganho é pequeno e o aviso chega mais tarde. Os pontos sem cobertura que restam são o buraco diagonal a mais de 25 cm e uma faixa estreita bem atrás a mais de 30 cm. Esses números são de simulação; o teste na bancada com o painel é o que confirma o ganho.
+
+![Radar 2D do painel com 7 sensores e o oponente atrás, visto só pelo TE](doc/img/radar_7_sensores.jpg)
+
+Com a pinagem atual cabem no máximo 8 sensores: o GPIO 5 é o último pino livre sem restrição de boot. Um 8º sensor deixa o número de sensores par, o que o livro desaconselha [DEDE, s.d.]. Para passar de 8, os XSHUT precisariam de um expansor I2C, como o PCF8574.
 
 ## Instalação
 
@@ -109,7 +135,7 @@ O firmware usa o core do ESP32 [ESPRESSIF SYSTEMS, s.d.] e a biblioteca VL53L0X 
 
 ### Primeiro teste pela USB
 
-No boot, o terminal mostra a lista de comandos e a tabela de sensores. O comando `lista` deve mostrar os cinco ToF como OK; com menos de três, o robô não inicia e o LED azul pisca rápido. O comando `scan` deve encontrar os endereços de 0x30 a 0x34, e um endereço 0x29 indica um sensor sem o fio XSHUT. No modo `id`, a mão cobrindo um sensor por vez faz o terminal escrever o nome dele, o que ajuda a conferir as etiquetas e a cor de cada fio.
+No boot, o terminal mostra a lista de comandos e a tabela de sensores. O comando `lista` deve mostrar todos os ToF como OK; com menos de três, o robô não inicia e o LED azul pisca rápido. O comando `scan` deve encontrar os endereços de 0x30 a 0x34 (até 0x36 com 7 sensores), e um endereço 0x29 indica um sensor sem o fio XSHUT. No modo `id`, a mão cobrindo um sensor por vez faz o terminal escrever o nome dele, o que ajuda a conferir as etiquetas e a cor de cada fio.
 
 ### Comandos
 
@@ -160,7 +186,7 @@ O firmware segue uma regra simples: a máquina de estados só conhece a struct `
 
 ```mermaid
 flowchart LR
-    TOF["5 x VL53L0X<br/>I2C e XSHUT"] --> OPO["oponente.cpp<br/>leitura e fusão"]
+    TOF["5 ou 7 x VL53L0X<br/>I2C e XSHUT"] --> OPO["oponente.cpp<br/>leitura e fusão"]
     OPO <--> RAS["rastreador.cpp<br/>filtro bayesiano<br/>núcleo 0"]
     TCRT["4 x TCRT5000<br/>ADC1"] --> BOR["borda.cpp<br/>limiar e confirmação"]
     BOT["botão de start"] --> PER
@@ -196,7 +222,7 @@ Arquivo principal. O `setup()` configura primeiro os motores, para o robô nasce
 
 ### `config.h`
 
-Este arquivo concentra tudo o que depende do hardware: pinos, posição dos sensores, limiares, velocidades e tempos. As tabelas `TOF[]` e `BORDA[]` descrevem os sensores, e o tamanho delas sai de `sizeof`, então um sensor a mais é só uma linha a mais na tabela (até 16 ToF). A chave `GEOMETRIA_BANCADA` escolhe entre as posições da bancada e as do robô. O alcance `TOF_ALCANCE_MM` vem da geometria do dojô: no pior caso, com o robô encostado em uma borda e o oponente encostado na borda oposta, a face do oponente fica a 77 cm menos 7,6 cm menos 15,2 cm, ou seja, 54,2 cm do centro do robô. Qualquer leitura mais longe é parede, mesa ou pessoa e vale como "nada".
+Este arquivo concentra tudo o que depende do hardware: pinos, posição dos sensores, limiares, velocidades e tempos. As tabelas `TOF[]` e `BORDA[]` descrevem os sensores, e o tamanho delas sai de `sizeof`, então um sensor a mais é só uma linha a mais na tabela (até 16 ToF). A chave `GEOMETRIA_BANCADA` escolhe entre as posições da bancada e as do robô, e a `QTD_TOF` escolhe entre 5 e 7 sensores; qualquer outro valor interrompe a compilação com uma mensagem de erro. O alcance `TOF_ALCANCE_MM` vem da geometria do dojô: no pior caso, com o robô encostado em uma borda e o oponente encostado na borda oposta, a face do oponente fica a 77 cm menos 7,6 cm menos 15,2 cm, ou seja, 54,2 cm do centro do robô. Qualquer leitura mais longe é parede, mesa ou pessoa e vale como "nada".
 
 ### `percepcao.h` e `percepcao.cpp`
 
@@ -213,7 +239,7 @@ O rumo é a direção que o robô deve seguir agora e aparece no painel como uma
 
 ### `oponente.h` e `oponente.cpp`
 
-Módulo dos cinco VL53L0X, com três tarefas. A primeira é a inicialização: todos os sensores começam desligados pelo XSHUT, e cada um é ligado sozinho, responde no endereço de fábrica 0x29 e recebe o endereço da tabela. A segunda é a leitura: os sensores medem em modo contínuo a cada 20 ms e o código só consulta cada um perto da hora de ter medida nova, o que deixa o barramento I2C livre; a leitura passa pela calibração `ganho * bruto + offset`, pela mediana das 3 últimas medidas e pelo alcance de cada sensor. A terceira é a fusão: com `FUSAO_BAYES 0` as leituras do mesmo objeto viram um ponto médio, e com `FUSAO_BAYES 1` (padrão) as medidas vão para o rastreador. Um sensor só é marcado como FALHOU depois de erros repetidos de I2C, então uma pausa longa do loop não derruba um sensor bom.
+Módulo dos VL53L0X, com três tarefas. A primeira é a inicialização: todos os sensores começam desligados pelo XSHUT, e cada um é ligado sozinho, responde no endereço de fábrica 0x29 e recebe o endereço da tabela. A segunda é a leitura: os sensores medem em modo contínuo a cada 20 ms e o código só consulta cada um perto da hora de ter medida nova, o que deixa o barramento I2C livre; a leitura passa pela calibração `ganho * bruto + offset`, pela mediana das 3 últimas medidas e pelo alcance de cada sensor. A terceira é a fusão: com `FUSAO_BAYES 0` as leituras do mesmo objeto viram um ponto médio, e com `FUSAO_BAYES 1` (padrão) as medidas vão para o rastreador. Um sensor só é marcado como FALHOU depois de erros repetidos de I2C, então uma pausa longa do loop não derruba um sensor bom.
 
 ### `rastreador.h` e `rastreador.cpp`
 
@@ -289,7 +315,7 @@ O `painel_sumo.html` é o painel completo, com o three.js e o OrbitControls embu
 
 ### Documentos de montagem
 
-A pasta `doc/` traz o `gabarito_bancada.pdf` (bancada em escala 1:1, vista lateral, cotas e montagem dos sensores de borda) e o `guia_montagem_sensores.pdf` (gabarito do robô, mapa de ligação na protoboard e lista de conferência). Os scripts `gera_bancada.py` e `gera_guia.py` geram esses PDFs a partir das tabelas do `config.h` com a biblioteca ReportLab; os caminhos dentro deles apontam para a pasta original de desenvolvimento e precisam de ajuste antes de rodar em outra máquina.
+A pasta `doc/` traz o `gabarito_bancada.pdf` (bancada em escala 1:1, vista lateral, cotas e montagem dos sensores de borda) , o `guia_montagem_sensores.pdf` (gabarito do robô, mapa de ligação na protoboard e lista de conferência) e o `guia_montagem_sensores_7.pdf`, com a mesma estrutura para 7 sensores mais o gabarito da bancada com o par novo, a pinagem completa do ESP32 e o estudo de cobertura. Os scripts `gera_bancada.py` e `gera_guia.py` geram esses PDFs a partir das tabelas do `config.h` com a biblioteca ReportLab (`python doc/gera_guia.py --sensores 7` gera a versão de 7).
 
 ## Configuração
 
@@ -298,6 +324,7 @@ Os ajustes principais ficam no `config.h`:
 | Constante | Valor | Efeito |
 |---|---|---|
 | `GEOMETRIA_BANCADA` | 1 | 1 usa as posições da bancada e 0 as do robô |
+| `QTD_TOF` | 5 | quantidade de sensores de oponente, 5 ou 7 (também aceita `-DQTD_TOF=7` na compilação) |
 | `I2C_CLOCK_HZ` | 100000 | velocidade do I2C; 400000 só com fios curtos |
 | `TOF_TIMING_US` | 20000 | tempo de cada medida do ToF |
 | `TOF_ALCANCE_MM` | 542 (calculado) | alcance máximo a partir do centro do robô |
@@ -341,16 +368,17 @@ sumo_esp32/
     painel_src.html         código fonte do painel
     gera_painel.py          gera o painel_sumo.html
     gera_bancada.py         gera o gabarito_bancada.pdf
-    gera_guia.py            gera o guia_montagem_sensores.pdf
+    gera_guia.py            gera o guia de montagem (5 ou 7 sensores)
     gabarito_bancada.pdf    gabarito 1:1 da bancada
     guia_montagem_sensores.pdf  gabarito do robô, ligação e conferência
+    guia_montagem_sensores_7.pdf  o mesmo para 7 sensores, com bancada, pinagem e cobertura
     img/                    imagens deste README
     vendor/                 three.js r147, OrbitControls e licença MIT
 ```
 
 ## Integração contínua
 
-O workflow `.github/workflows/compilacao.yml` roda em todo pull request para a `main` e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, e publica o uso de flash e RAM no resumo da execução. Um segundo teste gera o painel de novo a partir do `doc/painel_src.html` e falha se o `painel_sumo.html` versionado estiver diferente. As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem.
+O workflow `.github/workflows/compilacao.yml` roda em todo pull request para a `main` e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, e publica o uso de flash e RAM no resumo da execução. Um segundo teste gera o painel de novo a partir do `doc/painel_src.html` e falha se o `painel_sumo.html` versionado estiver diferente. As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem.
 
 ## Equipe
 

@@ -1,5 +1,7 @@
-# Gera "gabarito_bancada.pdf": montagem dos 5 sensores na protoboard (1:1) + vista lateral e cotas
-import math, re
+# Gera "gabarito_bancada.pdf": montagem dos 5 sensores na protoboard (1:1) + vista lateral e cotas.
+# Uso: python doc/gera_bancada.py (lê o config.h da pasta do sketch). O gabarito da bancada com
+# 7 sensores fica no guia_montagem_sensores_7.pdf, gerado pelo gera_guia.py.
+import math, os, re
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
@@ -11,12 +13,14 @@ pdfmetrics.registerFont(TTFont("S", "/usr/share/fonts/truetype/dejavu/DejaVuSans
 pdfmetrics.registerFont(TTFont("SB", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"))
 pdfmetrics.registerFont(TTFont("M", "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"))
 
-cfg = open("/home/claude/sumo_esp32/config.h").read()
-bloco = cfg[cfg.index("#if GEOMETRIA_BANCADA"):cfg.index("#else")]
+AQUI = os.path.dirname(os.path.abspath(__file__))
+cfg = open(os.path.join(AQUI, "..", "config.h"), encoding="utf-8").read()
+bloco = cfg[cfg.index("#if GEOMETRIA_BANCADA\n//"):cfg.index("\n#else\n")]
+bloco = re.sub(r"#if QTD_TOF == 7.*?#endif", "", bloco, flags=re.S)       # este gabarito é o de 5 sensores
 TOF = [dict(nome=m[1], xshut=int(m[2]), x=int(m[4]), y=int(m[5]), ang=int(m[6]))
        for m in re.finditer(r'\{\s*"(\w+)",\s*(\d+),\s*(0x[0-9A-Fa-f]+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+)\s*\}', bloco)]
 assert len(TOF) == 5
-i2 = cfg.index("#if GEOMETRIA_BANCADA", cfg.index("SENSORES DE BORDA"))
+i2 = cfg.index("#if GEOMETRIA_BANCADA", cfg.index("struct CfgBorda"))
 blocoB = cfg[i2:cfg.index("#else", i2)]
 BORDA = [dict(nome=m[1], pino=int(m[2]), x=int(m[3]), y=int(m[4]), frente=m[6] == "true")
          for m in re.finditer(r'\{\s*"(\w+)",\s*(\d+),\s*(-?\d+),\s*(-?\d+),\s*([-+]?\d+),\s*(true|false)\s*\}', blocoB)]
@@ -28,7 +32,7 @@ HL = float(re.search(r"LENTE_ALTURA_MM\s+([\d.]+)", bloco)[1])
 COR = {"LE": "#8e5bd6", "FE": "#2f7fd8", "FC": "#1f9e6e", "FD": "#e07b1a", "LD": "#d6457f"}
 PCB_L, PCB_E, CHIP_E, PAL_L, PAL_E = 24.6, 1.6, 1.0, 12.0, 2.0
 
-c = canvas.Canvas("/home/claude/sumo_esp32/doc/gabarito_bancada.pdf", pagesize=A4)
+c = canvas.Canvas(os.path.join(AQUI, "gabarito_bancada.pdf"), pagesize=A4)
 c.setTitle("Gabarito da bancada (protoboard + 5 sensores)")
 W, H = A4
 def txt(x, y, s, size=9, font="S", color=colors.black, anchor="l"):
