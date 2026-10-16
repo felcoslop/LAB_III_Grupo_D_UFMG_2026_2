@@ -44,8 +44,8 @@ struct CfgToF {
 // ímpar de sensores, com um no centro). Na simulação com o rastreador, o par de trás reduziu os
 // ataques que chegam sem ser vistos de 36% para 8% e o tempo médio de busca de 206 para 35 ms,
 // sem piorar a precisão na frente (detalhes no README e no guia de 7 sensores).
-// O par novo fica no fim da tabela para os 5 sensores antigos manterem o mesmo XSHUT, endereço,
-// cor no painel e calibração gravada.
+// O par novo fica no fim da tabela para os 5 sensores antigos manterem o mesmo endereço, cor no
+// painel e calibração gravada.
 // O valor também pode vir da compilação (-DQTD_TOF=7), como o CI faz.
 // Com 7 sensores, o I2C a 100 kHz fica ocupado boa parte do tempo; na placa definitiva, com
 // fios curtos, o I2C_CLOCK_HZ pode subir para 400000.
@@ -67,17 +67,16 @@ struct CfgToF {
 // substitui estes números.
 static const CfgToF TOF[] = {
   //  nome   xshut  endereço   x     y    ang   offset
-  {  "LE",   13,    0x30,     -1,   30,   90,    0  },   // meio da lateral esquerda
-  {  "FE",   14,    0x31,     73,   27,   20,    0  },   // canto frente esquerdo
-  {  "FC",   27,    0x32,     87,   -1,    0,    0  },   // centro da frente, decide o ataque
-  {  "FD",   26,    0x33,     73,  -27,  -20,    0  },   // canto frente direito
-  {  "LD",   25,    0x34,     -2,  -30,  -90,    0  },   // meio da lateral direita
-  // XSHUT do TE no GPIO 33 e do TD no GPIO 15. O 15 é pino de boot, mas o nível que ele precisa
-  // no boot é o alto, o mesmo do XSHUT com o sensor ligado. O GPIO 12 ficou de fora porque
-  // nível alto nele no boot muda a tensão da flash e o ESP32 pode não ligar.
+  {  "LE",   17,    0x30,     -1,   30,   90,    0  },   // meio da lateral esquerda
+  {  "FE",   23,    0x31,     73,   27,   20,    0  },   // canto frente esquerdo
+  {  "FC",   19,    0x32,     87,   -1,    0,    0  },   // centro da frente, decide o ataque
+  {  "FD",   18,    0x33,     73,  -27,  -20,    0  },   // canto frente direito
+  {  "LD",    5,    0x34,     -2,  -30,  -90,    0  },   // meio da lateral direita
+  // XSHUT conforme a pinagem da placa nova (Lab3-Liga). O GPIO 5 é pino de boot e precisa estar
+  // em nível alto no boot, que é o nível do XSHUT com o sensor ligado (pull-up do módulo).
 #if QTD_TOF == 7
-  {  "TE",   33,    0x35,    -80,   25,  160,    0  },   // quina traseira esquerda (prevista)
-  {  "TD",   15,    0x36,    -80,  -25, -160,    0  },   // quina traseira direita (prevista)
+  {  "TE",   16,    0x35,    -80,   25,  160,    0  },   // quina traseira esquerda (prevista)
+  {  "TD",    4,    0x36,    -80,  -25, -160,    0  },   // quina traseira direita (prevista)
 #endif
 };
 // contorno do corpo em mm a partir da origem e altura das lentes, usados pelo painel
@@ -93,14 +92,14 @@ static const CfgToF TOF[] = {
 // trás, apontando a ±160 graus, onde os 5 sensores não enxergam nada.
 static const CfgToF TOF[] = {
   //  nome   xshut  endereço   x     y    ang   offset
-  {  "LE",   13,    0x30,     10,   70,   90,    0  },   // lateral esquerda
-  {  "FE",   14,    0x31,     66,   40,   20,    0  },   // frente esquerda
-  {  "FC",   27,    0x32,     68,    0,    0,    0  },   // frente centro, decide o ataque
-  {  "FD",   26,    0x33,     66,  -40,  -20,    0  },   // frente direita
-  {  "LD",   25,    0x34,     10,  -70,  -90,    0  },   // lateral direita
+  {  "LE",   17,    0x30,     10,   70,   90,    0  },   // lateral esquerda
+  {  "FE",   23,    0x31,     66,   40,   20,    0  },   // frente esquerda
+  {  "FC",   19,    0x32,     68,    0,    0,    0  },   // frente centro, decide o ataque
+  {  "FD",   18,    0x33,     66,  -40,  -20,    0  },   // frente direita
+  {  "LD",    5,    0x34,     10,  -70,  -90,    0  },   // lateral direita
 #if QTD_TOF == 7
-  {  "TE",   33,    0x35,    -60,   62,  160,    0  },   // canto traseiro esquerdo
-  {  "TD",   15,    0x36,    -60,  -62, -160,    0  },   // canto traseiro direito
+  {  "TE",   16,    0x35,    -60,   62,  160,    0  },   // canto traseiro esquerdo
+  {  "TD",    4,    0x36,    -60,  -62, -160,    0  },   // canto traseiro direito
 #endif
 };
 #define CORPO_FRENTE_MM   76.0f
@@ -159,9 +158,9 @@ static const CfgToF TOF[] = {
 // ============================================================================
 // Sensores de borda: 4 módulos TCRT5000 (com LM393, pinos VCC GND D0 A0)
 // O código usa a saída analógica A0 (Blackbook, capítulo 9), porque o D0 do comparador
-// não distingue arranhão de linha; o trimpot azul só mexe no D0. Os pinos 34, 35, 36 (VP)
-// e 39 (VN) são do ADC1 e servem só como entrada, o que combina com o A0. A alimentação é de
-// 3,3 V, assim o A0 nunca passa de 3,3 V. Dohyo: 77 cm, laminado preto e borda branca de
+// não distingue arranhão de linha; o trimpot azul só mexe no D0. Os pinos 34, 35, 32 e 33
+// são entradas do ADC1. No esquema da placa nova o fio sai do D0: para a leitura analógica
+// funcionar, o fio precisa sair do A0 do módulo. A alimentação é de 3,3 V, assim o A0 nunca passa de 3,3 V. Dohyo: 77 cm, laminado preto e borda branca de
 // 2,5 cm. Altura boa do sensor ao chão: entre 3 e 8 mm.
 // ============================================================================
 #define USAR_BORDA        1
@@ -182,16 +181,16 @@ static const CfgBorda BORDA[] = {
   //  nome    pino    x     y    lado  frente
   {  "BFE",   34,     40,   34,  -1,   true  },   // frente esquerda
   {  "BFD",   35,     55,  -34,  +1,   true  },   // frente direita
-  {  "BTE",   36,    -75,   34,  -1,   false },   // trás esquerda, GPIO36 é o VP
-  {  "BTD",   39,    -60,  -34,  +1,   false },   // trás direita, GPIO39 é o VN
+  {  "BTE",   32,    -75,   34,  -1,   false },   // trás esquerda
+  {  "BTD",   33,    -60,  -34,  +1,   false },   // trás direita
 };
 #define BORDA_ALTURA_MM   2.7f     // altura da face do sensor ao chão, só para o painel 3D
 #else
 static const CfgBorda BORDA[] = {
   {  "BFE",   34,     60,   60,  -1,   true  },
   {  "BFD",   35,     60,  -60,  +1,   true  },
-  {  "BTE",   36,    -60,   60,  -1,   false },
-  {  "BTD",   39,    -60,  -60,  +1,   false },
+  {  "BTE",   32,    -60,   60,  -1,   false },
+  {  "BTD",   33,    -60,  -60,  +1,   false },
 };
 #define BORDA_ALTURA_MM   4.0f
 #endif
@@ -209,25 +208,37 @@ static const CfgBorda BORDA[] = {
                                    // (a linha de 2,5 cm passa em 25 ms com o robô a 1 m/s)
 
 // ============================================================================
-// Motores (driver TB6612FNG). Na bancada o valor de USAR_MOTORES fica em 0.
+// Motores: ponte H dupla L298N com os jumpers de ENA e ENB no lugar (EN sempre ligado).
+// O PWM vai no próprio pino IN: para a frente o IN1 recebe o PWM e o IN2 fica em LOW, e no
+// tempo desligado do PWM os dois ficam em LOW, o que freia o motor (modo acionar/frear).
+// Com os dois IN em LOW o motor fica freado, e não solto. Na bancada USAR_MOTORES fica em 0.
+// O valor também pode vir da compilação (-DUSAR_MOTORES=1), como o CI faz.
 // ============================================================================
+#ifndef USAR_MOTORES
 #define USAR_MOTORES      0
-#define PINO_PWMA         18
-#define PINO_AIN1         19
-#define PINO_AIN2         23
-#define PINO_PWMB         4
-#define PINO_BIN1         16
-#define PINO_BIN2         17
-// o STBY do TB6612 vai direto no 3V3
+#endif
+#define PINO_IN1          25     // motor esquerdo (saídas OUT1 e OUT2 do L298N)
+#define PINO_IN2          26
+#define PINO_IN3          27     // motor direito (saídas OUT3 e OUT4)
+#define PINO_IN4          13
 #define INVERTE_ESQ       0      // 1 quando o motor esquerdo gira ao contrário
 #define INVERTE_DIR       0
+#define TROCA_MOTORES     0      // 1 quando o motor da esquerda está ligado em OUT3 e OUT4
 
 // ============================================================================
 // Interface. O robô é autônomo: a telemetria sai só pela USB, para o Monitor Serial e para
 // o painel (painel_sumo.html), e o firmware não liga WiFi nem Bluetooth.
 // ============================================================================
-#define PINO_START        32     // botão ligado ao GND (INPUT_PULLUP)
-#define PINO_LED          2      // LED azul da placa
+// Botão de start no GPIO 0, o mesmo do botão BOOT da placa, que já tem pull-up. O S1 do
+// esquema fica entre o GPIO 0 e o GND, em paralelo com o BOOT. Com o botão apertado na hora de
+// ligar, o ESP32 entra no modo de gravação, então o botão só pode ser usado com o robô ligado.
+#define PINO_START        0      // nível baixo indica botão apertado (INPUT_PULLUP)
+// A chave DIP de 4 vias usa os GPIOs 12, 14, 2 e 15 e liga cada pino no 3V3. Por isso o GPIO 2
+// não serve mais para o LED: com a chave ligada e o pino em LOW, o 3V3 ficaria em curto com o
+// pino. O valor -1 desliga o LED de status. Cuidados no boot: DIP 1 (GPIO 12) desligada na hora
+// de ligar o ESP32, porque nível alto no GPIO 12 muda a tensão da flash e a placa não liga, e
+// DIP 3 (GPIO 2) desligada na hora de gravar o firmware.
+#define PINO_LED          -1
 #define SERIAL_BAUD       115200
 #define STREAM_MS         20     // dados para o painel a 50 Hz, o mesmo ritmo dos sensores
 

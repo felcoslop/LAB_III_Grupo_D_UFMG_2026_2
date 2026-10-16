@@ -1,15 +1,15 @@
 # Integração contínua do firmware.
-# Todo pull request para a main e todo push na main passam por dois testes: a compilação do
-# firmware para o ESP32 Dev Module (na linha 2.x e na linha 3.x do core da Espressif, com 5 e com
-# 7 sensores de oponente) e a conferência de que o painel_sumo.html foi gerado a partir do
-# doc/painel_src.html atual.
+# Todo pull request (para a main ou empilhado sobre outro pull request) e todo push na main
+# passam por dois testes: a compilação do firmware para o ESP32 Dev Module (na linha 2.x e na
+# linha 3.x do core da Espressif, com 5 e com 7 sensores de oponente, com os motores desligados
+# como na bancada e também ligados) e a conferência de que o painel_sumo.html foi gerado a
+# partir do doc/painel_src.html atual.
 name: Compilação
 
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -24,7 +24,7 @@ env:
 
 jobs:
   firmware:
-    name: Firmware (core ${{ matrix.core }}, ${{ matrix.sensores }} sensores)
+    name: Firmware (core ${{ matrix.core }}, ${{ matrix.sensores }} sensores, motores ${{ matrix.motores }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -32,6 +32,11 @@ jobs:
       matrix:
         core: ["2.0.17", "3.3.0"]
         sensores: [5, 7]
+        motores: [0]
+        # o código dos motores (ponte H e cinemática) também é compilado, nas duas linhas do core
+        include:
+          - { core: "2.0.17", sensores: 5, motores: 1 }
+          - { core: "3.3.0", sensores: 7, motores: 1 }
     steps:
       # a pasta precisa ter o mesmo nome do .ino para a Arduino CLI aceitar o sketch
       - uses: actions/checkout@v4
@@ -57,7 +62,7 @@ jobs:
       - name: Compilação
         run: |
           arduino-cli compile --fqbn esp32:esp32:esp32 --warnings default \
-            --build-property "compiler.cpp.extra_flags=-DQTD_TOF=${{ matrix.sensores }}" \
+            --build-property "compiler.cpp.extra_flags=-DQTD_TOF=${{ matrix.sensores }} -DUSAR_MOTORES=${{ matrix.motores }}" \
             --additional-urls "$URL_ESP32" sumo_esp32 2>&1 | tee compilacao.log
           exit ${PIPESTATUS[0]}
 
@@ -65,7 +70,7 @@ jobs:
         if: always()
         run: |
           {
-            echo "### Core ESP32 ${{ matrix.core }}, ${{ matrix.sensores }} sensores"
+            echo "### Core ESP32 ${{ matrix.core }}, ${{ matrix.sensores }} sensores, motores ${{ matrix.motores }}"
             echo '```'
             grep -E "Sketch uses|Global variables" compilacao.log || echo "sem resumo de memória"
             echo '```'

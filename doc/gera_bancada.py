@@ -262,8 +262,8 @@ txt(20 * mm, y, "LIGAÇÃO (cada sensor usa a trinca G / V / S do SEU pino na pl
 tab = [("Sensor", "GPIO", "Posição", "Linhas (jeito A)"),
        ("BFE", "34", "frente esquerda", "58 a 61, coluna a"),
        ("BFD", "35", "frente direita", "58 a 61, coluna j"),
-       ("BTE", "36 (VP)", "trás esquerda", "1 a 4, coluna a"),
-       ("BTD", "39 (VN)", "trás direita", "1 a 4, coluna j")]
+       ("BTE", "32", "trás esquerda", "1 a 4, coluna a"),
+       ("BTD", "33", "trás direita", "1 a 4, coluna j")]
 for i, r in enumerate(tab):
     for j, v in enumerate(r):
         txt((20 + [0, 22, 48, 90][j]) * mm, y, v, 8.3, "SB" if i == 0 else "S")
