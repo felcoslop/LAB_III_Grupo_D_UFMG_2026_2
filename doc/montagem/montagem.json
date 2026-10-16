@@ -1,0 +1,169 @@
+{
+  "sobre": "Montagem 3D do robô do Grupo D: modelos, posição de cada peça e ligações. As posições dos sensores (ToF e borda) e os GPIOs das ligações saem do config.h; o resto sai daqui. Referencial do robô em mm: origem no meio do eixo das rodas, no chão, x para a frente, y para a esquerda e z para cima. rot é [rx, ry, rz] em graus, aplicados na ordem z, y, x. Depois de mudar este arquivo: python doc/montagem/gera_montagem.py. Depois de trocar um STL: python doc/montagem/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES e depois o gera_montagem.py.",
+  "provisorio": "Posições provisórias dentro do chassi antigo (STL de 10/2026). O chassi remodelado define o encaixe de cada componente; a lista de interferências no fim da página mostra o que ainda colide.",
+
+  "modelos": {
+    "base":        {"arquivo": "chassi/Base-Sumo.stl",            "referencial": "stl_robo", "faces": 6000},
+    "corpo":       {"arquivo": "chassi/Corpo.stl",                "referencial": "stl_robo", "faces": 3500},
+    "suporte":     {"arquivo": "chassi/Maker_Object_Holder.stl",  "referencial": "stl_robo", "desloca_stl": [0, -7.5, 0]},
+    "motor":       {"arquivo": "chassi/motor.stl",                "referencial": "stl_robo", "faces": 2500},
+    "motor_esp":   {"arquivo": "chassi/motor.stl",                "referencial": "stl_robo", "faces": 2500, "espelha": true},
+    "abrac":       {"arquivo": "chassi/Suporte-Final.stl",        "referencial": "stl_robo"},
+    "abrac_esp":   {"arquivo": "chassi/Suporte-Final.stl",        "referencial": "stl_robo", "espelha": true},
+    "cuboE":       {"arquivo": "chassi/Roda_1.stl",  "referencial": "roda", "eixo_local": "x", "lado":  1, "y":  63.65},
+    "cuboD":       {"arquivo": "chassi/Roda_2.stl",  "referencial": "roda", "eixo_local": "x", "lado": -1, "y": -63.65},
+    "pneuE":       {"arquivo": "chassi/pneu.stl",    "referencial": "roda", "eixo_local": "z", "lado":  1, "y":  63.65, "faces": 2400},
+    "pneuD":       {"arquivo": "chassi/pneu.stl",    "referencial": "roda", "eixo_local": "z", "lado": -1, "y": -63.65, "faces": 2400},
+
+    "esp32":       {"arquivo": "componentes/01_esp32_devkit_30pinos.stl", "faces": 5000},
+    "expansao":    {"arquivo": "componentes/02_placa_expansao_esp32.stl", "faces": 9000},
+    "tps63070":    {"arquivo": "componentes/03_regulador_tps63070.stl",   "faces": 1500},
+    "dip4":        {"arquivo": "componentes/04_chave_dip_4vias.stl",      "faces": 1200},
+    "ponte_h":     {"arquivo": "componentes/05_ponte_h_zk_bm1.stl",       "faces": 7000},
+    "celula":      {"arquivo": "componentes/07_celula_18650_generica.stl"},
+    "bms":         {"arquivo": "componentes/08_bms_3s_20a.stl",           "faces": 2500},
+    "vl53l0x":     {"arquivo": "componentes/09_vl53l0x.stl",              "faces": 1600},
+    "tcrt5000":    {"arquivo": "componentes/10_tcrt5000.stl",             "faces": 2200},
+
+    "protoboard":  {"procedural": "protoboard", "dim": [46.6, 35.4, 8.5], "colunas": 17},
+    "tampa":       {"procedural": "caixa", "dim": [108, 149, 2], "centro": [29, 0, 1]},
+    "chave_liga":  {"procedural": "chave_gangorra", "dim": [21, 15, 11]}
+  },
+
+  "pinos": {
+    "vl53l0x": {
+      "_nota": "barra de 6 pinos virada para trás (lado contrário ao da lente); a lente olha para +z local",
+      "lente": [0, -2.1, 11.8],
+      "VIN": {"p": [-6.33, 4.04, 6.8], "d": [0, 0, -1], "tipo": "macho"},
+      "GND": {"p": [-3.79, 4.04, 6.8], "d": [0, 0, -1], "tipo": "macho"},
+      "SCL": {"p": [-1.25, 4.04, 6.8], "d": [0, 0, -1], "tipo": "macho"},
+      "SDA": {"p": [ 1.29, 4.04, 6.8], "d": [0, 0, -1], "tipo": "macho"},
+      "GPIO1": {"p": [ 3.83, 4.04, 6.8], "d": [0, 0, -1], "tipo": "macho"},
+      "XSHUT": {"p": [ 6.37, 4.04, 6.8], "d": [0, 0, -1], "tipo": "macho"}
+    },
+    "tcrt5000": {
+      "_nota": "barra de 4 pinos em 90 graus na ponta da placa; o par infravermelho olha para -z local",
+      "face": [-15.5, 0, 0.4],
+      "VCC": {"p": [13.2,  4.25, 14.5], "d": [1, 0, 0], "tipo": "macho"},
+      "GND": {"p": [13.2,  1.45, 14.5], "d": [1, 0, 0], "tipo": "macho"},
+      "D0":  {"p": [13.2, -1.40, 14.5], "d": [1, 0, 0], "tipo": "macho"},
+      "A0":  {"p": [13.2, -4.25, 14.5], "d": [1, 0, 0], "tipo": "macho"}
+    },
+    "ponte_h": {
+      "_nota": "barra de 5 pinos GND, IN1, IN2, IN3, IN4 (HW-956); bornes: motor A, alimentação, motor B",
+      "GND": {"p": [-5.10, 18.0, 4.0], "d": [0, 0, 1], "tipo": "macho"},
+      "IN1": {"p": [-2.55, 18.0, 4.0], "d": [0, 0, 1], "tipo": "macho"},
+      "IN2": {"p": [ 0.00, 18.0, 4.0], "d": [0, 0, 1], "tipo": "macho"},
+      "IN3": {"p": [ 2.55, 18.0, 4.0], "d": [0, 0, 1], "tipo": "macho"},
+      "IN4": {"p": [ 5.10, 18.0, 4.0], "d": [0, 0, 1], "tipo": "macho"},
+      "OUT1": {"p": [-20.4, -19.5, 5.5], "d": [0, -1, 0], "tipo": "borne"},
+      "OUT2": {"p": [-15.7, -19.5, 5.5], "d": [0, -1, 0], "tipo": "borne"},
+      "VCC":  {"p": [ -7.6, -19.5, 5.5], "d": [0, -1, 0], "tipo": "borne"},
+      "PGND": {"p": [ -2.8, -19.5, 5.5], "d": [0, -1, 0], "tipo": "borne"},
+      "OUT3": {"p": [  8.6, -19.5, 5.5], "d": [0, -1, 0], "tipo": "borne"},
+      "OUT4": {"p": [ 13.4, -19.5, 5.5], "d": [0, -1, 0], "tipo": "borne"}
+    },
+    "tps63070": {
+      "VIN":  {"p": [-13.0,  4.0, 1.6], "d": [-1, 0, 0], "tipo": "solda"},
+      "GNDI": {"p": [-13.0, -4.0, 1.6], "d": [-1, 0, 0], "tipo": "solda"},
+      "VOUT": {"p": [ 13.0,  4.0, 1.6], "d": [ 1, 0, 0], "tipo": "solda"},
+      "GNDO": {"p": [ 13.0, -4.0, 1.6], "d": [ 1, 0, 0], "tipo": "solda"}
+    },
+    "bms": {
+      "B-": {"p": [-27.5, -6.0, 3.5], "d": [0, 0, 1], "tipo": "solda"},
+      "B1": {"p": [ -9.0,  7.0, 3.5], "d": [0, 0, 1], "tipo": "solda"},
+      "B2": {"p": [  9.0,  7.0, 3.5], "d": [0, 0, 1], "tipo": "solda"},
+      "B+": {"p": [ 27.5,  6.0, 3.5], "d": [0, 0, 1], "tipo": "solda"},
+      "P-": {"p": [-27.5,  6.0, 3.5], "d": [0, 0, 1], "tipo": "solda"},
+      "P+": {"p": [ 27.5, -6.0, 3.5], "d": [0, 0, 1], "tipo": "solda"}
+    },
+    "celula": {
+      "+": {"p": [ 32.6, 0, 9.3], "d": [1, 0, 0], "tipo": "solda"},
+      "-": {"p": [-32.6, 0, 9.3], "d": [-1, 0, 0], "tipo": "solda"}
+    },
+    "chave_liga": {
+      "C":  {"p": [0,  3.5, 0], "d": [0, 0, -1], "tipo": "solda"},
+      "NA": {"p": [0, -3.5, 0], "d": [0, 0, -1], "tipo": "solda"}
+    },
+    "motor": {
+      "M+": {"p": [0,  -1.8, 27], "d": [0, -1, 0], "tipo": "solda", "_ponto": "ponta interna do motor no referencial do robô"},
+      "M-": {"p": [0,  -1.8, 15], "d": [0, -1, 0], "tipo": "solda"}
+    },
+    "motor_esp": {
+      "M+": {"p": [0,   1.8, 27], "d": [0, 1, 0], "tipo": "solda"},
+      "M-": {"p": [0,   1.8, 15], "d": [0, 1, 0], "tipo": "solda"}
+    }
+  },
+
+  "placa_expansao": {
+    "_nota": "Barras S, V e G de cada pino do ESP32 DevKit de 30 pinos, na ordem da placa (antena para cima, USB para baixo). O modelo 3D é o do relatório (placa de 44 pinos); conferir a ordem na placa comprada. O jumper de tensão do V fica em 3,3 V.",
+    "esquerda": ["EN", "36", "39", "34", "35", "32", "33", "25", "26", "27", "14", "12", "13", "GND", "VIN"],
+    "direita":  ["23", "22", "1", "3", "21", "19", "18", "5", "17", "16", "4", "2", "15", "GND", "3V3"],
+    "x_S": {"esquerda": -28.2, "direita": 28.2},
+    "x_V": {"esquerda": -30.74, "direita": 30.74},
+    "x_G": {"esquerda": -33.28, "direita": 33.28},
+    "y_primeira": 32.46,
+    "passo": -2.54,
+    "z_pino": 4.1,
+    "d": [0, 0, 1]
+  },
+
+  "pecas": [
+    {"id": "base",    "modelo": "base",      "nome": "Base do chassi (PLA)",           "grupo": "chassi", "cor": "#2e3238"},
+    {"id": "corpo",   "modelo": "corpo",     "nome": "Corpo do chassi (PLA)",          "grupo": "chassi", "cor": "#3b414b", "opacidade": 0.28},
+    {"id": "suporte", "modelo": "suporte",   "nome": "Suporte da eletrônica (antigo)", "grupo": "chassi", "cor": "#4b525e", "visivel": false, "ignora_interferencia": true},
+    {"id": "motorE",  "modelo": "motor",     "nome": "Motorredutor esquerdo JGB37-520", "grupo": "chassi", "cor": "#9aa3ad"},
+    {"id": "motorD",  "modelo": "motor_esp", "nome": "Motorredutor direito JGB37-520",  "grupo": "chassi", "cor": "#9aa3ad"},
+    {"id": "abracE",  "modelo": "abrac_esp", "nome": "Abraçadeira esquerda", "grupo": "chassi", "cor": "#4b525e"},
+    {"id": "abracD",  "modelo": "abrac",     "nome": "Abraçadeira direita",  "grupo": "chassi", "cor": "#4b525e"},
+    {"id": "cuboE",   "modelo": "cuboE",     "nome": "Cubo esquerdo", "grupo": "chassi", "cor": "#d8d8d8"},
+    {"id": "cuboD",   "modelo": "cuboD",     "nome": "Cubo direito",  "grupo": "chassi", "cor": "#d8d8d8"},
+    {"id": "pneuE",   "modelo": "pneuE",     "nome": "Pneu StickyMAX S20", "grupo": "chassi", "cor": "#f2d23c", "opacidade": 0.85},
+    {"id": "pneuD",   "modelo": "pneuD",     "nome": "Pneu StickyMAX S20", "grupo": "chassi", "cor": "#f2d23c", "opacidade": 0.85},
+    {"id": "tampa",   "modelo": "tampa",     "nome": "Tampa provisória (2 mm, PLA)", "grupo": "chassi", "cor": "#565e6b", "opacidade": 0.55, "pos": [0, 0, 52]},
+
+    {"id": "cel1", "modelo": "celula", "nome": "Célula 1 da bateria 3S (LG 3200)", "grupo": "potencia", "cor": "#3c7dd9", "pos": [38.0, 0, 10.5], "rot": [0, 0, 90]},
+    {"id": "cel2", "modelo": "celula", "nome": "Célula 2 da bateria 3S (LG 3200)", "grupo": "potencia", "cor": "#3c7dd9", "pos": [56.6, 0, 10.5], "rot": [0, 0, -90]},
+    {"id": "cel3", "modelo": "celula", "nome": "Célula 3 da bateria 3S (LG 3200)", "grupo": "potencia", "cor": "#3c7dd9", "pos": [75.2, 0, 10.5], "rot": [0, 0, 90]},
+    {"id": "bms",  "modelo": "bms",    "nome": "BMS 3S 20 A",                      "grupo": "potencia", "cor": "#1f7a3a", "pos": [56.6, 0, 29.1], "rot": [0, 0, 90]},
+    {"id": "cel_logica", "modelo": "celula", "nome": "Bateria 18650 da lógica", "grupo": "logica", "cor": "#d9533c", "pos": [47, 2, 32.6], "rot": [0, 0, 90]},
+    {"id": "tps",  "modelo": "tps63070", "nome": "Regulador TPS63070 (saída 3,3 V)", "grupo": "logica", "cor": "#7b2a8f", "pos": [76, 24, 29.1], "rot": [0, 0, 90]},
+    {"id": "chave_liga", "modelo": "chave_liga", "nome": "Chave liga e desliga da lógica (U1)", "grupo": "logica", "cor": "#151515", "pos": [-12, -52, 54]},
+
+    {"id": "exp",  "modelo": "expansao", "nome": "Placa de expansão do ESP32", "grupo": "controle", "cor": "#1f4e8c", "pos": [60, 0, 54], "rot": [0, 0, -90]},
+    {"id": "esp",  "modelo": "esp32",    "nome": "ESP32 DevKit (30 pinos)",     "grupo": "controle", "cor": "#20242a", "pai": "exp", "pos": [0, 2.34, 2.9], "rot": [0, 0, -90]},
+    {"id": "ponte", "modelo": "ponte_h", "nome": "Ponte H dupla HW-956 (modelo ZK-BM1 do relatório)", "grupo": "potencia", "cor": "#b3261e", "pos": [-4, 0, 54], "rot": [0, 0, -90]},
+    {"id": "proto", "modelo": "protoboard", "nome": "Mini protoboard de 170 pontos (barramento I2C e chave DIP)", "grupo": "controle", "cor": "#f4f4f2", "pos": [-2, 50, 54], "rot": [0, 0, 90]},
+    {"id": "dip",  "modelo": "dip4", "nome": "Chave DIP de 4 vias", "grupo": "controle", "cor": "#1d63c8", "pai": "proto", "pos": [3.81, 0, 8.5]}
+  ],
+
+  "protoboard_uso": {
+    "_nota": "Mini protoboard de 17 colunas, cada meia coluna com 5 furos ligados (a a e, f a j). SDA e SCL usam a coluna inteira, com um jumper macho-macho ligando as duas metades.",
+    "SDA": 2, "SCL": 4, "3V3_DIP": 7, "dip_colunas": [9, 10, 11, 12]
+  },
+
+  "encaixes_esperados": {
+    "_nota": "Pares que se tocam de propósito (lente na janela, sensor no furo da base): aparecem na lista como encaixe, não como interferência. Peças do chassi entre si não entram na conferência (montagem do projeto mecânico).",
+    "pares": [["corpo", "vl53l0x"], ["base", "tcrt5000"]]
+  },
+
+  "rotas": {
+    "_nota": "Pontos de passagem (mm) dos feixes de fios: cada feixe sobe pelo passa-fios da tampa.",
+    "esquerda": [[44, 36, 40], [44, 36, 58]],
+    "direita":  [[44, -36, 40], [44, -36, 58]],
+    "frente":   [[84, 0, 40], [84, 0, 58]],
+    "tras":     [[-14, 0, 40], [16, 0, 58]],
+    "potencia": [[16, -30, 40], [16, -30, 58]]
+  },
+
+  "esquematico": {
+    "_nota": "Diferenças entre o esquema do Fritzing (SUMO_Esquemático e SUMO_bb) e o firmware (config.h) e o documento de ligação (Lab3-Liga). A montagem segue o firmware.",
+    "diferencas": [
+      {"item": "Sensores de borda", "fritzing": "saída D0 dos módulos nos GPIO 36 (VP), 39 (VN), 34 e 35", "firmware": "saída A0 (analógica) nos GPIO 34, 35, 32 e 33 (BFE, BFD, BTE, BTD)", "porque": "o firmware mede a tensão para separar a faixa branca de arranhão e poeira; o D0 só dá 0 ou 3,3 V"},
+      {"item": "Chave DIP", "fritzing": "vias nos GPIO 15, 14, 33 e 32, com o comum no GND", "firmware": "vias nos GPIO 12, 14, 2 e 15, com o comum no 3V3", "porque": "o firmware liga o pull-down interno e lê 1 com a via ligada; com o comum no GND a chave nunca muda a leitura, e os GPIO 32 e 33 são dos sensores de borda"},
+      {"item": "Botão de start (S1)", "fritzing": "entre o GPIO 2 e o GND", "firmware": "GPIO 0, o mesmo do botão BOOT da placa", "porque": "o GPIO 2 é a via 3 da chave DIP; o DevKit de 30 pinos não tem o GPIO 0 na barra, então o start é o próprio botão BOOT (ou um botão soldado em paralelo com ele)"},
+      {"item": "Ponte H", "fritzing": "módulo L298N", "firmware": "módulo HW-956 de MOSFET (entradas GND, IN1 a IN4), PWM de até 2 kHz", "porque": "mesmas ligações de IN1 a IN4 nos GPIO 25, 26, 27 e 13; o L298N do Fritzing só representa o módulo"},
+      {"item": "Alimentação dos motores", "fritzing": "P+ e P- do BMS direto na ponte H, sem chave", "firmware": "-", "porque": "sem chave, a ponte H fica sempre ligada à bateria 3S; uma chave de 5 A no P+ desliga os motores com o robô parado"}
+    ]
+  }
+}
