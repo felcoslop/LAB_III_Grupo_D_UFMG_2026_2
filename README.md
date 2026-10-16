@@ -830,6 +830,18 @@ Os ajustes principais ficam no `config.h`:
 | `T_BUSCA_GIRO_MS` e `T_BUSCA_AVANCO_MS` | 1500 e 250 | tempo girando na busca e tempo do avanço curto |
 | `MODO_DEFENSIVO` | 0 | 1 faz o robô só mirar, sem avançar |
 
+### Distância da plateia ao dojô
+
+Quanto o dojô precisa estar afastado da plateia para nenhum ToF ler uma pessoa depende do alcance de cada sensor, e por isso muda com `TOF_ALCANCE_MM`, `TOF_ALCANCE_LATERAL_MM` e `TOF_ALCANCE_TRAS_MM`. A conta (`python ferramentas/alcance_plateia.py`, que lê o `config.h`) trata a plateia como um plano paralelo à borda do robô que encosta na linha, e conta a distância a partir da ponta do robô, encostada na borda de fora da faixa branca. Um sensor lê o plano quando algum raio do cone (eixo mais ou menos 12,5°) chega nele dentro da leitura máxima do sensor, a mesma do `rastreador_alcance_sensor`: o círculo de 600 mm em volta do eixo das rodas, limitado a 80 mm nos laterais e a 200 mm no par de trás. Com os valores padrão:
+
+| Robô na linha | Sensor que chega mais longe | Plateia fora do alcance a mais de |
+|---|---|---|
+| Ponta da rampa na linha, olhando para fora | FC (FE e FD: 47 cm) | 48 cm |
+| Traseira na linha, de costas para a plateia | TE e TD | 13 cm |
+| De lado, com o lado esquerdo ou direito na linha | FE ou FD, que apontam 17° para fora (TE: 11 cm, LE e LD: 8 cm) | 21 cm |
+
+Os números são do desenho do cone, sem medida no dojô. Uma pessoa, mais estreita que um plano, é lida de menos longe, e um robô torto em relação à linha lê menos para fora. O regulamento da CoRA não foi conferido quanto a uma distância mínima da plateia. Com a localização do dojô válida, o firmware ainda ignora a leitura que cai mais de `ARENA_MARGEM_MM` (30 mm) além do raio do dojô, então esses números valem de verdade na largada, antes de a localização convergir, e se a incerteza passar de `ARENA_SIGMA_DESCARTE` (150 mm). Na bateria com pessoas em volta, elas ficam de 0,9 a 1,3 m da borda.
+
 ## Estrutura de pastas
 
 ```
@@ -870,7 +882,8 @@ LAB_III_Grupo_D_UFMG_2026_2/
     gera_painel.py          painel/painel_src.html e painel/vendor/ -> painel/painel_sumo.html
     gera_combate.py         WebAssembly, doc/combate/ -> site/combate.html
     gera_montagem.py        config.h, doc/montagem/ -> site/montagem.html (e a lista de interferências)
-    confere_site.py         confere as constantes do site/index.html com o config.h
+    confere_site.py         confere as constantes do site/index.html e os alcances dos ToF da página do combate com o config.h
+    alcance_plateia.py      distância da plateia ao dojô para nenhum ToF a ler (lê o config.h)
     gera_bancada.py         config.h -> doc/pdf/gabarito_bancada.pdf
     gera_guia.py            config.h -> doc/pdf/guia_montagem_sensores(_7).pdf
     step_para_stl.py        STEP do projeto mecânico -> um STL por peça

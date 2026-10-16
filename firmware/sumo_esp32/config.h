@@ -162,6 +162,15 @@ static const CfgToF TOF[] = {
 // laterais) ou a 200 mm, o maior tempo mirando uma pessoa foi de 0,5 s e de 0,7 s, com 350 e 352
 // vitórias (351 com o par reto a 90 graus). COMO AJUSTAR: o mesmo dos laterais; com 7 sensores o
 // robô enxerga por trás o oponente que chega a até esta distância do sensor.
+// DISTÂNCIA DA PLATEIA AO DOJÔ: contada da borda de fora da faixa branca, com a plateia plana e de frente
+// para o robô, nenhum ToF lê a plateia a mais de 48 cm do robô com a ponta da rampa na linha olhando para
+// fora (limite de TOF_ALCANCE_MM, 600 mm em volta do eixo), 13 cm com a traseira na linha e o robô de
+// costas para a plateia (TE e TD, com TOF_ALCANCE_TRAS_MM) e 21 cm com o robô de lado (FE ou FD, que
+// apontam 17 graus para fora; TE 11 cm, LE e LD 8 cm). Mudar os alcances muda esses números: a conta
+// está no README (seção "Distância da plateia ao dojô"). Pessoa de verdade, mais estreita que uma
+// parede, é lida de menos longe. Com a localização do dojô válida, o firmware ainda ignora leitura
+// mais de ARENA_MARGEM_MM além do raio do dojô; a distância vale na largada, antes de a localização
+// convergir, e se a incerteza passar de ARENA_SIGMA_DESCARTE.
 #define TOF_ALCANCE_LATERAL_MM 80
 #define TOF_ALCANCE_TRAS_MM 200
 #define TOF_MIN_MM        15      // leitura menor que isso é descartada

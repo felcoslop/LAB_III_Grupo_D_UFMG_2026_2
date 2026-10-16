@@ -121,17 +121,17 @@ ALCANCES_COMBATE = {
 
 
 def confere_alcances(defs):
-    fonte = (RAIZ / "doc" / "combate_src.html").read_text(encoding="utf-8")
+    fonte = (RAIZ / "doc" / "combate" / "combate_src.html").read_text(encoding="utf-8")
     erros = []
     for nome, define in ALCANCES_COMBATE.items():
         m = re.search(r"\b" + nome + r" = (\d+)", fonte)
         if not m:
-            erros.append(f"{nome}: falta no doc/combate_src.html")
+            erros.append(f"{nome}: falta no doc/combate/combate_src.html")
         elif int(m.group(1)) != avalia(define, defs):
             erros.append(f"{nome}: página {m.group(1)} e config.h {avalia(define, defs)} ({define})")
     if erros:
         for e in erros:
-            print("::error::doc/combate_src.html desatualizada: " + e)
+            print("::error::doc/combate/combate_src.html desatualizada: " + e)
         sys.exit(1)
     print(f"alcances da página do combate conferem com o config.h ({len(ALCANCES_COMBATE)} constantes)")
 
