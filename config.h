@@ -441,6 +441,32 @@ static const CfgBorda BORDA[] = {
 #define T_DESTRAVA_AVANCO_MS 250    // avanço reto para soltar a quina, sem espaço atrás
 #define DESTRAVA_LIVRE_MM    140    // espaço mínimo atrás (localização) para a ré
 #define T_TRAVA_MS           1600   // empurrão em contato por mais disso aparece como travado
+// Manobras do empurrão travado pela caixa do rastreador (antitrava.h, experimental). ANTI_TRAVA 0
+// tira o módulo inteiro; ANTI_TRAVA_MANOBRA escolhe a manobra (0 nenhuma, 1 lateral, 2 torque,
+// 3 zigue, 4 giro, 5 pulso), e o comando "trava N" troca a manobra sem gravar.
+#ifndef ANTI_TRAVA
+#define ANTI_TRAVA           1
+#endif
+#ifndef ANTI_TRAVA_MANOBRA
+#define ANTI_TRAVA_MANOBRA   0
+#endif
+#define ANTI_TRAVA_T_MS      1200   // caixa parada no ataque por mais disso: travado
+#define ANTI_TRAVA_TOL_MM    25     // tolerância da distância da caixa (erro do rastreador perto de 10 mm)
+#define ANTI_TRAVA_TOL_DEG   12     // tolerância do lado da caixa (erro do rastreador de 3 a 8 graus na frente)
+#define ANTI_TRAVA_PERTO_MM  60     // menor leitura do oponente até isso (ou contato) conta como encostado
+#define ANTI_TRAVA_FORA_MS   150    // saída da tolerância mais curta que isso (salto da estimativa) não zera a janela
+#define ANTI_TRAVA_PAUSA_MS  1000   // depois de uma manobra, tempo até a próxima detecção
+#define ANTI_TRAVA_LIVRE_MM  150    // espaço mínimo atrás para a ré da manobra lateral
+#define ANTI_TRAVA_RE_MS     200    // lateral: ré em arco
+#define ANTI_TRAVA_RE_GIRO_DPS 220
+#define ANTI_TRAVA_ARCO_MS   400    // lateral: volta em arco pela lateral do oponente
+#define ANTI_TRAVA_ARCO_DEG  60
+#define ANTI_TRAVA_TORQUE_MS 500    // torque e zigue: empurrão com giro
+#define ANTI_TRAVA_TORQUE_DPS 150
+#define ANTI_TRAVA_ZIGUE_MS  125    // zigue: tempo de cada lado
+#define ANTI_TRAVA_GIRO_MS   200    // giro strike: giro no eixo (uns 70 graus com a rampa de aceleração)
+#define ANTI_TRAVA_PULSO_MS  300    // pulso: ciclo de solta e empurra
+#define ANTI_TRAVA_SOLTA_MS  20     // rodas soltas em cada pulso
 // Modelo térmico de cada motor: corrente = (tensão aplicada - força contraeletromotriz) /
 // resistência, com resistência de 12 V / 1,2 A = 10 ohms (tabela do motor) e força
 // contraeletromotriz zero com a roda travada. Aquecimento de primeira ordem com capacidade e

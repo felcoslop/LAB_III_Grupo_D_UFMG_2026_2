@@ -93,7 +93,7 @@ jobs:
           ./teste_cinematica
       - name: Máquina de estados com a cinemática, a localização e a chave DIP
         run: |
-          g++ -std=c++11 -Wall -Wextra -Werror -I teste/stub -I . teste/teste_estados.cpp estados.cpp cinematica.cpp arena.cpp chave.cpp -o teste_estados
+          g++ -std=c++11 -Wall -Wextra -Werror -I teste/stub -I . teste/teste_estados.cpp estados.cpp cinematica.cpp arena.cpp chave.cpp antitrava.cpp -o teste_estados
           ./teste_estados
       # filtro de partículas do dojô nas duas geometrias dos sensores de borda
       - name: Localização no dojô (bancada e robô montado)

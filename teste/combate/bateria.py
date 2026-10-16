@@ -6,10 +6,10 @@ semente, em paralelo, e mostra o placar de cada combinação: vitórias, derrota
 saindo sozinho) e empates por tempo. A estratégia do adversário é sorteada em cada luta.
 
 Uso: python teste/combate/bateria.py BIN [--sementes N] [--estrategias rush,flank,fanout]
-         [--cores preto,branco] [--motores 1000,319] [--atrito 1] [--restit 0.4] [--extra "-p 0"]
+         [--cores preto,branco] [--motores 1000,319] [--atrito 1] [--restit 0.4] [--extra "-x 2"]
          [--csv ARQ] [--json ARQ] [--exige-quedas-proprias N]
   --atrito: fator no atrito do pneu (0,8 com pó no dojô); --restit: restituição do choque;
-  --extra: opções a mais para o executável (por exemplo a largada de frente, -p 0)
+  --extra: opções a mais para o executável (por exemplo a manobra de destravamento, -x N)
 """
 import argparse
 import csv
@@ -23,14 +23,15 @@ from concurrent.futures import ThreadPoolExecutor
 
 CAMPOS = ["semente", "estr_a", "estr_b", "cor_b", "motor_b", "vencedor", "motivo", "tempo", "contato",
           "levantado_a", "levantado_b", "aquec_a", "aquec_b", "destravas_a", "destravas_b", "prim_contato", "f_max",
-          "largada_a", "largada_b"]
+          "largada_a", "largada_b", "manobras_a", "manobras_b"]
 
 
 def roda(binario, semente, estr, cor, motor, extra, tempo):
     cmd = [binario, "-s", str(semente), "-a", estr, "-c", cor, "-m", str(motor), "-t", str(tempo)] + extra
     saida = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout.strip().splitlines()[-1]
     d = dict(zip(CAMPOS, next(csv.reader(io.StringIO(saida)))))
-    for k in ("semente", "motor_b", "vencedor", "motivo", "destravas_a", "destravas_b", "largada_a", "largada_b"):
+    for k in ("semente", "motor_b", "vencedor", "motivo", "destravas_a", "destravas_b", "largada_a", "largada_b",
+              "manobras_a", "manobras_b"):
         d[k] = int(d[k])
     for k in ("tempo", "contato", "levantado_a", "levantado_b", "aquec_a", "aquec_b", "prim_contato", "f_max"):
         d[k] = float(d[k])

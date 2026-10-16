@@ -49,7 +49,7 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 - Rumo (a seta do painel) até o oponente ou até os pontos cegos, usado pela máquina de estados na busca.
 - Leitura analógica da linha branca, com confirmação por tempo e calibração guiada em três medidas (ar, preto e branco).
 - Máquina de estados com contagem obrigatória de 5 s, busca, mira, ataque, flanco, ataque de ré e fuga da borda em quatro direções, sem nunca girar para trás quando a borda está atrás.
-- Reconhecimento de travamento sem encoder: o giro preso pelo oponente encostado na lateral vira uma manobra curta de soltura, e o empurrão longo em contato aparece no painel; um modelo térmico de cada motor limita o PWM das manobras se o motor travado esquentar demais.
+- Reconhecimento de travamento sem encoder: o giro preso pelo oponente encostado na lateral vira uma manobra curta de soltura, e o empurrão longo em contato aparece no painel, reconhecido também pela caixa do rastreador parada, com cinco manobras experimentais de saída que se desligam no `config.h`; um modelo térmico de cada motor limita o PWM das manobras se o motor travado esquentar demais.
 - Cinemática das duas rodas com o modelo do motor JGB37-520 e da ponte H: cada estado pede avanço em mm/s e giro em graus/s, a fuga da borda usa a tensão toda na hora e o firmware não compila se a distância de parada não couber na margem até as rodas. Os comandos `pwm` e `mov` testam os motores com o robô parado.
 - Painel 2D e 3D em um único arquivo HTML, sem internet, ligado ao robô pela USB, com dados a 50 Hz e comandos pelo navegador.
 - Firmware sem rádio: o robô compete de forma autônoma, sem WiFi e sem Bluetooth, o que deixa o núcleo 0 livre para os sensores e o rastreador.
@@ -237,6 +237,19 @@ Sem encoder e sem medida de corrente, o firmware não vê a roda parada, mas rec
 O giro preso acontece com o oponente encostado na lateral: a mira pede giro, a cinemática estima mais de 90° de giro em 0,6 s, e o ângulo do oponente melhora menos de 15°, porque a quina dele segura a quina do robô. O robô entra no estado DESTRAVA: ré reta por 250 ms quando existe espaço atrás (sem branco atrás há pouco e, com a localização confiável, mais de 14 cm até a borda), ou avanço reto por 250 ms sem espaço atrás, e volta a mirar com a quina livre. Uma ré que termina na borda de trás faz as manobras dos 5 s seguintes usarem o avanço.
 
 O empurrão travado é o ataque em contato que passa de 1,6 s sem a luta acabar. Nesse caso o robô continua empurrando, e o travamento só aparece no log e no painel. A decisão saiu das lutas simuladas: com 360 lutas por versão (3 estratégias, 6 oponentes, claro e escuro, 10 largadas), soltar o empurrão travado com ré e curva derrubou as vitórias contra o errante de 56 para 28 a 33 e transformou 49 empates contra o espelho em derrotas, com o limite de 1,6 s, 2,5 s ou 4 s; girar sob pressão (uma roda no máximo e a outra a 20%), girar no eixo ou dar ré em curva também perderam. Contra um oponente que empurra de volta, qualquer soltura entrega o lugar, e o empurrão mais longo que dá certo nessas lutas, contra o oponente pesado, passa de 5 s.
+
+O módulo `antitrava.cpp` (experimental, fora com `ANTI_TRAVA 0` no `config.h`) reconhece o empurrão travado pela caixa do rastreador bayesiano, sem encoder: a caixa do oponente fica parada no referencial do robô, com a distância dentro de 25 mm e o lado dentro de 12°, por 1,2 s, com o robô no ATAQUE e o oponente encostado (ou a menos de 60 mm). Um salto da estimativa mais curto que 150 ms, comum com a leitura colada no contato, não zera a janela. Um empurrão que funciona também deixa a caixa parada, mas leva o oponente para fora do dojô de 77 cm em pouco mais de 1 s; passado esse tempo, os dois robôs estão empatados na força. Depois da detecção vem a manobra escolhida em `ANTI_TRAVA_MANOBRA`, ou pelo comando `trava N`, sem gravar:
+
+| N | Manobra | O que o robô faz | Contra o robô igual (319 rpm, 120 lutas) | Contra o de 1000 rpm (120 lutas) |
+|---|---|---|---|---|
+| 0 | nenhuma | só avisa no log e no painel | 11 vitórias, 16 derrotas, 93 empates | 101, 18, 1 |
+| 1 | lateral | ré em arco por 200 ms para o lado com mais espaço e volta em arco pela lateral do oponente (sem espaço atrás, vira a 2) | 11, 108, 1 | 102, 18, 0 |
+| 2 | torque | 500 ms de empurrão com giro de 150°/s para o lado com mais espaço | 11, 82, 27 | 102, 18, 0 |
+| 3 | zigue | o mesmo da 2, trocando o lado a cada 125 ms | 11, 108, 1 | 102, 18, 0 |
+| 4 | giro | giro no eixo por 200 ms (uns 70°) e volta a mirar na lateral do oponente | 11, 108, 1 | 102, 18, 0 |
+| 5 | pulso | rodas soltas por 20 ms e empurrão de novo, três vezes | 11, 16, 93 | 101, 18, 1 |
+
+Contra o robô igual, que continua empurrando, toda manobra que solta ou desvia o empurrão entrega o lugar: a ré com volta pela lateral, o zigue-zague e o giro trocaram 92 dos 93 empates por derrotas, a curva com torque trocou 66, e o adversário com o mesmo motor empurrou o Grupo D para fora durante a manobra, como a equipe previa. A versão do pulso com ré de 50 ms também perdeu 92 empates; com as rodas soltas por 20 ms, ela não muda nenhuma luta. Por isso o firmware sai com `ANTI_TRAVA_MANOBRA 0`, e as manobras ficam para o teste no dojô de verdade, onde a deformação do pneu, a folga das caixas de redução e o piso irregular, que a simulação não tem, podem desempatar. Na página do combate, o seletor "Empurrão travado" liga cada manobra no robô do Grupo D. Para apagar o módulo de vez: os arquivos `antitrava.h` e `antitrava.cpp`, as linhas com `ANTI_TRAVA` no `estados.cpp` e no `debug.cpp` e o nome `antitrava` nas listas de compilação dos testes.
 
 O cuidado com a sobrecarga fica com o modelo térmico de cada motor no `cinematica.cpp`. A corrente sai da tensão aplicada menos a força contraeletromotriz, sobre a resistência de 10 Ω (12 V e 1,2 A com o eixo travado, pela tabela do motor), e com a roda travada a força contraeletromotriz é zero. O calor entra num modelo de primeira ordem, com capacidade e resistência térmicas estimadas para um motor de 37 mm. Pelo modelo, um round inteiro de 90 s com o motor travado no máximo esquenta o motor uns 22 K, e o limite de 70% do PWM só liga com 60 K, depois de uns 7 minutos travado, como numa bancada com o robô preso contra a parede; a fuga da borda nunca é limitada. A ponte H HW-956 aguenta 10 A por canal, bem acima dos 1,2 A do motor travado, e a bateria 3S entrega os 2,4 A dos dois motores sem esforço. A capacidade e a resistência térmicas do modelo precisam de medida com um termômetro no motor, com o robô montado.
 
@@ -435,6 +448,7 @@ Os comandos funcionam no Monitor Serial e no terminal do painel.
 | `estrategia rush`, `flank`, `fan` ou `chave` | estratégia escolhida pelo terminal; `chave` volta a seguir a DIP |
 | `perfil claro`, `escuro` ou `chave` | perfil do oponente pelo terminal; `chave` volta a seguir a DIP 4 |
 | `arena` | localização no dojô: centro estimado, incerteza, espaço livre em 8 direções, leituras descartadas e tempo do filtro |
+| `trava` ou `trava N` | manobra do empurrão travado (0 nenhuma, 1 lateral, 2 torque, 3 zigue, 4 giro, 5 pulso), sem gravar |
 | `cin` | também mostra o aquecimento estimado dos motores e se o limite térmico está ligado |
 | `go` e `stop` | início (contagem de 5 s) e parada da máquina de estados |
 | `s1` e `s0` | stream de dados para o painel, ligado e desligado |
@@ -597,6 +611,10 @@ No diagrama, LUTA agrupa BUSCA, MIRA, FLANCO, LEQUE, ATAQUE, ATAQUE_RE e DESTRAV
 
 Na BUSCA, longe do centro do dojô, o robô volta para o meio procurando no caminho. Perto do centro, no Rush e no Flank, o robô gira no eixo a 200 graus/s para o lado do rumo; depois de 1,5 s girando sem pista (rumo PROCURAR), avança a 240 mm/s por 0,25 s para mudar o ponto de vista e volta a girar. No Fan out, o rumo oscila em leque. Quando o rumo é PROVÁVEL e o oponente deve estar bem à frente (até 12°), o robô avança em vez de girar. Com `MODO_DEFENSIVO 1`, o robô só gira e mira, sem avançar.
 
+### `antitrava.h` e `antitrava.cpp`
+
+Detecção do empurrão travado pela caixa do rastreador parada e manobras para sair dele, descritas em [Travamento](#travamento). O `estados_passo()` chama o `antitrava_passo()` depois da borda e do giro preso; quando uma manobra está em andamento, ela comanda as rodas e a máquina de estados não manda nada naquela volta, e a borda cancela a manobra. Com `ANTI_TRAVA 0` o módulo fica vazio.
+
 ### `motores.h` e `motores.cpp`
 
 Controle do módulo HW-956 (ponte H dupla de 10 A), com valores de -255 a 255 por roda. O PWM vai no próprio pino IN: para a frente o IN1 recebe o PWM e o IN2 fica em LOW, e para trás o contrário. Com comando 0 os dois pinos ficam em LOW e o motor para. O PWM sai do periférico LEDC do ESP32 a 1 kHz (`PWM_MOTOR_HZ`), abaixo do limite de 2 kHz do módulo. A configuração do LEDC acontece uma vez só no `motores_init()`, e depois disso cada comando só troca o duty. O `analogWrite` ficou de fora porque, no core 2.x, cada chamada dele zera o contador do PWM, e com o loop rodando em microssegundos o sinal no pino deixa de seguir o comando. O anúncio do módulo pede parada antes de inverter o sentido, por causa do pico de corrente; com o JGB37-520 esse pico fica perto de 2,4 A por motor na inversão em velocidade máxima, bem abaixo dos 10 A do módulo, e a fuga da borda inverte na hora. As chaves `INVERTE_ESQ` e `INVERTE_DIR` corrigem um motor ligado ao contrário e a `TROCA_MOTORES` corrige os dois motores trocados de saída, sem mexer nos fios. Com `USAR_MOTORES 0`, o módulo só guarda o último comando, que aparece no debug.
@@ -693,6 +711,7 @@ sumo_esp32/
   chave.h / .cpp            chave DIP: estratégia e perfil do oponente
   borda.h / .cpp            TCRT5000: leitura analógica, limiar e confirmação
   estados.h / .cpp          máquina de estados com as três estratégias
+  antitrava.h / .cpp        empurrão travado pela caixa do rastreador e manobras (experimental)
   motores.h / .cpp          ponte H dupla de 10 A
   cinematica.h / .cpp       cinemática das rodas e modelo do motor
   telemetria.h / .cpp       Log e entrada de comandos pela USB

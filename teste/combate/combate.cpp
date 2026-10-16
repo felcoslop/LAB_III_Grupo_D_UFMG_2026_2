@@ -139,7 +139,7 @@ void inicia(const Config& c) {
   HR[0].dip = (uint8_t)((1 << c.estrA) | (c.brancoB ? 0 : 8));
   HR[1].dip = (uint8_t)((1 << eB) | (c.brancoA ? 0 : 8));
   // boot dos dois firmwares, com os robôs parados no dojô
-  for (int k = 0; k < 2; k++) { atual = k; api(k).init(); }
+  for (int k = 0; k < 2; k++) { atual = k; api(k).init(); api(k).manobra(k == 0 ? c.manobraA : c.manobraB); }
   // sinal do juiz 1 s depois do boot; cada operador aperta com o próprio tempo de reação
   for (int k = 0; k < 2; k++) tBotao[k] = us + 1000000 + (uint64_t)M->uniforme(150000, 300000);
   M->t = us * 1e-6;
@@ -151,7 +151,7 @@ static void acaba(int vencedor, int motivo) {
   R.vencedor = vencedor;
   R.motivo = motivo;
   R.tempo = tLib > 0 ? std::max(0.0, M->t - tLib) : 0;
-  for (int k = 0; k < 2; k++) { FwLeitura l; leFirmware(k, l); E.destravas[k] = l.destravas; }
+  for (int k = 0; k < 2; k++) { FwLeitura l; leFirmware(k, l); E.destravas[k] = l.destravas; E.manobras[k] = l.antiTrava; }
 }
 
 bool passo(double ms) {

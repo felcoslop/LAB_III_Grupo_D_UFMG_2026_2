@@ -21,6 +21,7 @@ struct FwLeitura {
   uint16_t tofMascara;            // ToF vendo o oponente
   int16_t  tof[8];                // leitura de cada ToF em mm (-1 sem nada), como no painel
   float    opExiste, opConfianca; // rastreador: chance de existir oponente e de ele estar na estimativa
+  int      antiTrava;             // manobras do empurrão travado nesta luta (antitrava.h)
 };
 
 struct FwApi {
@@ -32,6 +33,7 @@ struct FwApi {
   const char* (*nomeEstrategia)(int e);
   uint16_t    (*mapa)(char* buf, uint16_t n);   // mapa comprimido do rastreador, o mesmo do painel
   int         mapaNb, mapaNr, mapaR0, mapaDr;   // direções, anéis, raio do primeiro anel e largura (mm)
+  void        (*manobra)(int m);                // manobra do empurrão travado (-1 deixa a do config.h)
 };
 
 extern const FwApi fw_api_a;   // robô do Grupo D

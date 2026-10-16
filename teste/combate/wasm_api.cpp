@@ -15,6 +15,10 @@ static const int QUADRO_CAB = 8, QUADRO_ROBO = 56;
 static float quadro[QUADRO_CAB + 2 * QUADRO_ROBO];
 static float pessoas[1 + 3 * 8];
 static std::string json;
+static int manA = -1, manB = 0;   // manobras do empurrão travado para o próximo cb_inicia
+
+// manobra do empurrão travado de cada robô (antitrava.h), valendo a partir do próximo cb_inicia
+EXPORTA(cb_manobras) void cb_manobras(int a, int b) { manA = a; manB = b; }
 
 EXPORTA(cb_inicia) void cb_inicia(uint32_t semente, int estrA, int estrB, int brancoA, int brancoB, int b1000,
                                   int posA, int posB, double tRound, double atrito, double restit, int comPessoas) {
@@ -22,6 +26,7 @@ EXPORTA(cb_inicia) void cb_inicia(uint32_t semente, int estrA, int estrB, int br
   c.semente = semente; c.estrA = estrA; c.estrB = estrB;
   c.brancoA = brancoA != 0; c.brancoB = brancoB != 0; c.b1000 = b1000 != 0;
   c.posA = posA; c.posB = posB; c.tRound = tRound; c.atrito = atrito; c.restit = restit; c.pessoas = comPessoas != 0;
+  c.manobraA = manA; c.manobraB = manB;
   inicia(c);
 }
 
@@ -51,7 +56,7 @@ EXPORTA(cb_quadro) float* cb_quadro() {
       (float)rb.p.motor.rpmLivre, (float)rb.p.refl, (float)l.destravas, l.arenaValida ? 1.f : 0.f,
       (float)l.tof[0], (float)l.tof[1], (float)l.tof[2], (float)l.tof[3], (float)l.tof[4], (float)l.tof[5],
       (float)l.tof[6], (float)l.tof[7], (float)l.bordaCru, l.opExiste, l.opConfianca, manualAtivo(k) ? 1.f : 0.f,
-      0, 0, 0, 0};
+      (float)l.antiTrava, 0, 0, 0};
     memcpy(o, v, sizeof(v));
   }
   return quadro;

@@ -11,6 +11,6 @@ g++ -std=c++17 -O2 -Wall -Wextra -Wno-unused-parameter -I teste/sim/stub -I test
   -DGEOMETRIA_BANCADA=0 -DUSAR_MOTORES=1 -DQTD_TOF=7 "$@" \
   teste/sim/luta.cpp teste/sim/mundo.cpp teste/sim/hal.cpp \
   percepcao.cpp oponente.cpp rastreador.cpp borda.cpp estados.cpp cinematica.cpp motores.cpp \
-  telemetria.cpp arena.cpp chave.cpp \
+  telemetria.cpp arena.cpp chave.cpp antitrava.cpp \
   -o "$SAIDA"
 echo "simulador em $SAIDA"

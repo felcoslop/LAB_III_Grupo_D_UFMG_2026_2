@@ -1402,6 +1402,7 @@ function dadosLuta(n) {
   if (n.length >= 14) {
     if (n[11] === 1) txt += " · EMPURRÃO TRAVADO";
     else if (n[11] === 2) txt += " · GIRO PRESO";
+    else if (n[11] === 3) txt += " · MANOBRA DO TRAVAMENTO";
     if (n[12]) txt += ` · ${n[12]} destrava${n[12] > 1 ? "s" : ""}`;
     if (n[13] >= 5) txt += ` · motor +${n[13]} K`;
   }
