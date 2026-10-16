@@ -250,6 +250,34 @@ int main() {
   confere(trocou, "FAN_OUT: o sentido do giro troca (leque de um lado para o outro)", trocou);
   confere(avancou, "FAN_OUT: o robo avanca devagar durante o leque", avancou);
 
+  // Aberturas: com o oponente à vista quando os 5 s acabam, vindo rápido de frente, cada estratégia
+  // chega de um jeito. Rush vai direto, Flank sai em arco largo, Fan out vai em zigue-zague.
+  auto largadaComOponente = [&](uint8_t chave) {
+    dip = chave; estados_parar(); semBorda(); oponente(false, 0); P.arena = Arena{};
+    passo(40);
+    oponente(true, 3, 300); P.op.aproximacao = 600;
+    P.saude.pronto = true; P.start = true; passo(); passo(T_CONTAGEM_MS + 10);
+  };
+  largadaComOponente(0x01); passo(20);
+  confere(estado_atual() == ATAQUE || estado_atual() == MIRA, "abertura do Rush: vai direto no oponente", estado_atual());
+  largadaComOponente(0x02); passo(20);
+  confere(estado_atual() == FLANCO, "abertura do Flank: arco mesmo com o oponente vindo rapido", estado_atual());
+  passo(150);
+  confere(abs(pwmE - pwmD) > 100, "arco do Flank: uma roda bem mais rapida que a outra", abs(pwmE - pwmD));
+  oponente(true, 80, 200); P.op.aproximacao = 0; passo(4);
+  confere(estado_atual() == MIRA, "Flank passou do lado do oponente: vira para ele", estado_atual());
+  largadaComOponente(0x04); passo(20);
+  confere(estado_atual() == LEQUE, "abertura do Fan out: zigue-zague (LEQUE)", estado_atual());
+  int lado0 = pwmD > pwmE ? 1 : -1;
+  bool alternou = false;
+  float avanco = 0;
+  for (int k = 0; k < 250; k++) { passo(2); if ((pwmD > pwmE ? 1 : -1) != lado0) alternou = true; avanco += cinematica_v_mms() / 250; }
+  confere(alternou, "LEQUE: o rumo vai de um lado para o outro do oponente", alternou);
+  confere(avanco > 120, "LEQUE: o robo avanca enquanto ziguezagueia (mm/s em media)", avanco);
+  oponente(true, 2, 100); passo(4);
+  confere(estado_atual() == ATAQUE, "LEQUE perto do oponente: ataque direto", estado_atual());
+  P.op.aproximacao = 0; dip = 0;
+
   // DIP 4: perfil escuro pedido aos sensores e travado no start; duas estratégias ligadas valem a de menor número
   dip = 0x08 | 0x06; luta();
   confere(estados_escuro() && perfilEscuro, "DIP 4 ligada: perfil de oponente escuro", estados_escuro());

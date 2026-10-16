@@ -47,6 +47,10 @@ def main():
     for m, p in ag.get("por_motor", {}).items():
         v[f"v{m}"], v[f"d{m}"], v[f"e{m}"], v[f"n{m}"] = p["v"], p["d"], p["e"], p["n"]
         v[f"tv{m}"] = br(float(p.get("tv", 0)))
+    for k in ("rush", "flank", "fanout"):
+        p = ag.get("por_estrategia", {}).get(k, {"v": 0, "d": 0, "e": 0, "n": 0})
+        for c in "vden":
+            v[f"{k}_{c}"] = p[c]
     for k in ("frente", "lado", "costas"):
         p = ag.get("por_largada", {}).get(k, {"v": 0, "d": 0, "e": 0, "n": 0})
         for c in "vden":

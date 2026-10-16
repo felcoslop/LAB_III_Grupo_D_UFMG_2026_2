@@ -404,6 +404,24 @@ static const CfgBorda BORDA[] = {
 #define FAN_GIRO_DPS         260
 #define FAN_VEL_MMS          140
 #define FAN_LIVRE_MIN_MM     200    // com menos espaço que isso à frente, o leque não avança
+// Aberturas: quando os 5 s acabam com o oponente à vista, cada estratégia chega nele de um jeito.
+// O Rush vai direto. O Flank sai num arco largo, mirando ABERTURA_FLANCO_DEG ao lado do oponente,
+// mesmo com ele vindo rápido (o arco tira o robô da linha da investida), e entra pela lateral
+// dele. Com 60 graus e 1 s, o Flank largando de frente perdeu 30 de 40 lutas simuladas, porque o
+// oponente que vem reto pega a lateral do arco; com 75 graus e 0,7 s, perdeu 12. Com 80 graus
+// perdeu 5, mas numa luta do teste/sim o arco deixou o robô na borda de frente para uma pessoa,
+// e ele passou 4,7 s mirando nela. O Fan out chega em zigue-zague (estado LEQUE): o rumo vai de
+// um lado para o outro do oponente, e perto dele o ataque é direto. No dojô de 77 cm os dois
+// robôs se veem logo na largada, então sem as aberturas as três estratégias faziam a mesma coisa.
+#define ABERTURA_ANG_MAX_DEG  60    // oponente além deste ângulo na largada: a mira vem antes
+#define ABERTURA_FLANCO_DEG   75
+#define T_ABERTURA_FLANCO_MS  700
+#define LEQUE_DESVIO_DEG      30    // o rumo oscila 30 graus para cada lado do oponente
+#define T_LEQUE_MEIO_MS       200   // tempo de cada perna do zigue-zague
+#define LEQUE_VEL             0.8f  // fração da velocidade máxima no zigue-zague
+#define LEQUE_FECHA_MM        140   // perto disso o leque vira ataque direto
+#define LEQUE_ANG_MAX_DEG     70
+#define T_LEQUE_MAX_MS        1500
 
 // ============================================================================
 // Travamento (estados.cpp) e aquecimento dos motores (cinematica.cpp)
