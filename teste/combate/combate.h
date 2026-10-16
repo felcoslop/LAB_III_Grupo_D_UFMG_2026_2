@@ -26,6 +26,7 @@ struct Config {
   int      manobraB = 0;       // a do adversário (0: só detecta, como o firmware sem a manobra)
   bool     pessoas  = true;    // operadores e juiz em volta do dojô
   double   massa    = 0.98;
+  bool     mujoco   = false;   // física do MuJoCo no lugar da física à mão (compilar com MUJOCO=1)
 };
 
 struct Resultado {

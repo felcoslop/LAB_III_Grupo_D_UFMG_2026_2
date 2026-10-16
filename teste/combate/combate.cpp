@@ -125,6 +125,7 @@ void inicia(const Config& c) {
   posiciona(M->r[1], -1, jB);
   E.jeito[0] = jA; E.jeito[1] = jB;
   for (int k = 0; k < 2; k++) M->ajustaApoioInicial(M->r[k]);
+  if (c.mujoco) mujocoLiga(*M);
   M->pessoas.clear();
   if (c.pessoas) {
     // dois operadores e o juiz, fora da área do dojô depois do start

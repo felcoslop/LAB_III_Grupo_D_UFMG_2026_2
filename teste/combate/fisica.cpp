@@ -349,6 +349,11 @@ void Mundo::confereFora(Robo& rb) {
 }
 
 void Mundo::passo(double dt) {
+  if (motorFisico) {
+    motorFisico(*this, dt);
+    t += dt;
+    return;
+  }
   double f[2][3];
   contatoRobos(f);
   if (contato) { tUltContato = t; tContatoTotal += dt; }

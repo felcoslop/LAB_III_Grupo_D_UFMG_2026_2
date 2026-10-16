@@ -16,6 +16,7 @@
 //   -x N        manobra do empurrão travado do Grupo D (antitrava.h; padrão a do config.h)
 //   -X N        manobra do adversário (padrão 0, só detecta)
 //   -t S        segundos de luta depois dos 5 s parados (padrão 90)
+//   -F FISICA   simples (padrão, contas à mão do fisica.cpp) ou mujoco (precisa de MUJOCO=1 no compila.sh)
 //   -r ARQ      grava o rastro da luta em JSON (um quadro a cada 20 ms)
 //   -v          mostra o Log dos dois firmwares
 // Saída: uma linha CSV com o resultado (cabeçalho com -H).
@@ -57,6 +58,7 @@ int main(int argc, char** argv) {
     else if (a == "-x") c.manobraA = atoi(prox());
     else if (a == "-X") c.manobraB = atoi(prox());
     else if (a == "-t") c.tRound = atof(prox());
+    else if (a == "-F") c.mujoco = !strcmp(prox(), "mujoco");
     else if (a == "-r") rastro = prox();
     else if (a == "-v") verboso = true;
     else if (a == "-H") { puts(CAB); return 0; }
