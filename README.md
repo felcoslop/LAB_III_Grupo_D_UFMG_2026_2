@@ -99,7 +99,7 @@ Na bancada (`GEOMETRIA_BANCADA 1`), a origem do referencial é o centro da proto
 | TE (7 sensores, posição prevista) | 16 | 0x35 | -80 | 25 | 160° |
 | TD (7 sensores, posição prevista) | 4 | 0x36 | -80 | -25 | -160° |
 
-No robô montado (`GEOMETRIA_BANCADA 0`), a origem fica no meio do eixo das rodas, no chão, e as posições saem do chassi do STEP: FE, FC e FD nas janelas da face inclinada da frente, LE e LD na janela da lateral à frente do eixo e TE e TD na janela da lateral mais perto do eixo, retos como o LE e o LD:
+No robô montado (`GEOMETRIA_BANCADA 0`), a origem fica no meio do eixo das rodas, no chão, e as posições saem do chassi do STEP: FE, FC e FD nas janelas da face inclinada da frente, LE e LD na janela da lateral à frente do eixo e TE e TD na janela da lateral mais perto do eixo, inclinados a ±160° para trás e para fora (o LE e o LD ficam retos, a ±90°):
 
 | Sensor | XSHUT | Endereço | x | y | Ângulo |
 |---|---|---|---|---|---|
@@ -108,8 +108,8 @@ No robô montado (`GEOMETRIA_BANCADA 0`), a origem fica no meio do eixo das roda
 | FC | 19 | 0x32 | 95 | 0 | 0° |
 | FD | 18 | 0x33 | 85 | -35 | -17° |
 | LD | 5 | 0x34 | 55 | -72 | -90° |
-| TE (7 sensores) | 16 | 0x35 | 33 | 72 | 90° |
-| TD (7 sensores) | 4 | 0x36 | 33 | -72 | -90° |
+| TE (7 sensores) | 16 | 0x35 | 33 | 74 | 160° |
+| TD (7 sensores) | 4 | 0x36 | 33 | -74 | -160° |
 
 Os PDFs da pasta `doc/pdf/` trazem os gabaritos em escala 1:1 da bancada e do robô, o mapa de ligação na protoboard e uma lista de conferência antes de energizar. O `guia_montagem_sensores_7.pdf` faz o mesmo para a versão de 7 sensores e traz também a pinagem completa do ESP32.
 

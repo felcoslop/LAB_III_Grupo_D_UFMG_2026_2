@@ -42,8 +42,8 @@ struct CfgToF {
 #endif
 
 // Quantidade de sensores de oponente: 5 (montagem original) ou 7, com um par a mais atrás do eixo
-// (TE e TD: a ±160 graus nas quinas da bancada; no robô montado, retos a ±90 graus, porque as
-// janelas do chassi não deixam girar o suporte). A frente continua com os 3 sensores de antes e o FC segue
+// (TE e TD: a ±160 graus, olhando para trás, nas quinas da bancada e nas janelas das laterais do robô montado,
+// com o suporte inclinado; a largura dele é pendência do chassi, veja PENDENTE NO CHASSI). A frente continua com os 3 sensores de antes e o FC segue
 // sozinho no centro, decidindo o ataque, como pede o capítulo 2 do Sumo Robot Blackbook (número
 // ímpar de sensores, com um no centro). Na simulação com o rastreador, o par de trás reduziu os
 // ataques que chegam sem ser vistos de 36% para 8% e o tempo médio de busca de 206 para 35 ms,
