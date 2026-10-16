@@ -105,7 +105,7 @@ ol.passos code, .mono code { font-family: var(--f-mono); font-size: 0.82rem; bac
   <header class="topo">
     <h3>UFMG · ELE635 · Grupo D · robô de sumô de 1 kg</h3>
     <h1>Montagem do robô com os jumpers</h1>
-    <p class="local">Cada componente encaixado no chassi e cada fio do esquema elétrico, com a ponta de cada jumper: <b>fêmea</b> nos pinos machos dos módulos e da placa de expansão, <b>macho</b> nos furos da protoboard. Os sensores ficam nas posições do <span class="mono">config.h</span> e os GPIOs de cada fio também saem dele, então a página acompanha o firmware.</p>
+    <p class="local">Cada componente encaixado no chassi e cada fio do esquema elétrico, com a ponta de cada jumper: <b>fêmea</b> nos pinos machos dos módulos, <b>macho</b> nos furos da protoboard de 81 x 55 mm onde o ESP32 está encaixado; a chave DIP e o botão de ligar ficam nos furos da tampa de trás. Os sete VL53L0X vão no suporte de PLA <i>Mounting Bracket for VL53L0X Module</i>. Os sensores ficam nas posições do <span class="mono">config.h</span> e os GPIOs de cada fio também saem dele, então a página acompanha o firmware.</p>
     <p class="aviso" id="provisorio"></p>
   </header>
 
@@ -186,7 +186,7 @@ const PECAS = window.PECAS;
 let precisa = true;
 const pede = () => { precisa = true; };
 const $ = (id) => document.getElementById(id);
-const TIPO = {FF: "fêmea-fêmea", MF: "macho-fêmea", MM: "macho-macho", SF: "soldado + fêmea", S: "soldado ou borne"};
+const TIPO = {FF: "fêmea-fêmea", MF: "macho-fêmea", MM: "macho-macho", SM: "soldado + macho", S: "soldado ou borne"};
 const PONTA = {femea: 14, macho: 9, solda: 2, borne: 6};
 $("provisorio").textContent = D.provisorio;
 
@@ -201,12 +201,11 @@ function curto(id) {
 }
 function nomePonto(ref) {
   const [id, pino] = ref.split(":");
-  if (id === "exp") {
-    const c = pino[0];
-    const r = pino.slice(1).replace(/_(E|D)$/, "");
-    return `Placa de expansão · ${c} ${/^\d+$/.test(r) ? "do GPIO " + r : "do " + r}`;
+  if (id === "proto") {
+    if (pino[0] === "P" || pino[0] === "M") return `Protoboard · trilho de ${pino[0] === "P" ? "3V3" : "GND"}, furo ${pino.slice(1)}`;
+    const g = D.furo_gpio[pino];
+    return `Protoboard · furo ${pino}` + (g ? ` (coluna do ${g})` : "");
   }
-  if (id === "proto") return `Protoboard · furo ${pino}`;
   return `${curto(id)} · ${pino}`;
 }
 
@@ -264,13 +263,20 @@ function procedural(mod, cor, op) {
   if (mod.procedural === "protoboard") {
     const corpo = new THREE.Mesh(new THREE.BoxGeometry(a, b, c), material(cor, op));
     corpo.position.z = c / 2; g.add(corpo);
-    const furo = new THREE.InstancedMesh(new THREE.BoxGeometry(1.0, 1.0, 0.3), material(0x3a3a3a), 170);
+    const nc = mod.colunas || 17, trilhos = !!mod.trilhos;
+    const furo = new THREE.InstancedMesh(new THREE.BoxGeometry(1.0, 1.0, 0.3), material(0x3a3a3a), nc * 10 + (trilhos ? 100 : 0));
     const m = new THREE.Matrix4(); let k = 0;
-    for (let col = 1; col <= 17; col++) for (let i = 0; i < 10; i++) {
+    for (let col = 1; col <= nc; col++) for (let i = 0; i < 10; i++) {
       const y = i < 5 ? 13.97 - 2.54 * i : -3.81 - 2.54 * (i - 5);
-      m.makeTranslation((col - 9) * 2.54, y, c + 0.02); furo.setMatrixAt(k++, m);
+      m.makeTranslation((col - (nc + 1) / 2) * 2.54, y, c + 0.02); furo.setMatrixAt(k++, m);
+    }
+    if (trilhos) for (const y of [21.59, 19.05, -19.05, -21.59]) for (let n = 1; n <= 25; n++) {
+      m.makeTranslation(-33.02 + (n - 1) * 2.54 + Math.floor((n - 1) / 5) * 1.27, y, c + 0.02); furo.setMatrixAt(k++, m);
     }
     g.add(furo);
+    if (trilhos) for (const [y, cor] of [[21.59, 0x202020], [19.05, 0xc0281c], [-19.05, 0xc0281c], [-21.59, 0x202020]]) {
+      const l = new THREE.Mesh(new THREE.BoxGeometry(a - 12, 0.5, 0.3), material(cor)); l.position.set(0, y + (y > 0 ? 1.9 : -1.9), c + 0.01); g.add(l);
+    }
     const canal = new THREE.Mesh(new THREE.BoxGeometry(a - 2, 1.6, 0.4), material(0xbfbfb8)); canal.position.z = c; g.add(canal);
   } else if (mod.procedural === "chave_gangorra") {
     const corpo = new THREE.Mesh(new THREE.BoxGeometry(a, b, c), material(cor, op)); corpo.position.z = c / 2; g.add(corpo);
@@ -328,7 +334,7 @@ const grupoFio = {};
 D.fios.forEach((f, i) => {
   const pts = f.pts.map((p) => new THREE.Vector3(...p));
   const curva = new THREE.CatmullRomCurve3(pts, false, "centripetal");
-  const raio = f.tipo === "S" || f.tipo === "SF" ? 0.85 : 0.65;
+  const raio = f.tipo === "S" || f.tipo === "SM" ? 0.85 : 0.65;
   const mat = material(f.cor, 1, {roughness: 0.42, emissive: 0x000000});
   const tubo = new THREE.Mesh(new THREE.TubeGeometry(curva, Math.max(24, pts.length * 3), raio, 7, false), mat);
   tubo.userData = {fio: i};
@@ -354,42 +360,33 @@ function rotulo(texto, pos, escala = 1, cor = "#f2f4f0", fundo = "rgba(12,14,16,
   rotulos.add(s);
 }
 function ondeNaPeca(id, local) { return new THREE.Vector3(...local).applyMatrix4(objetos[id].matrix).toArray(); }
-// GPIOs usados na barra S da placa de expansão
-const usados = new Set();
-D.fios.forEach((f) => [f.de, f.para].forEach((r) => { if (r.startsWith("exp:S")) usados.add(r.slice(5)); }));
-for (const lado of ["esquerda", "direita"]) {
-  D.placa[lado].forEach((nome, k) => {
-    if (!usados.has(nome) && !(nome === "GND" && usados.has(lado === "esquerda" ? "GND_E" : "GND_D"))) return;
-    const y = D.placa.y_primeira + D.placa.passo * k;
-    const x = D.placa.x_S[lado] + (lado === "esquerda" ? 6.5 : -6.5);
-    rotulo(nome, ondeNaPeca("exp", [x, y, 16]), 0.8);
-  });
-}
+// GPIO de cada furo de sinal usado, nomes dos barramentos
+for (const r of D.rotulos) rotulo(r.txt, r.pos, 0.8, r.cor);
 for (const p of D.pecas) if (p.modelo === "vl53l0x" || p.modelo === "tcrt5000") {
   const loc = p.modelo === "vl53l0x" ? [0, 9, 0] : [-15.5, 0, 20];
   rotulo(p.id, ondeNaPeca(p.id, loc), 1.0, "#ffffff", p.modelo === "vl53l0x" ? "rgba(32,105,52,0.9)" : "rgba(28,84,150,0.9)");
 }
-rotulo("BOOT = START (GPIO 0)", ondeNaPeca("esp", [21.7, -8.6, 22]), 0.8, "#ffe9a8");
+rotulo("BOOT = START (GPIO 0)", ondeNaPeca("esp", [21.7, -7.7, 22]), 0.8, "#ffe9a8");
 rotulo("DIP 1 2 3 4", ondeNaPeca("dip", [0, 0, 18]), 0.8, "#cfe0ff");
 
 // ------------------------------------------------------------------ painel lateral
 const cont = {};
 D.fios.forEach((f) => (cont[f.tipo] = (cont[f.tipo] || 0) + 1));
-$("contagem").innerHTML = ["FF", "MF", "MM", "SF", "S"].filter((t) => cont[t])
+$("contagem").innerHTML = ["FF", "MF", "MM", "SM", "S"].filter((t) => cont[t])
   .map((t) => `<span class="chip">${cont[t]} ${TIPO[t]}</span>`).join("");
 
 const SVG = {
   FF: '<svg viewBox="0 0 96 22"><rect x="2" y="7" width="22" height="8" rx="1" fill="#17181a"/><path d="M24 11 H72" stroke="#2e9e44" stroke-width="3"/><rect x="72" y="7" width="22" height="8" rx="1" fill="#17181a"/></svg>',
   MF: '<svg viewBox="0 0 96 22"><rect x="2" y="7" width="22" height="8" rx="1" fill="#17181a"/><path d="M24 11 H74" stroke="#d81b9a" stroke-width="3"/><rect x="74" y="7" width="14" height="8" rx="1" fill="#17181a"/><rect x="88" y="10" width="8" height="2" fill="#d7b45a"/></svg>',
   MM: '<svg viewBox="0 0 96 22"><rect x="0" y="10" width="8" height="2" fill="#d7b45a"/><rect x="8" y="7" width="14" height="8" rx="1" fill="#17181a"/><path d="M22 11 H74" stroke="#a8a8a8" stroke-width="3"/><rect x="74" y="7" width="14" height="8" rx="1" fill="#17181a"/><rect x="88" y="10" width="8" height="2" fill="#d7b45a"/></svg>',
-  SF: '<svg viewBox="0 0 96 22"><circle cx="7" cy="11" r="4" fill="#c8ccd0"/><path d="M11 11 H72" stroke="#d7372f" stroke-width="3.6"/><rect x="72" y="7" width="22" height="8" rx="1" fill="#17181a"/></svg>',
+  SM: '<svg viewBox="0 0 96 22"><circle cx="7" cy="11" r="4" fill="#c8ccd0"/><path d="M11 11 H74" stroke="#d7372f" stroke-width="3.6"/><rect x="74" y="7" width="14" height="8" rx="1" fill="#17181a"/><rect x="88" y="10" width="8" height="2" fill="#d7b45a"/></svg>',
   S: '<svg viewBox="0 0 96 22"><circle cx="7" cy="11" r="4" fill="#c8ccd0"/><path d="M11 11 H82" stroke="#c62828" stroke-width="3.6"/><rect x="82" y="9.5" width="12" height="3" fill="#c07a3c"/></svg>',
 };
 const TXT = {
-  FF: "<b>fêmea-fêmea</b>: pino macho do módulo até o pino macho da placa de expansão (S, V ou G).",
+  FF: "<b>fêmea-fêmea</b>: entre dois pinos machos.",
   MF: "<b>macho-fêmea</b>: a fêmea no pino do sensor, o macho no furo da protoboard.",
   MM: "<b>macho-macho</b>: entre dois furos da protoboard.",
-  SF: "<b>soldado + fêmea</b>: fio soldado no regulador, com fêmea no pino da placa.",
+  SM: "<b>soldado + macho</b>: fio soldado (regulador, chave DIP) com a ponta macho no furo da protoboard.",
   S: "<b>soldado ou borne</b>: bateria, BMS, motores e alimentação da ponte H.",
 };
 $("legenda").innerHTML = Object.keys(SVG).filter((t) => cont[t]).map((t) => `<div class="item">${SVG[t]}<span>${TXT[t]}</span></div>`).join("");
@@ -411,7 +408,7 @@ const corGrupo = {"I2C": "#d81b9a", "Sensores de oponente": "#2e9e44", "Sensores
 marcas("marcasFios", grupoFio, Object.keys(grupoFio).map((g) => [g, grupoFio[g].length, corGrupo[g]]), () => true,
   (g, v) => { grupoFio[g].forEach((o) => (o.visible = v)); pede(); });
 const NOMES_P = {chassi: ["Chassi e motores", "#3b414b"], corpo: ["Corpo do chassi", "#565e6b"], potencia: ["Bateria 3S, BMS e ponte H", "#b3261e"],
-  logica: ["Bateria da lógica e regulador", "#7b2a8f"], controle: ["ESP32, placa e protoboard", "#1f4e8c"], sensores: ["Sensores", "#2b7a3a"]};
+  logica: ["Bateria da lógica e regulador", "#7b2a8f"], controle: ["ESP32, protoboard e chave DIP", "#1f4e8c"], sensores: ["Sensores", "#2b7a3a"]};
 const ordemP = ["sensores", "controle", "potencia", "logica", "chassi", "corpo"];
 marcas("marcasPecas", grupoPeca, ordemP.filter((g) => grupoPeca[g]).map((g) => [NOMES_P[g][0], grupoPeca[g].length, NOMES_P[g][1]]),
   () => true, (nome, v) => {
@@ -527,7 +524,8 @@ const CAMS = [
   ["Frente", [330, -20, 70], [45, 0, 30]],
   ["Lado esquerdo", [50, 330, 70], [45, 0, 30]],
   ["Trás", [-260, -40, 120], [20, 0, 45]],
-  ["Placa e protoboard", [-40, -60, 200], [30, 15, 62]],
+  ["Protoboard e ESP32", [18, -120, 190], [43, 0, 60]],
+  ["Tampa de trás", [-150, -90, 150], [-5, 0, 48]],
 ];
 const botoes = [];
 for (const [nome, pos, alvo] of CAMS) {

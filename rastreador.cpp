@@ -108,6 +108,7 @@ float rastreador_alcance_sensor(uint8_t i) {
   float su = TOF[i].x * ux + TOF[i].y * uy, ss = (float)TOF[i].x * TOF[i].x + (float)TOF[i].y * TOF[i].y;
   float d = su * su - ss + (float)TOF_ALCANCE_MM * TOF_ALCANCE_MM;
   float z = d > 0 ? -su + sqrtf(d) : 0;
+  if (fabsf((float)TOF[i].ang) >= 80.0f && z > TOF_ALCANCE_LATERAL_MM) z = TOF_ALCANCE_LATERAL_MM;   // lateral: só perto (config.h)
   return z > TOF_MIN_MM ? z : TOF_MIN_MM;
 }
 

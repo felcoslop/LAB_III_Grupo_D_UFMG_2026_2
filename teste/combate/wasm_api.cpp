@@ -20,11 +20,11 @@ static int manA = -1, manB = 0;   // manobras do empurrão travado para o próxi
 // manobra do empurrão travado de cada robô (antitrava.h), valendo a partir do próximo cb_inicia
 EXPORTA(cb_manobras) void cb_manobras(int a, int b) { manA = a; manB = b; }
 
-EXPORTA(cb_inicia) void cb_inicia(uint32_t semente, int estrA, int estrB, int brancoA, int brancoB, int b1000,
+EXPORTA(cb_inicia) void cb_inicia(uint32_t semente, int estrA, int estrB, int brancoA, int brancoB, int motorB,
                                   int posA, int posB, double tRound, double atrito, double restit, int comPessoas) {
   Config c;
   c.semente = semente; c.estrA = estrA; c.estrB = estrB;
-  c.brancoA = brancoA != 0; c.brancoB = brancoB != 0; c.b1000 = b1000 != 0;
+  c.brancoA = brancoA != 0; c.brancoB = brancoB != 0; c.rpmB = motorB == 1 ? 1000 : motorB == 2 ? 600 : 319;   // 0 = 319 rpm, 1 = 1000 rpm, 2 = 600 rpm
   c.posA = posA; c.posB = posB; c.tRound = tRound; c.atrito = atrito; c.restit = restit; c.pessoas = comPessoas != 0;
   c.manobraA = manA; c.manobraB = manB;
   inicia(c);

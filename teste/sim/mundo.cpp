@@ -15,7 +15,7 @@ Param paramNosso() {
   Param p;
   p.nome = "nosso";
   p.massa = 0.98;
-  p.frente = 0.1177; p.tras = 0.025; p.meioY = 0.0745; p.xCg = 0.0269;
+  p.frente = 0.118; p.tras = 0.031; p.meioY = 0.0745; p.xCg = 0.0269;
   p.bitola = 0.1273; p.raio = 0.016;
   p.fracRodas = 0.77; p.muApoio = 0.35;
   p.lamina = 0.6;                 // rampa impressa de 17,7 graus, sem chapa de aço

@@ -7,7 +7,7 @@
 //   -b E        estratégia do adversário: rush, flank, fanout ou sorteada (padrão)
 //   -c COR      cor do adversário: preto (padrão) ou branco
 //   -C COR      cor do robô do Grupo D: preto (padrão) ou branco
-//   -m RPM      motores do adversário: 1000 (padrão) ou 319
+//   -m RPM      motores do adversário: 1000 (padrão), 600 ou 319
 //   -p N        rumo do Grupo D na largada: 0 de frente para o adversário, 1 e 2 de lado, 3 de costas
 //               (padrão sorteado)
 //   -P N        o mesmo para o adversário
@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
     else if (a == "-b") c.estrB = estrategia(prox());
     else if (a == "-c") c.brancoB = !strcmp(prox(), "branco");
     else if (a == "-C") c.brancoA = !strcmp(prox(), "branco");
-    else if (a == "-m") c.b1000 = atoi(prox()) != 319;
+    else if (a == "-m") { int m = atoi(prox()); c.rpmB = m == 319 || m == 600 ? m : 1000; }
     else if (a == "-p") c.posA = atoi(prox());
     else if (a == "-P") c.posB = atoi(prox());
     else if (a == "-u") c.atrito = atof(prox());
@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
   }
   static const char* EST[] = {"rush", "flank", "fanout"};
   printf("%u,%s,%s,%s,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.1f,%.1f,%d,%d,%.2f,%.1f,%d,%d,%d,%d\n", c.semente, EST[c.estrA],
-         EST[estB < 0 ? 0 : estB], c.brancoB ? "branco" : "preto", c.b1000 ? 1000 : 319, R.vencedor, R.motivo, R.tempo,
+         EST[estB < 0 ? 0 : estB], c.brancoB ? "branco" : "preto", c.rpmB, R.vencedor, R.motivo, R.tempo,
          E.tContato, E.tLevantado[0], E.tLevantado[1], E.aquecMax[0], E.aquecMax[1], E.destravas[0], E.destravas[1],
          E.tPrimContato, E.fMaxContato, E.jeito[0], E.jeito[1], E.manobras[0], E.manobras[1]);
   return 0;
