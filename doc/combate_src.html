@@ -77,6 +77,16 @@ h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; colo
   text-align: center; max-width: calc(100% - 24px);
 }
 .faixa small { display: block; font-family: var(--f-texto); font-size: 0.85rem; font-weight: 400; color: #c9d0cb; }
+.alerta {
+  position: absolute; left: 50%; top: 66px; transform: translateX(-50%); display: grid; gap: 2px; justify-items: center; padding: 7px 16px;
+  border-radius: 8px; background: rgba(176, 38, 24, 0.94); color: #fff; text-align: center; max-width: calc(100% - 24px);
+  font-family: var(--f-titulo); font-size: 1.15rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  box-shadow: 0 0 0 2px rgba(255, 214, 120, 0.9); animation: pisca 0.9s ease-in-out infinite; pointer-events: none;
+}
+.alerta small { font-family: var(--f-texto); font-size: 0.8rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: #ffe9c2; }
+@keyframes pisca { 50% { background: rgba(214, 120, 20, 0.94); } }
+@media (prefers-reduced-motion: reduce) { .alerta { animation: none; } }
+.equipe .estado.trava { color: #ffb84d; }
 .cameras { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
 .cameras button, .camadas button {
   font: 600 0.78rem var(--f-texto); color: #e9ece8; background: rgba(10, 12, 14, 0.7); border: 1px solid rgba(255, 255, 255, 0.18);
@@ -164,6 +174,7 @@ details .texto p { margin: 0; }
           <div class="relogio"><small id="relRot">Posicionando</small><span id="rel">0:00</span></div>
           <div class="equipe b"><span class="nome" id="nomeB">Adversário</span><span class="estado" id="estB">ESPERA</span></div>
         </div>
+        <div class="alerta" id="alerta" role="alert" hidden></div>
         <div class="faixa" id="faixa" aria-live="polite" hidden></div>
         <div class="cameras" role="group" aria-label="Câmera">
           <button type="button" data-cam="orbita" aria-pressed="true">Órbita</button>
@@ -224,7 +235,15 @@ details .texto p { margin: 0; }
             <button type="button" data-v="1" aria-pressed="false">De lado</button>
             <button type="button" data-v="3" aria-pressed="false">De costas</button>
           </div>
-          <p class="nota">O adversário larga virado para um lado sorteado.</p>
+        </div>
+        <div class="grupo">
+          <h3>Largada do adversário</h3>
+          <div class="segmentos b" id="selPosB">
+            <button type="button" data-v="-1" aria-pressed="true">Sorteada</button>
+            <button type="button" data-v="0" aria-pressed="false">De frente</button>
+            <button type="button" data-v="1" aria-pressed="false">De lado</button>
+            <button type="button" data-v="3" aria-pressed="false">De costas</button>
+          </div>
         </div>
         <div class="grupo">
           <h3>Empurrão travado (Grupo D)</h3>
@@ -634,7 +653,7 @@ function redimensiona() {
 new ResizeObserver(redimensiona).observe(vista);
 
 // ==================== controles da tela ====================
-const escolha = { estrA: 0, cor: 0, motor: 1, estrB: -1, pos: 0, vel: 1, manual: 0, trava: 0 };
+const escolha = { estrA: 0, cor: 0, motor: 1, estrB: -1, pos: 0, posB: -1, vel: 1, manual: 0, trava: 0 };
 function segmentos(id, chave, aoMudar) {
   const el = $(id);
   el.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
@@ -644,14 +663,15 @@ function segmentos(id, chave, aoMudar) {
   }));
 }
 segmentos("selEstrA", "estrA"); segmentos("selCor", "cor", notaDip); segmentos("selMotor", "motor");
-segmentos("selEstrB", "estrB"); segmentos("selPos", "pos"); segmentos("selVel", "vel");
+segmentos("selEstrB", "estrB"); segmentos("selPos", "pos"); segmentos("selPosB", "posB"); segmentos("selVel", "vel");
+const AVISO_IGUAL = " Contra o adversário de 319 rpm, que empurra de volta, o simulador dá derrota: sem a força das rodas o robô é levado para trás.";
 const NOTA_TRAVA = [
-  "Caixa do rastreador parada por 1,2 s no ataque: o firmware só avisa no log, como vem configurado.",
-  "Ré em arco para o lado com mais espaço e volta em arco pela lateral do oponente. Vale a partir da próxima luta.",
-  "Continua empurrando com giro para o lado com mais espaço, por 0,5 s. Vale a partir da próxima luta.",
-  "Empurra com giro alternando o lado a cada 125 ms, por 0,5 s. Vale a partir da próxima luta.",
-  "Giro no eixo de uns 70 graus e volta a mirar na lateral do oponente. Vale a partir da próxima luta.",
-  "Solta as rodas por 20 ms e volta a empurrar, três vezes. Vale a partir da próxima luta."];
+  "Caixa do rastreador parada por 1,2 s no ataque: o firmware só avisa (alerta de robô travado e linha no log), como vem configurado.",
+  "Ré em arco para o lado com mais espaço e volta em arco pela lateral do oponente. Vale a partir da próxima luta." + AVISO_IGUAL,
+  "Continua empurrando com giro de 150 graus por segundo para o lado com mais espaço, por 0,5 s. Vale a partir da próxima luta." + AVISO_IGUAL,
+  "Empurra com giro alternando o lado a cada 125 ms, por 0,5 s. Vale a partir da próxima luta." + AVISO_IGUAL,
+  "Giro no eixo por 0,2 s, com tensão toda desde o primeiro instante, e volta a mirar. Com o oponente empurrando, o robô gira só uns 10 graus. Vale a partir da próxima luta." + AVISO_IGUAL,
+  "Solta as rodas por 20 ms e volta a empurrar, três vezes: não muda a luta no simulador. Vale a partir da próxima luta."];
 segmentos("selTrava", "trava", () => { $("notaTrava").textContent = NOTA_TRAVA[escolha.trava]; });
 segmentos("selManual", "manual", () => {
   $("manche").hidden = escolha.manual === 0;
@@ -718,12 +738,17 @@ const TELE = [montaTele($("teleA"), "Grupo D"), montaTele($("teleB"), "Adversár
 // ==================== luta ====================
 let nomesEstados = [], estadoLuta = "carregando", pausado = false, semente = 1, ultimo = performance.now();
 let fimMostrado = false, fimExibido = false, tFimReal = 0;
+// alerta de robô travado: o firmware marca o empurrão travado (1), a ré da DESTRAVA (2) e a manobra da caixa parada (3);
+// o alerta fica 1 s depois de o sinal cair para dar tempo de ler
+const TRAVA_TXT = ["", "empurrão travado", "destravando com ré", "manobra do travamento"];
+const NOME_MANOBRA = ["", "lateral", "torque", "zigue", "giro", "pulso"];
+const tTrava = [-1e9, -1e9], nvTrava = [0, 0];
 const sessao = { v: 0, e: 0, d: 0 };
 const ESTR = ["Rush", "Flank", "Fan out"];
 function novaLuta(repete) {
   if (!repete) semente = 1 + Math.floor(Math.random() * 1e6);
   if (W.cb_manobras) W.cb_manobras(escolha.trava, 0);
-  W.cb_inicia(semente, escolha.estrA, escolha.estrB, 0, escolha.cor, escolha.motor, escolha.pos, -1, 90, 1.0, 0.4, 1);
+  W.cb_inicia(semente, escolha.estrA, escolha.estrB, 0, escolha.cor, escolha.motor, escolha.pos, escolha.posB, 90, 1.0, 0.4, 1);
   const p = new Float32Array(mem.buffer, W.cb_pessoas(), 25);
   const lista = []; for (let i = 0; i < p[0]; i++) lista.push([p[1 + 3 * i], p[2 + 3 * i]]);
   montaPessoas(lista);
@@ -739,6 +764,7 @@ function novaLuta(repete) {
   }
   robos[1].matPla.color.set(escolha.cor ? 0xe8e7e2 : 0x1c1d1f);
   robos.forEach((r) => { r.queda = null; });
+  tTrava[0] = tTrava[1] = -1e9; $("alerta").hidden = true;
   $("log").innerHTML = ""; tLibLog = -1; $("faixa").hidden = true; fimMostrado = false; fimExibido = false;
   $("nomeB").textContent = `Adversário ${escolha.motor ? "1000" : "319"} rpm`;
   $("semente").textContent = `Semente ${semente}. Estratégia do Grupo D: ${ESTR[escolha.estrA]}.`;
@@ -833,6 +859,21 @@ function mostraFim(q) {
   $("sV").textContent = sessao.v; $("sE").textContent = sessao.e; $("sD").textContent = sessao.d;
 }
 
+function mostraAlertaTrava(agoraReal) {
+  const el = $("alerta");
+  const nomes = ["Grupo D", $("nomeB").textContent];
+  const lista = [];
+  for (let k = 0; k < 2; k++) if (agoraReal - tTrava[k] < 1000 && estadoLuta === "rodando") {
+    let txt = TRAVA_TXT[nvTrava[k]];
+    if (k === 0 && nvTrava[k] === 3) txt += ` (${NOME_MANOBRA[escolha.trava] || "automática"})`;
+    lista.push(`${nomes[k]}: ${txt}`);
+  }
+  if (!lista.length) { el.hidden = true; return; }
+  const t = lista.join(" · ");
+  if (el.dataset.t !== t) { el.dataset.t = t; el.innerHTML = "<span>Robô travado</span><small></small>"; el.lastChild.textContent = t; }
+  el.hidden = false;
+}
+
 function atualizaDeteccao(d, o, agoraReal) {
   const ver = camadas.sensores && o[7] === 0;
   d.g.visible = ver;
@@ -881,6 +922,8 @@ function quadroCena(agoraReal, dtReal) {
     poseRobo(r, o, agoraReal);
     const e = nomesEstados[o[10]] || "";
     $(k ? "estB" : "estA").textContent = o[7] > 0 ? "FORA" : (o[51] > 0 ? "MANUAL" : e);
+    if (o[27] > 0 && o[7] === 0 && estadoLuta === "rodando") { tTrava[k] = agoraReal; nvTrava[k] = o[27]; }
+    $(k ? "estB" : "estA").classList.toggle("trava", agoraReal - tTrava[k] < 1000);
     if (r.det) atualizaDeteccao(r.det, o, agoraReal);
     if (k === 0) {
       // localização: centro do dojô estimado pelo filtro de partículas, no referencial do dojô
@@ -896,6 +939,7 @@ function quadroCena(agoraReal, dtReal) {
     atualizaTele(TELE[k], o);
   }
   relogio(q);
+  mostraAlertaTrava(agoraReal);
   eventosNovos(q[1]);
   if (estadoLuta === "fim" && !fimExibido && agoraReal - tFimReal > 300) { fimExibido = true; mostraFim(q); }
   if (modoCam === "robo") {

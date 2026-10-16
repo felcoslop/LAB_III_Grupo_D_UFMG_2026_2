@@ -289,6 +289,14 @@ static const CfgBorda BORDA[] = {
 // de ligar o ESP32, porque nível alto no GPIO 12 muda a tensão da flash e a placa não liga, e
 // DIP 3 (GPIO 2) desligada na hora de gravar o firmware.
 #define PINO_LED          -1
+// LED de robô travado (opcional, pode comprar depois): acende enquanto o empurrão estiver travado
+// ou a manobra de destravar rodar, e apaga quando o robô se solta. Anodo no pino (resistor de
+// 330 ohms em série) e catodo no GND. Com 7 ToF não sobra pino de saída livre: o GPIO 1 (TX0) é o
+// único que serve, ao custo do terminal serial durante a luta (use a telemetria sem fio). Com 5
+// ToF os GPIO 16 e 4 ficam livres. -1 deixa o LED desligado e o código nem entra no binário.
+#ifndef PINO_LED_TRAVA
+#define PINO_LED_TRAVA    -1
+#endif
 #define SERIAL_BAUD       115200
 #define STREAM_MS         20     // dados para o painel a 50 Hz, o mesmo ritmo dos sensores
 
@@ -337,6 +345,32 @@ static const CfgBorda BORDA[] = {
 // troca de mais ruído e de mais leitura falsa. O rastreador acompanha a troca: espera um alvo
 // que some com mais frequência (chance de detecção menor e queda mais suave com a distância),
 // conta mais leitura falsa e segura o oponente por mais tempo antes de dar como perdido.
+//
+// COMO AJUSTAR (um valor de cada vez, testando com o oponente de cada cor no dojô):
+//   ESCURO_SINAL_MCPS   menor (0,05) = o chip aceita retorno mais fraco: vê o preto mais longe, mas
+//                       passa a ver poeira, reflexo do piso e a parede. Maior (0,20) = menos leitura
+//                       falsa, mas o preto some a distâncias menores. Não passe de 0,25 (é o claro).
+//   ESCURO_TIMING_US    maior (40000) = medida mais limpa e alcance maior, mas o robô reage mais
+//                       devagar (cada leitura leva esse tempo). Menor (25000) = reação mais rápida e
+//                       mais ruído.
+//   ESCURO_VCSEL_PRE / ESCURO_VCSEL_FINAL
+//                       pulso do laser. Maior = mais alcance e mais consumo; o chip só aceita
+//                       valores pares: pré 12 a 18 e final 8 a 14. Volte para 14 e 10 se o sensor
+//                       travar em oponente claro.
+//   ESCURO_ALCANCE_MM   até onde o rastreador acredita num alvo preto. Meça afastando um objeto
+//                       preto até a leitura piscar e escreva aqui o valor medido. Alto demais = o
+//                       robô persegue fantasma; baixo demais = ignora o oponente a meia distância.
+//   ESCURO_PD_MAX       chance de ver o preto dentro do alcance. Maior (0,95) = o rastreador confia
+//                       mais em cada leitura; menor (0,7) = confia menos e demora mais para decidir.
+//   ESCURO_FALSA_FATOR  quantas leituras falsas esperar. Maior = ignora leitura solta e demora a
+//                       reagir; menor = reage depressa e se engana mais com reflexo.
+//   ESCURO_RUIDO_FATOR  erro de distância esperado. Maior = a caixa do oponente fica mais larga.
+//   ESCURO_PERDE_MS     tempo sem ver o oponente até dar como perdido. Maior = continua mirando o
+//                       último ponto por mais tempo (bom se o preto pisca); menor = volta a buscar
+//                       antes (bom se o oponente sai depressa da frente).
+// No perfil CLARO os mesmos ajustes estão em TOF_TIMING_US e ALCANCE_PRETO_MM (acima) e em
+// FUSAO_PERDE_MS: mexa neles no mesmo sentido (menos sinal e mais tempo = mais alcance e mais ruído).
+// Teste de bancada: comando "perfil claro|escuro" no terminal troca o perfil sem mexer na chave.
 // ============================================================================
 #define ESCURO_TIMING_US    33000
 #define ESCURO_SINAL_MCPS   0.10f
@@ -441,14 +475,31 @@ static const CfgBorda BORDA[] = {
 #define T_DESTRAVA_AVANCO_MS 250    // avanço reto para soltar a quina, sem espaço atrás
 #define DESTRAVA_LIVRE_MM    140    // espaço mínimo atrás (localização) para a ré
 #define T_TRAVA_MS           1600   // empurrão em contato por mais disso aparece como travado
-// Manobras do empurrão travado pela caixa do rastreador (antitrava.h, experimental). ANTI_TRAVA 0
-// tira o módulo inteiro; ANTI_TRAVA_MANOBRA escolhe a manobra (0 nenhuma, 1 lateral, 2 torque,
-// 3 zigue, 4 giro, 5 pulso), e o comando "trava N" troca a manobra sem gravar.
+// ----------------------------------------------------------------------------------------------
+// O QUE FAZER QUANDO O EMPURRÃO TRAVAR (caixa do rastreador parada no ataque, antitrava.h)
+// Descomente UMA linha só. Com todas comentadas, o robô só avisa: o terminal, o painel e o LED
+// (PINO_LED_TRAVA, abaixo) mostram "robô travado" e o robô continua empurrando. Nas lutas
+// simuladas contra um oponente de 319 rpm nenhuma manobra venceu; soltar ou girar no meio do
+// empurrão entregou o lugar ao oponente. Só vale a pena ligar uma delas depois de testar no dojô.
+//   Só avisa  -> nenhuma linha descomentada (padrão)
+//   Lateral   -> ré em arco e volta pela lateral do oponente
+//   Torque    -> continua empurrando com um giro suave (desequilibra o oponente)
+//   Zigue     -> empurra com giro alternando de lado a cada ANTI_TRAVA_ZIGUE_MS
+//   Giro      -> giro no eixo com tensão toda por ANTI_TRAVA_GIRO_MS
+//   Pulso     -> solta as rodas por ANTI_TRAVA_SOLTA_MS e empurra de novo, em ciclos
+// ANTI_TRAVA 0 (logo abaixo) tira o módulo inteiro, inclusive o aviso. O comando "trava N" do
+// terminal troca a manobra sem gravar (0 só avisa, 1 lateral, 2 torque, 3 zigue, 4 giro, 5 pulso).
+// ----------------------------------------------------------------------------------------------
+//#define ANTI_TRAVA_MANOBRA   1   // Lateral
+//#define ANTI_TRAVA_MANOBRA   2   // Torque
+//#define ANTI_TRAVA_MANOBRA   3   // Zigue
+//#define ANTI_TRAVA_MANOBRA   4   // Giro
+//#define ANTI_TRAVA_MANOBRA   5   // Pulso
 #ifndef ANTI_TRAVA
 #define ANTI_TRAVA           1
 #endif
 #ifndef ANTI_TRAVA_MANOBRA
-#define ANTI_TRAVA_MANOBRA   0
+#define ANTI_TRAVA_MANOBRA   0     // Só avisa
 #endif
 #define ANTI_TRAVA_T_MS      1200   // caixa parada no ataque por mais disso: travado
 #define ANTI_TRAVA_TOL_MM    25     // tolerância da distância da caixa (erro do rastreador perto de 10 mm)
@@ -464,7 +515,7 @@ static const CfgBorda BORDA[] = {
 #define ANTI_TRAVA_TORQUE_MS 500    // torque e zigue: empurrão com giro
 #define ANTI_TRAVA_TORQUE_DPS 150
 #define ANTI_TRAVA_ZIGUE_MS  125    // zigue: tempo de cada lado
-#define ANTI_TRAVA_GIRO_MS   200    // giro strike: giro no eixo (uns 70 graus com a rampa de aceleração)
+#define ANTI_TRAVA_GIRO_MS   200    // giro strike: giro no eixo com tensão toda (sem a rampa de aceleração)
 #define ANTI_TRAVA_PULSO_MS  300    // pulso: ciclo de solta e empurra
 #define ANTI_TRAVA_SOLTA_MS  20     // rodas soltas em cada pulso
 // Modelo térmico de cada motor: corrente = (tensão aplicada - força contraeletromotriz) /
