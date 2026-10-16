@@ -847,7 +847,6 @@ Os números são do desenho do cone, sem medida no dojô. Uma pessoa, mais estre
 ```
 LAB_III_Grupo_D_UFMG_2026_2/
   README.md                 este documento
-  CLAUDE.md                 guia do repositório para o Claude Code (estrutura, comandos e regras)
   firmware/sumo_esp32/      firmware: abrir o sumo_esp32.ino na Arduino IDE
     sumo_esp32.ino          arquivo principal (setup e loop)
     config.h                pinos, sensores, limiares, velocidades e tempos
