@@ -1,5 +1,5 @@
 {
-  "nota": "{lutas} lutas com o mesmo firmware nos dois robôs, {sementes} largadas sorteadas para cada combinação; a estratégia do adversário também é sorteada em cada luta. A página gera esta tabela de novo a cada publicação.",
+  "nota": "{lutas} lutas com o mesmo firmware nos dois robôs, {sementes} largadas sorteadas para cada combinação; a estratégia do adversário também é sorteada em cada luta. A tabela vem de doc/combate/bateria.json, gerado com o firmware desta versão.",
   "achados": [
     "Contra o adversário de 319 rpm, igual ao Grupo D, {e319} das {n319} lutas terminaram empatadas por tempo. Os robôs encostam um no outro {prim_contato_mediana} s depois dos 5 s parados (mediana) e ficam empurrando de frente até o fim dos 90 s, porque os dois têm o mesmo peso, o mesmo pneu e o mesmo limite de tração. Nas lutas decididas, o Grupo D venceu {v319} e perdeu {d319}.",
     "Contra o adversário de 1000 rpm, o Grupo D venceu {v1000}, perdeu {d1000} e empatou {e1000} de {n1000} lutas. O motor dele tem um terço do torque: travado, ele empurra com uns 7,4 N, abaixo dos 8,5 a 9,6 N que os pneus do Grupo D aguentam (atrito de 1,15 parado e 1,30 escorregando sobre 77% do peso). O empurrão de frente leva o adversário para fora em {tv1000} s, em média. As derrotas vêm de choques em que ele chega rápido na lateral ou na traseira do Grupo D.",

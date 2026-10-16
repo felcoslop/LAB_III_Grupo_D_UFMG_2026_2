@@ -1,0 +1,243 @@
+{
+ "resumo": [
+  {
+   "lutas": 10,
+   "vitorias": 1,
+   "derrotas_empurrado": 2,
+   "derrotas_saiu_sozinho": 0,
+   "vitorias_adversario_saiu": 0,
+   "empates": 7,
+   "tempo_medio_vitoria": 1.15,
+   "aquec_max_a": 20.9,
+   "estrategia": "fanout",
+   "cor": "branco",
+   "motor": 319
+  },
+  {
+   "lutas": 10,
+   "vitorias": 9,
+   "derrotas_empurrado": 1,
+   "derrotas_saiu_sozinho": 0,
+   "vitorias_adversario_saiu": 0,
+   "empates": 0,
+   "tempo_medio_vitoria": 2.37,
+   "aquec_max_a": 0.7,
+   "estrategia": "fanout",
+   "cor": "branco",
+   "motor": 1000
+  },
+  {
+   "lutas": 10,
+   "vitorias": 1,
+   "derrotas_empurrado": 1,
+   "derrotas_saiu_sozinho": 0,
+   "vitorias_adversario_saiu": 0,
+   "empates": 8,
+   "tempo_medio_vitoria": 1.11,
+   "aquec_max_a": 21.4,
+   "estrategia": "fanout",
+   "cor": "preto",
+   "motor": 319
+  },
+  {
+   "lutas": 10,
+   "vitorias": 8,
+   "derrotas_empurrado": 2,
+   "derrotas_saiu_sozinho": 0,
+   "vitorias_adversario_saiu": 0,
+   "empates": 0,
+   "tempo_medio_vitoria": 2.19,
+   "aquec_max_a": 0.6,
+   "estrategia": "fanout",
+   "cor": "preto",
+   "motor": 1000
+  },
+  {
+   "lutas": 10,
+   "vitorias": 0,
+   "derrotas_empurrado": 2,
+   "derrotas_saiu_sozinho": 0,
+   "vitorias_adversario_saiu": 0,
+   "empates": 8,
+   "tempo_medio_vitoria": null,
+   "aquec_max_a": 20.9,
+   "estrategia": "flank",
+   "cor": "branco",
+   "motor": 319
+  },
+  {
+   "lutas": 10,
+   "vitorias": 9,
+   "derrotas_empurrado": 1,
+   "derrotas_saiu_sozinho": 0,
+   "vitorias_adversario_saiu": 0,
+   "empates": 0,
+   "tempo_medio_vitoria": 2.56,
+   "aquec_max_a": 0.5,
+   "estrategia": "flank",
+   "cor": "branco",
+   "motor": 1000
+  },
+  {
+   "lutas": 10,
+   "vitorias": 0,
+   "derrotas_empurrado": 2,
+   "derrotas_saiu_sozinho": 0,
+   "vitorias_adversario_saiu": 0,
+   "empates": 8,
+   "tempo_medio_vitoria": null,
+   "aquec_max_a": 21.4,
+   "estrategia": "flank",
+   "cor": "preto",
+   "motor": 319
+  },
+  {
+   "lutas": 10,
+   "vitorias": 8,
+   "derrotas_empurrado": 2,
+   "derrotas_saiu_sozinho": 0,
+   "vitorias_adversario_saiu": 0,
+   "empates": 0,
+   "tempo_medio_vitoria": 2.78,
+   "aquec_max_a": 0.6,
+   "estrategia": "flank",
+   "cor": "preto",
+   "motor": 1000
+  },
+  {
+   "lutas": 10,
+   "vitorias": 1,
+   "derrotas_empurrado": 2,
+   "derrotas_saiu_sozinho": 0,
+   "vitorias_adversario_saiu": 0,
+   "empates": 7,
+   "tempo_medio_vitoria": 1.14,
+   "aquec_max_a": 20.9,
+   "estrategia": "rush",
+   "cor": "branco",
+   "motor": 319
+  },
+  {
+   "lutas": 10,
+   "vitorias": 9,
+   "derrotas_empurrado": 1,
+   "derrotas_saiu_sozinho": 0,
+   "vitorias_adversario_saiu": 0,
+   "empates": 0,
+   "tempo_medio_vitoria": 2.28,
+   "aquec_max_a": 0.7,
+   "estrategia": "rush",
+   "cor": "branco",
+   "motor": 1000
+  },
+  {
+   "lutas": 10,
+   "vitorias": 1,
+   "derrotas_empurrado": 1,
+   "derrotas_saiu_sozinho": 0,
+   "vitorias_adversario_saiu": 0,
+   "empates": 8,
+   "tempo_medio_vitoria": 1.11,
+   "aquec_max_a": 21.4,
+   "estrategia": "rush",
+   "cor": "preto",
+   "motor": 319
+  },
+  {
+   "lutas": 10,
+   "vitorias": 8,
+   "derrotas_empurrado": 2,
+   "derrotas_saiu_sozinho": 0,
+   "vitorias_adversario_saiu": 0,
+   "empates": 0,
+   "tempo_medio_vitoria": 2.14,
+   "aquec_max_a": 0.5,
+   "estrategia": "rush",
+   "cor": "preto",
+   "motor": 1000
+  }
+ ],
+ "total": {
+  "lutas": 120,
+  "vitorias": 55,
+  "derrotas_empurrado": 19,
+  "derrotas_saiu_sozinho": 0,
+  "vitorias_adversario_saiu": 0,
+  "empates": 46,
+  "tempo_medio_vitoria": 2.3,
+  "aquec_max_a": 21.4
+ },
+ "sementes": 10,
+ "atrito": null,
+ "restit": null,
+ "agregados": {
+  "lutas": 120,
+  "vitorias": 55,
+  "derrotas": 19,
+  "empates": 46,
+  "quedas": 0,
+  "por_motor": {
+   "319": {
+    "v": 4,
+    "d": 10,
+    "e": 46,
+    "n": 60,
+    "tv": 1.1
+   },
+   "1000": {
+    "v": 51,
+    "d": 9,
+    "e": 0,
+    "n": 60,
+    "tv": 2.4
+   }
+  },
+  "prim_contato_mediana": 0.52,
+  "decidida_mediana": 2.48,
+  "decidida_max": 4.0,
+  "empate_contato_medio": 89.4,
+  "aquec_max": 21.4,
+  "estrategia_mudou": 2,
+  "grupos": 40,
+  "por_largada": {
+   "frente": {
+    "v": 22,
+    "d": 1,
+    "e": 13,
+    "n": 36
+   },
+   "costas": {
+    "v": 21,
+    "d": 18,
+    "e": 21,
+    "n": 60
+   },
+   "lado": {
+    "v": 12,
+    "d": 0,
+    "e": 12,
+    "n": 24
+   }
+  },
+  "por_estrategia": {
+   "fanout": {
+    "v": 19,
+    "d": 6,
+    "e": 15,
+    "n": 40
+   },
+   "flank": {
+    "v": 17,
+    "d": 7,
+    "e": 16,
+    "n": 40
+   },
+   "rush": {
+    "v": 19,
+    "d": 6,
+    "e": 15,
+    "n": 40
+   }
+  }
+ }
+}

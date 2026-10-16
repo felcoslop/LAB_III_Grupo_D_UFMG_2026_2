@@ -55,6 +55,7 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 - Painel 2D e 3D em um único arquivo HTML, sem internet, ligado ao robô pela USB, com dados a 50 Hz e comandos pelo navegador.
 - Firmware sem rádio: o robô compete de forma autônoma, sem WiFi e sem Bluetooth, o que deixa o núcleo 0 livre para os sensores e o rastreador.
 - Simulador de lutas (software in the loop): o firmware compilado no computador luta contra seis tipos de oponente, com pessoas paradas em volta do dojô, e o CI roda uma bateria de lutas em todo pull request.
+- Combate em 3D com o mesmo firmware nos dois robôs, na física de Belo Horizonte (gravidade e ar do lugar, pneu de silicone na madeira pintada, choque com restituição), e montagem 3D com cada jumper do esquema, as duas em páginas versionadas no repositório.
 - Terminal de comandos pela USB ou pelo painel para teste, calibração e diagnóstico.
 
 ## Hardware
@@ -385,8 +386,11 @@ python teste/combate/bateria.py teste/combate/combate --sementes 30 --csv combat
 teste/combate/combate -s 7 -a rush -c preto -m 1000 -v      # uma luta, com o Log dos dois firmwares
 pip install ziglang==0.14.0
 ZIG="python -m ziglang" bash teste/combate/compila.sh wasm  # módulo da página
-python doc/gera_combate.py --wasm teste/combate/combate.wasm --bateria bateria.json
+python teste/combate/bateria.py teste/combate/combate --sementes 10 --json doc/combate/bateria.json
+python doc/gera_combate.py --wasm teste/combate/combate.wasm  # refaz doc/site/combate.html
 ```
+
+A página do combate fica no repositório (`doc/site/combate.html`), como o painel: depois de mudar o firmware, o simulador ou a página, rode as três últimas linhas e faça o commit da página e do `doc/combate/bateria.json`. O CI compila o WebAssembly de novo e falha se a página versionada for diferente da gerada. O `--fragmento` gera a mesma página sem o `<head>`, para publicar como artefato.
 
 A simulação deixa de fora a rampa entrando fundo embaixo do outro robô (o ponto de apoio não anda), o tombamento, a deformação do pneu, a poeira no dojô e o feixe do VL53L0X batendo no chão. O atrito real do pneu e o centro de massa medido na balança (robô apoiado numa régua, até equilibrar) deixam o resultado mais perto da luta de verdade.
 
@@ -788,9 +792,11 @@ sumo_esp32/
     confere_site.py         confere as constantes da página do simulador com o config.h
     site/index.html         página do simulador da cinemática (GitHub Pages)
     site/lutas.html         página das lutas simuladas com o firmware (GitHub Pages)
+    site/combate.html       página 3D do combate, gerada pelo gera_combate.py (versionada, conferida no CI)
+    site/montagem.html      página da montagem 3D com os jumpers, gerada pelo gera_montagem.py (versionada, conferida no CI)
     combate_src.html        modelo da página 3D do combate
     gera_combate.py         gera doc/site/combate.html com o WebAssembly, as malhas e a bateria
-    combate/                malhas do STL (malhas.js, exporta_malhas.py) e textos da página
+    combate/                malhas do STL (malhas.js, exporta_malhas.py), textos da página e bateria.json (placar da página)
     montagem_src.html       modelo da página da montagem 3D
     montagem/               montagem.json (peças, pinos, rotas), pecas.js, exporta_pecas.py, gera_montagem.py e interferencias.json
     gabarito_bancada.pdf    gabarito 1:1 da bancada
@@ -802,7 +808,7 @@ sumo_esp32/
 
 ## Integração contínua
 
-O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados, e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/stub`), o `cinematica.cpp`, o `estados.cpp`, o `arena.cpp`, o `chave.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro, a escolha da estratégia pela chave, a fuga em cada combinação de sensores de borda, a localização no dojô nas duas geometrias (erro, coerência da incerteza e descarte) e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x). Um terceiro teste compila o simulador de lutas e roda 288 lutas (3 estratégias, 6 oponentes, claro e escuro, 8 largadas) com pessoas em volta do dojô; ele falha com qualquer queda própria ou com mais de 2 s mirando algo fora do dojô numa luta, e guarda a tabela no resumo da execução e o CSV como artefato. Um quarto teste compila o simulador de combate e roda 48 lutas com o mesmo firmware nos dois robôs (3 estratégias, adversário preto e branco, 1000 e 319 rpm), falhando com qualquer queda própria, e compila o mesmo código para WebAssembly. Um quinto teste gera o painel de novo a partir do `doc/painel_src.html` e falha se o `painel_sumo.html` versionado estiver diferente, e confere se as constantes da página do simulador (`doc/site/index.html`) são as mesmas do `config.h`. O workflow `pages.yml` publica as páginas no GitHub Pages a cada push na `main`, com os rastros e o placar das lutas, o WebAssembly do combate e a bateria de 120 lutas gerados na hora. As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem.
+O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados, e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/stub`), o `cinematica.cpp`, o `estados.cpp`, o `arena.cpp`, o `chave.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro, a escolha da estratégia pela chave, a fuga em cada combinação de sensores de borda, a localização no dojô nas duas geometrias (erro, coerência da incerteza e descarte) e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x). Um terceiro teste compila o simulador de lutas e roda 288 lutas (3 estratégias, 6 oponentes, claro e escuro, 8 largadas) com pessoas em volta do dojô; ele falha com qualquer queda própria ou com mais de 2 s mirando algo fora do dojô numa luta, e guarda a tabela no resumo da execução e o CSV como artefato. Um quarto teste compila o simulador de combate e roda 48 lutas com o mesmo firmware nos dois robôs (3 estratégias, adversário preto e branco, 1000 e 319 rpm), falhando com qualquer queda própria, compila o mesmo código para WebAssembly e falha se o `doc/site/combate.html` versionado for diferente da página gerada com esse WebAssembly e a bateria do `doc/combate/bateria.json`. Um quinto teste gera o painel de novo a partir do `doc/painel_src.html` e a página da montagem a partir do `config.h` e do `doc/montagem/montagem.json`, falha se o `painel_sumo.html` ou o `doc/site/montagem.html` versionados estiverem diferentes, e confere se as constantes da página do simulador (`doc/site/index.html`) são as mesmas do `config.h`. O workflow `pages.yml` publica as páginas no GitHub Pages a cada push na `main`, com os rastros e o placar das lutas gerados na hora; o combate e a montagem vão como estão no repositório. As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem.
 
 ## Equipe
 
