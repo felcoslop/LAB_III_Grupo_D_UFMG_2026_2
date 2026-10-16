@@ -8,10 +8,17 @@ namespace sim {
 
 static inline double sq(double v) { return v * v; }
 
+// Robô montado com as medidas do STL (o mesmo do simulador de combate, teste/combate): rodas
+// atrás, rampa de 117,7 mm à frente do eixo, 980 g com o centro de massa 26,9 mm à frente do
+// eixo (77% do peso nos pneus) e a ponta da rampa de PLA arrastando no dojô.
 Param paramNosso() {
   Param p;
   p.nome = "nosso";
-  p.lamina = 0.6;                 // cunha baixa impressa (BD_Bot), sem chapa de aço
+  p.massa = 0.98;
+  p.frente = 0.1177; p.tras = 0.025; p.meioY = 0.0745; p.xCg = 0.0269;
+  p.bitola = 0.1273; p.raio = 0.016;
+  p.fracRodas = 0.77; p.muApoio = 0.35;
+  p.lamina = 0.6;                 // rampa impressa de 17,7 graus, sem chapa de aço
   p.refl = 0.05;                  // corpo preto fosco
   return p;
 }
@@ -51,7 +58,7 @@ void Robo::paraCorpo(double wx, double wy, double& bx, double& by) const {
 }
 void Robo::cantos(double cx[4], double cy[4]) const {
   const double sx[4] = {1, 1, -1, -1}, sy[4] = {1, -1, -1, 1};
-  for (int k = 0; k < 4; k++) paraMundo(sx[k] * p.meioX, sy[k] * p.meioY, cx[k], cy[k]);
+  for (int k = 0; k < 4; k++) paraMundo(sx[k] > 0 ? p.frente : -p.tras, sy[k] * p.meioY, cx[k], cy[k]);
 }
 
 Mundo::Mundo(uint32_t semente) : rng(semente) {
@@ -97,7 +104,7 @@ void Mundo::forcasRobo(Robo& r, double& fx, double& fy, double& tq, double dt) {
     tq += rx * Fy - ry * Fx;
   }
   // apoio (lâmina e rodízio) arrastando no chão, na frente do eixo
-  double ax = p.meioX * 0.8;
+  double ax = p.frente * 0.95;
   double rx = ux * ax, ry = uy * ax;
   double vpx = r.vx - r.w * ry, vpy = r.vy + r.w * rx;
   double vm = std::sqrt(vpx * vpx + vpy * vpy);
@@ -119,13 +126,18 @@ void Mundo::contatoRobos(double& fxA, double& fyA, double& tqA, double& fxB, dou
   double ax[2] = {std::cos(A.th), -std::sin(A.th)}, ay[2] = {std::sin(A.th), std::cos(A.th)};
   double bx[2] = {std::cos(B.th), -std::sin(B.th)}, by[2] = {std::sin(B.th), std::cos(B.th)};
   double eixos[4][2] = {{ax[0], ay[0]}, {ax[1], ay[1]}, {bx[0], by[0]}, {bx[1], by[1]}};
-  double dx = B.x - A.x, dy = B.y - A.y;
+  // centro de cada caixa (o eixo das rodas nem sempre fica no meio do corpo)
+  double cAx, cAy, cBx, cBy;
+  A.paraMundo(0.5 * (A.p.frente - A.p.tras), 0, cAx, cAy);
+  B.paraMundo(0.5 * (B.p.frente - B.p.tras), 0, cBx, cBy);
+  const double hA = 0.5 * (A.p.frente + A.p.tras), hB = 0.5 * (B.p.frente + B.p.tras);
+  double dx = cBx - cAx, dy = cBy - cAy;
   double melhor = 1e9, nX = 0, nY = 0;
   for (auto& e : eixos) {
     double ex = e[0], ey = e[1];
     double d = dx * ex + dy * ey;
-    double eA = std::fabs(A.p.meioX * (ax[0] * ex + ay[0] * ey)) + std::fabs(A.p.meioY * (ax[1] * ex + ay[1] * ey));
-    double eB = std::fabs(B.p.meioX * (bx[0] * ex + by[0] * ey)) + std::fabs(B.p.meioY * (bx[1] * ex + by[1] * ey));
+    double eA = std::fabs(hA * (ax[0] * ex + ay[0] * ey)) + std::fabs(A.p.meioY * (ax[1] * ex + ay[1] * ey));
+    double eB = std::fabs(hB * (bx[0] * ex + by[0] * ey)) + std::fabs(B.p.meioY * (bx[1] * ex + by[1] * ey));
     double ov = eA + eB - std::fabs(d);
     if (ov <= 0) return;                        // eixo separador: sem contato
     if (ov < melhor) { melhor = ov; double sg = d >= 0 ? 1 : -1; nX = ex * sg; nY = ey * sg; }
@@ -165,7 +177,7 @@ void Mundo::contatoRobos(double& fxA, double& fyA, double& tqA, double& fxB, dou
 
 void Mundo::integra(Robo& r, double fx, double fy, double tq, double dt) {
   if (r.fora) { r.vx = r.vy = r.w = 0; return; }
-  double I = r.p.massa * (sq(2 * r.p.meioX) + sq(2 * r.p.meioY)) / 12;
+  double I = r.p.massa * (sq(r.p.frente + r.p.tras) + sq(2 * r.p.meioY)) / 12;
   r.vx += fx / r.p.massa * dt;
   r.vy += fy / r.p.massa * dt;
   r.w  += tq / I * dt;
@@ -174,11 +186,13 @@ void Mundo::integra(Robo& r, double fx, double fy, double tq, double dt) {
   if (r.th < -M_PI) r.th += 2 * M_PI;
 }
 
-// Regra: o robô sai quando o centro passa da borda (tomba para fora) ou quando uma roda perde
+// Regra: o robô sai quando o centro de massa passa da borda (tomba para fora) ou quando uma roda perde
 // o apoio do dojô (o canto do corpo encosta no chão de fora).
 void Mundo::confereFora(Robo& r) {
   if (r.fora) return;
-  bool sai = std::hypot(r.x, r.y) > R_DOJO;
+  double gx, gy;
+  r.paraMundo(r.p.xCg, 0, gx, gy);
+  bool sai = std::hypot(gx, gy) > R_DOJO;
   for (int k = 0; k < 2 && !sai; k++) {
     double wx, wy;
     r.paraMundo(0, (k ? -1 : 1) * r.p.bitola / 2, wx, wy);

@@ -1,0 +1,932 @@
+<title>Combate Grupo D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: palco 3D à esquerda (o dojô é o assunto), painel de controle e placar à direita; no
+   celular o painel desce para baixo do palco. Cores das equipes: azul-petróleo para o Grupo D e
+   laranja queimado para o adversário, como as fitas de identificação dos robôs. */
+:root {
+  --bg: #eef0ec;
+  --painel: #ffffff;
+  --fg: #171a19;
+  --suave: #5a625e;
+  --linha: #d6dad4;
+  --a: #0d7480;
+  --b: #b9541c;
+  --bom: #2e7031;
+  --ruim: #a8291f;
+  --shikiri: #7a4a2a;
+  --palco: #0d0f12;
+  --chip: #f5f6f3;
+  --f-titulo: "Saira Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-texto: "Source Sans 3", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121514; --painel: #1a1e1d; --fg: #e6e9e4; --suave: #9aa39e; --linha: #2c322f;
+    --a: #39adb9; --b: #ec8a4f; --bom: #6fbf72; --ruim: #f0786c; --shikiri: #b07a52; --chip: #232826;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121514; --painel: #1a1e1d; --fg: #e6e9e4; --suave: #9aa39e; --linha: #2c322f;
+  --a: #39adb9; --b: #ec8a4f; --bom: #6fbf72; --ruim: #f0786c; --shikiri: #b07a52; --chip: #232826;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--f-texto); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 14px 28px;
+}
+h1, h2, h3 { font-family: var(--f-titulo); font-weight: 700; letter-spacing: 0.01em; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.9rem; line-height: 1.05; }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--suave); font-weight: 600; }
+.app { max-width: 1440px; margin: 0 auto; display: grid; gap: 14px; }
+.topo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 18px; }
+.local { color: var(--suave); margin: 2px 0 0; font-size: 0.92rem; max-width: 80ch; }
+.grade { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+@media (max-width: 900px) { .grade { grid-template-columns: minmax(0, 1fr); } }
+.palco { display: grid; gap: 10px; min-width: 0; }
+.vista { position: relative; background: var(--palco); border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 10; max-width: 100%; }
+@media (max-width: 600px) {
+  .vista { aspect-ratio: 4 / 3.8; }
+  .camadas { left: 10px; right: auto; bottom: 46px; justify-content: flex-start; }
+  .relogio { font-size: 1.5rem; }
+  .faixa { font-size: 1.1rem; }
+}
+.vista canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.placar {
+  position: absolute; top: 10px; left: 10px; right: 10px; display: grid; grid-template-columns: 1fr auto 1fr;
+  gap: 8px; align-items: start; pointer-events: none;
+}
+.equipe { display: grid; gap: 2px; padding: 6px 10px; border-radius: 6px; background: rgba(10, 12, 14, 0.72); color: #eef1ee; min-width: 0; }
+.equipe .nome { font-family: var(--f-titulo); font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.equipe .estado { font-family: var(--f-mono); font-size: 0.86rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.equipe.a { border-left: 4px solid #39adb9; }
+.equipe.b { border-right: 4px solid #ec8a4f; text-align: right; }
+.relogio { font-family: var(--f-titulo); font-weight: 700; font-size: 2rem; line-height: 1; color: #f4f6f2; background: rgba(10, 12, 14, 0.72); padding: 6px 12px 4px; border-radius: 6px; text-align: center; font-variant-numeric: tabular-nums; }
+.relogio small { display: block; font-family: var(--f-texto); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #b8c0bb; }
+.faixa {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 10px 18px; border-radius: 8px;
+  background: rgba(10, 12, 14, 0.82); color: #f4f6f2; font-family: var(--f-titulo); font-size: 1.35rem; font-weight: 700;
+  text-align: center; max-width: calc(100% - 24px);
+}
+.faixa small { display: block; font-family: var(--f-texto); font-size: 0.85rem; font-weight: 400; color: #c9d0cb; }
+.cameras { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.cameras button, .camadas button {
+  font: 600 0.78rem var(--f-texto); color: #e9ece8; background: rgba(10, 12, 14, 0.7); border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 5px; padding: 5px 9px; cursor: pointer;
+}
+.cameras button[aria-pressed="true"], .camadas button[aria-pressed="true"] { background: #e9ece8; color: #111; }
+.camadas { position: absolute; right: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.carregando { position: absolute; inset: 0; display: grid; place-items: center; color: #cfd6d1; font-family: var(--f-mono); font-size: 0.9rem; text-align: center; padding: 20px; }
+.tele { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 520px) { .tele { grid-template-columns: 1fr; } }
+.cartao { background: var(--painel); border: 1px solid var(--linha); border-radius: 8px; padding: 12px; display: grid; gap: 8px; min-width: 0; }
+.tele .cartao.a { border-top: 3px solid var(--a); }
+.tele .cartao.b { border-top: 3px solid var(--b); }
+.medidas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
+.medida { display: grid; gap: 0; min-width: 0; }
+.medida span { font-size: 0.72rem; color: var(--suave); text-transform: uppercase; letter-spacing: 0.06em; }
+.medida b { font-family: var(--f-mono); font-size: 0.95rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cargas { display: grid; gap: 4px; }
+.carga { display: grid; grid-template-columns: 74px 1fr 46px; gap: 8px; align-items: center; font-size: 0.8rem; }
+.carga .trilho { height: 8px; background: var(--chip); border-radius: 4px; overflow: hidden; border: 1px solid var(--linha); }
+.carga .trilho i { display: block; height: 100%; width: 0; background: var(--suave); }
+.cartao.a .carga .trilho i { background: var(--a); }
+.cartao.b .carga .trilho i { background: var(--b); }
+.carga output { font-family: var(--f-mono); font-size: 0.78rem; text-align: right; font-variant-numeric: tabular-nums; }
+.painel { display: grid; gap: 12px; min-width: 0; }
+.grupo { display: grid; gap: 6px; }
+.segmentos { display: flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--linha); border-radius: 7px; overflow: hidden; background: var(--chip); }
+.segmentos button {
+  flex: 1 1 auto; font: 600 0.88rem var(--f-texto); color: var(--fg); background: transparent; border: 0; border-right: 1px solid var(--linha);
+  padding: 8px 8px; cursor: pointer; min-width: 0;
+}
+.segmentos button:last-child { border-right: 0; }
+.segmentos button[aria-pressed="true"] { background: var(--fg); color: var(--painel); }
+.segmentos.a button[aria-pressed="true"] { background: var(--a); color: #fff; }
+.segmentos.b button[aria-pressed="true"] { background: var(--b); color: #fff; }
+button:focus-visible { outline: 2px solid var(--a); outline-offset: 2px; }
+.acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.primario { font: 700 1rem var(--f-titulo); letter-spacing: 0.04em; text-transform: uppercase; color: #fff; background: var(--a); border: 0; border-radius: 7px; padding: 10px 16px; cursor: pointer; }
+.secundario { font: 600 0.9rem var(--f-texto); color: var(--fg); background: var(--chip); border: 1px solid var(--linha); border-radius: 7px; padding: 9px 12px; cursor: pointer; }
+.nota { font-size: 0.82rem; color: var(--suave); margin: 0; }
+.sessao { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; text-align: center; }
+.sessao div { background: var(--chip); border: 1px solid var(--linha); border-radius: 6px; padding: 6px 4px; }
+.sessao b { display: block; font-family: var(--f-titulo); font-size: 1.6rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.sessao span { font-size: 0.72rem; color: var(--suave); text-transform: uppercase; letter-spacing: 0.06em; }
+.log { font-family: var(--f-mono); font-size: 0.74rem; line-height: 1.5; max-height: 260px; overflow: auto; background: var(--chip); border: 1px solid var(--linha); border-radius: 6px; padding: 6px 8px; margin: 0; list-style: none; }
+.log li { display: grid; grid-template-columns: 50px 14px 1fr; gap: 6px; white-space: nowrap; }
+.log li .t { color: var(--suave); text-align: right; font-variant-numeric: tabular-nums; }
+.log li .q { font-weight: 600; }
+.log li.a .q { color: var(--a); }
+.log li.b .q { color: var(--b); }
+.log li .x { overflow: hidden; text-overflow: ellipsis; }
+.tabela { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; min-width: 560px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--linha); text-align: right; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+th { font-family: var(--f-titulo); font-weight: 600; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--suave); }
+td .barra { display: inline-block; height: 8px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 18px; }
+.resumo p { margin: 0; }
+details summary { cursor: pointer; font-weight: 600; }
+details .texto { display: grid; gap: 8px; margin-top: 8px; max-width: 75ch; }
+details .texto p { margin: 0; }
+.fonte { font-size: 0.8rem; color: var(--suave); }
+[hidden] { display: none !important; }
+.manche { display: grid; grid-template-columns: repeat(3, 56px); grid-auto-rows: 48px; gap: 6px; justify-content: start; touch-action: none; user-select: none; }
+.manche button { font-size: 1.2rem; color: var(--fg); background: var(--chip); border: 1px solid var(--linha); border-radius: 8px; cursor: pointer; }
+.manche button[aria-pressed="true"] { background: var(--a); color: #fff; border-color: var(--a); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="app">
+  <header class="topo">
+    <div>
+      <h1>Combate Grupo D</h1>
+      <p class="local" id="local">Belo Horizonte, 2 de setembro, 20h00. Sala fechada, só a lâmpada de LED do teto acesa, 25 °C. Os dois robôs rodam o mesmo firmware do Grupo D, compilado para WebAssembly.</p>
+    </div>
+  </header>
+
+  <main class="grade">
+    <section class="palco" aria-label="Dojô">
+      <div class="vista" id="vista">
+        <div class="carregando" id="carregando">Carregando o firmware dos dois robôs e as peças do STL…</div>
+        <div class="placar">
+          <div class="equipe a"><span class="nome">Grupo D</span><span class="estado" id="estA">ESPERA</span></div>
+          <div class="relogio"><small id="relRot">Posicionando</small><span id="rel">0:00</span></div>
+          <div class="equipe b"><span class="nome" id="nomeB">Adversário</span><span class="estado" id="estB">ESPERA</span></div>
+        </div>
+        <div class="faixa" id="faixa" aria-live="polite" hidden></div>
+        <div class="cameras" role="group" aria-label="Câmera">
+          <button type="button" data-cam="orbita" aria-pressed="true">Órbita</button>
+          <button type="button" data-cam="cima" aria-pressed="false">De cima</button>
+          <button type="button" data-cam="juiz" aria-pressed="false">Juiz</button>
+          <button type="button" data-cam="robo" aria-pressed="false">Atrás do Grupo D</button>
+        </div>
+        <div class="camadas" role="group" aria-label="Camadas">
+          <button type="button" id="camSensores" aria-pressed="true">Detecção do Grupo D</button>
+          <button type="button" id="camEstimativa" aria-pressed="false">Localização no dojô</button>
+        </div>
+      </div>
+      <div class="tele">
+        <div class="cartao a" id="teleA"></div>
+        <div class="cartao b" id="teleB"></div>
+      </div>
+    </section>
+
+    <aside class="painel" aria-label="Controle da luta">
+      <div class="cartao">
+        <div class="grupo">
+          <h3>Estratégia do Grupo D (DIP 1 a 3)</h3>
+          <div class="segmentos a" id="selEstrA">
+            <button type="button" data-v="0" aria-pressed="true">Rush</button>
+            <button type="button" data-v="1" aria-pressed="false">Flank</button>
+            <button type="button" data-v="2" aria-pressed="false">Fan out</button>
+          </div>
+        </div>
+        <div class="grupo">
+          <h3>Cor do adversário</h3>
+          <div class="segmentos b" id="selCor">
+            <button type="button" data-v="0" aria-pressed="true">Preto</button>
+            <button type="button" data-v="1" aria-pressed="false">Branco</button>
+          </div>
+          <p class="nota" id="notaDip">A DIP 4 do Grupo D fica ligada (perfil escuro), porque o adversário é preto.</p>
+        </div>
+        <div class="grupo">
+          <h3>Motores do adversário (JGB37-520, 12 V)</h3>
+          <div class="segmentos b" id="selMotor">
+            <button type="button" data-v="1" aria-pressed="true">1000 rpm</button>
+            <button type="button" data-v="0" aria-pressed="false">319 rpm, iguais</button>
+          </div>
+        </div>
+        <div class="grupo">
+          <h3>Estratégia do adversário</h3>
+          <div class="segmentos b" id="selEstrB">
+            <button type="button" data-v="-1" aria-pressed="true">Sorteada</button>
+            <button type="button" data-v="0" aria-pressed="false">Rush</button>
+            <button type="button" data-v="1" aria-pressed="false">Flank</button>
+            <button type="button" data-v="2" aria-pressed="false">Fan out</button>
+          </div>
+        </div>
+        <div class="grupo">
+          <h3>Largada do Grupo D</h3>
+          <div class="segmentos a" id="selPos">
+            <button type="button" data-v="-1" aria-pressed="false">Sorteada</button>
+            <button type="button" data-v="0" aria-pressed="true">De frente</button>
+            <button type="button" data-v="1" aria-pressed="false">De lado</button>
+            <button type="button" data-v="3" aria-pressed="false">De costas</button>
+          </div>
+          <p class="nota">O adversário larga virado para um lado sorteado.</p>
+        </div>
+        <div class="grupo">
+          <h3>Controle manual</h3>
+          <div class="segmentos" id="selManual">
+            <button type="button" data-v="0" aria-pressed="true">Desligado</button>
+            <button type="button" data-v="1" aria-pressed="false">Meu robô</button>
+            <button type="button" data-v="2" aria-pressed="false">Adversário</button>
+          </div>
+          <p class="nota" id="notaManual">Os dois robôs seguem o firmware.</p>
+          <div class="manche" id="manche" hidden>
+            <span></span><button type="button" data-k="cima" aria-label="Para a frente">▲</button><span></span>
+            <button type="button" data-k="esq" aria-label="Para a esquerda">◀</button><button type="button" data-k="baixo" aria-label="Para trás">▼</button><button type="button" data-k="dir" aria-label="Para a direita">▶</button>
+          </div>
+        </div>
+        <div class="acoes">
+          <button type="button" class="primario" id="btNova">Nova luta</button>
+          <button type="button" class="secundario" id="btRepete">Repetir</button>
+          <button type="button" class="secundario" id="btPausa">Pausar</button>
+        </div>
+        <div class="grupo">
+          <h3>Velocidade</h3>
+          <div class="segmentos" id="selVel">
+            <button type="button" data-v="0.25" aria-pressed="false">¼×</button>
+            <button type="button" data-v="0.5" aria-pressed="false">½×</button>
+            <button type="button" data-v="1" aria-pressed="true">1×</button>
+            <button type="button" data-v="3" aria-pressed="false">3×</button>
+          </div>
+        </div>
+        <p class="nota" id="semente">Semente —</p>
+      </div>
+
+      <div class="cartao">
+        <h3>Placar desta sessão</h3>
+        <div class="sessao">
+          <div><b id="sV">0</b><span>Vitórias</span></div>
+          <div><b id="sE">0</b><span>Empates</span></div>
+          <div><b id="sD">0</b><span>Derrotas</span></div>
+        </div>
+      </div>
+
+      <div class="cartao">
+        <h3>Log dos firmwares</h3>
+        <ul class="log" id="log" aria-live="off"></ul>
+      </div>
+    </aside>
+  </main>
+
+  <section class="cartao" aria-labelledby="tBat">
+    <h2 id="tBat">Bateria de lutas no computador</h2>
+    <p class="nota" id="batNota"></p>
+    <div class="tabela"><table id="batTab"></table></div>
+    <div class="resumo" id="batResumo"></div>
+    <details>
+      <summary>Como a simulação funciona</summary>
+      <div class="texto" id="comoFunciona"></div>
+    </details>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+/*MALHAS*/
+window.WASM_B64 = "/*WASM*/";
+window.BATERIA = /*BATERIA*/;
+</script>
+<script>
+(() => {
+"use strict";
+const $ = (id) => document.getElementById(id);
+const R_DOJO = 0.385, FAIXA = 0.025, ALT_DOJO = 0.025;
+const QC = 8, QR = 56;
+const fmt = (v, n = 1) => Number.isFinite(v) ? v.toFixed(n).replace(".", ",") : "–";
+
+// ==================== WebAssembly: os dois firmwares e a física ====================
+let W = null, mem = null;
+function str(p) {
+  const u = new Uint8Array(mem.buffer, p);
+  let n = 0; while (u[n]) n++;
+  return new TextDecoder().decode(u.subarray(0, n));
+}
+async function carregaWasm() {
+  const bin = Uint8Array.from(atob(window.WASM_B64), (c) => c.charCodeAt(0));
+  const wasi = {
+    fd_write: (fd, iov, n, pn) => {
+      const v = new DataView(mem.buffer); let t = 0;
+      for (let i = 0; i < n; i++) t += v.getUint32(iov + 8 * i + 4, true);
+      v.setUint32(pn, t, true); return 0;
+    },
+    fd_close: () => 0, fd_seek: () => 0, fd_fdstat_get: () => 0,
+  };
+  const { instance } = await WebAssembly.instantiate(bin, { wasi_snapshot_preview1: wasi });
+  W = instance.exports; mem = W.memory; W._initialize();
+}
+function quadro() { return new Float32Array(mem.buffer, W.cb_quadro(), QC + 2 * QR); }
+
+// ==================== cena ====================
+const vista = $("vista");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.92;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+vista.prepend(renderer.domElement);
+const cena = new THREE.Scene();
+cena.background = new THREE.Color(0x1b1d20);
+const camera = new THREE.PerspectiveCamera(38, 1.6, 0.01, 30);
+camera.position.set(0.62, 0.42, 0.68);
+const controles = new THREE.OrbitControls(camera, renderer.domElement);
+controles.target.set(0, 0.03, 0);
+controles.enableDamping = true;
+controles.maxPolarAngle = Math.PI * 0.495;
+controles.minDistance = 0.25; controles.maxDistance = 4.5;
+
+function texturaCanvas(w, h, desenha, rep) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  desenha(c.getContext("2d"), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = 8;
+  if (rep) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep[0], rep[1]); }
+  return t;
+}
+
+// sala de 5,0 x 4,2 m e 2,8 m de pé-direito, piso cerâmico claro e paredes brancas
+const SALA = { x: 2.5, z: 2.1, h: 2.8 };
+const piso = new THREE.Mesh(new THREE.PlaneGeometry(2 * SALA.x, 2 * SALA.z), new THREE.MeshStandardMaterial({
+  map: texturaCanvas(512, 512, (g, w, h) => {
+    g.fillStyle = "#b4aea2"; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 4000; i++) { g.fillStyle = `rgba(${90 + Math.random() * 60},${85 + Math.random() * 55},${80 + Math.random() * 50},0.08)`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+    g.strokeStyle = "#8f897d"; g.lineWidth = 3; g.strokeRect(0, 0, w, h);
+  }, [2 * SALA.x / 0.6, 2 * SALA.z / 0.6]), roughness: 0.55, metalness: 0 }));
+piso.rotation.x = -Math.PI / 2; piso.receiveShadow = true; cena.add(piso);
+const matParede = new THREE.MeshStandardMaterial({ color: 0xcfcbc1, roughness: 0.95 });
+function parede(w, h, x, z, ry) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), matParede);
+  m.position.set(x, h / 2, z); m.rotation.y = ry; m.receiveShadow = true; cena.add(m); return m;
+}
+parede(2 * SALA.x, SALA.h, 0, -SALA.z, 0);
+parede(2 * SALA.x, SALA.h, 0, SALA.z, Math.PI);
+parede(2 * SALA.z, SALA.h, -SALA.x, 0, Math.PI / 2);
+parede(2 * SALA.z, SALA.h, SALA.x, 0, -Math.PI / 2);
+const teto = new THREE.Mesh(new THREE.PlaneGeometry(2 * SALA.x, 2 * SALA.z), new THREE.MeshStandardMaterial({ color: 0xdedbd3, roughness: 1 }));
+teto.rotation.x = Math.PI / 2; teto.position.y = SALA.h; cena.add(teto);
+// rodapé
+const matRodape = new THREE.MeshStandardMaterial({ color: 0x8e887d, roughness: 0.7 });
+[[2 * SALA.x, 0, -SALA.z + 0.005, 0], [2 * SALA.x, 0, SALA.z - 0.005, 0], [2 * SALA.z, -SALA.x + 0.005, 0, Math.PI / 2], [2 * SALA.z, SALA.x - 0.005, 0, Math.PI / 2]].forEach(([w, x, z, r]) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.07, 0.012), matRodape); m.position.set(x, 0.035, z); m.rotation.y = r; cena.add(m);
+});
+// janela na parede do fundo: céu de 20h00 sem lua (o Sol está 32 graus abaixo do horizonte e a
+// Lua só nasce às 23h06), a Serra do Curral recortada e as luzes da cidade
+const janela = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.1), new THREE.MeshBasicMaterial({
+  map: texturaCanvas(1024, 704, (g, w, h) => {
+    const ceu = g.createLinearGradient(0, 0, 0, h);
+    ceu.addColorStop(0, "#05080f"); ceu.addColorStop(0.62, "#0c1626"); ceu.addColorStop(0.8, "#1d2534"); ceu.addColorStop(1, "#141a24");
+    g.fillStyle = ceu; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 120; i++) { g.fillStyle = `rgba(255,255,255,${0.15 + Math.random() * 0.4})`; g.fillRect(Math.random() * w, Math.random() * h * 0.5, 1.5, 1.5); }
+    g.fillStyle = "#06080b"; g.beginPath(); g.moveTo(0, h * 0.62);
+    for (let x = 0; x <= w; x += 8) g.lineTo(x, h * (0.6 - 0.06 * Math.sin(x / 140) - 0.04 * Math.sin(x / 47 + 1) - 0.08 * Math.exp(-(((x - w * 0.62) / 160) ** 2))));
+    g.lineTo(w, h); g.lineTo(0, h); g.fill();
+    for (let i = 0; i < 1400; i++) {
+      const y = h * (0.66 + Math.random() * 0.34), x = Math.random() * w;
+      const q = Math.random(); g.fillStyle = q < 0.7 ? `rgba(255,${190 + Math.random() * 40},${110 + Math.random() * 50},${0.5 + Math.random() * 0.5})` : `rgba(220,235,255,${0.4 + Math.random() * 0.5})`;
+      g.fillRect(x, y, 1.6 + Math.random() * 1.6, 1.6);
+    }
+    g.strokeStyle = "#2b2a28"; g.lineWidth = 18; g.strokeRect(0, 0, w, h);
+    g.beginPath(); g.moveTo(w / 2, 0); g.lineTo(w / 2, h); g.lineWidth = 10; g.stroke();
+  }) }));
+janela.position.set(0.6, 1.45, -SALA.z + 0.01); cena.add(janela);
+// porta
+const porta = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 2.1), new THREE.MeshStandardMaterial({ color: 0x8a6b4e, roughness: 0.6 }));
+porta.position.set(-SALA.x + 0.01, 1.05, 1.0); porta.rotation.y = Math.PI / 2; cena.add(porta);
+// lâmpada de LED (painel 60 x 60 cm) no teto, sobre o dojô
+const painelLed = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), new THREE.MeshBasicMaterial({ color: 0xfbfaf5 }));
+painelLed.rotation.x = Math.PI / 2; painelLed.position.set(0, SALA.h - 0.005, 0); cena.add(painelLed);
+const luz = new THREE.SpotLight(0xfff6ea, 1.55, 0, Math.PI * 0.42, 0.85, 1.2);
+luz.position.set(0, SALA.h - 0.02, 0); luz.target.position.set(0, 0, 0);
+luz.castShadow = true; luz.shadow.mapSize.set(2048, 2048); luz.shadow.camera.near = 1.5; luz.shadow.camera.far = 3.2; luz.shadow.bias = -0.0004; luz.shadow.radius = 4;
+cena.add(luz, luz.target);
+cena.add(new THREE.HemisphereLight(0xf1efe8, 0x6f6a62, 0.28));
+
+// dojô da RoboCore (classe de 1 kg): 77 cm, 2,5 cm de altura, faixa branca de 2,5 cm e linhas
+// Shikiri marrons de 1 x 10 cm, afastadas 10 cm pelos limites de fora
+const texDojo = texturaCanvas(1024, 1024, (g, w, h) => {
+  const c = w / 2, esc = w / (2 * R_DOJO);
+  g.fillStyle = "#f2f1ec"; g.beginPath(); g.arc(c, c, R_DOJO * esc, 0, 2 * Math.PI); g.fill();
+  g.fillStyle = "#121314"; g.beginPath(); g.arc(c, c, (R_DOJO - FAIXA) * esc, 0, 2 * Math.PI); g.fill();
+  for (let i = 0; i < 260; i++) { g.strokeStyle = `rgba(255,255,255,${0.02 + Math.random() * 0.04})`; g.lineWidth = 1; const a = Math.random() * 6.28, r = Math.random() * (R_DOJO - FAIXA) * esc * 0.95; g.beginPath(); g.moveTo(c + r * Math.cos(a), c + r * Math.sin(a)); g.lineTo(c + r * Math.cos(a) + 20 * Math.cos(a * 3), c + r * Math.sin(a) + 20 * Math.sin(a * 3)); g.stroke(); }
+  g.fillStyle = "#5e3a22";
+  for (const s of [-1, 1]) g.fillRect(c + s * 0.045 * esc - 0.005 * esc, c - 0.05 * esc, 0.01 * esc, 0.1 * esc);
+});
+const dojo = new THREE.Group();
+const topoDojo = new THREE.Mesh(new THREE.CircleGeometry(R_DOJO, 128), new THREE.MeshStandardMaterial({ map: texDojo, roughness: 0.42, metalness: 0 }));
+topoDojo.rotation.x = -Math.PI / 2; topoDojo.position.y = ALT_DOJO; topoDojo.receiveShadow = true;
+const ladoDojo = new THREE.Mesh(new THREE.CylinderGeometry(R_DOJO, R_DOJO, ALT_DOJO, 128, 1, true), new THREE.MeshStandardMaterial({ color: 0x2a2621, roughness: 0.8 }));
+ladoDojo.position.y = ALT_DOJO / 2; ladoDojo.castShadow = true; ladoDojo.receiveShadow = true;
+dojo.add(topoDojo, ladoDojo); cena.add(dojo);
+
+// ==================== robôs a partir das malhas do STL ====================
+function geometria(d) {
+  const b = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0)).buffer;
+  const p = new Int16Array(b(d.p)), n = new Int8Array(b(d.n));
+  const pos = new Float32Array(p.length); for (let i = 0; i < p.length; i++) pos[i] = p[i] * 1e-5;   // 0,01 mm -> m
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("normal", new THREE.BufferAttribute(n, 3, true));
+  g.setIndex(new THREE.BufferAttribute(d.i32 ? new Uint32Array(b(d.i)) : new Uint16Array(b(d.i)), 1));
+  return g;
+}
+const GEO = {};
+for (const k in window.MALHAS) GEO[k] = geometria(window.MALHAS[k]);
+const matMetal = new THREE.MeshStandardMaterial({ color: 0xb8b1a3, roughness: 0.38, metalness: 0.85 });
+const matPneu = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.92 });
+const matPcbTof = new THREE.MeshStandardMaterial({ color: 0x4b2a7a, roughness: 0.5 });
+const matPcbBorda = new THREE.MeshStandardMaterial({ color: 0x1d4f9a, roughness: 0.5 });
+const RODA_Y = 0.01597, RODA_Z = 0.06365;
+// sensores no referencial do corpo (mm), os mesmos do config.h, com as cores do painel
+const TOF = [[80, 72, 90], [96, 33, 20], [97, 0, 0], [96, -33, -20], [80, -72, -90], [-23, 40, 160], [-23, -40, -160]];
+const CORES_TOF = ["#b98cff", "#4fa3ff", "#35d49a", "#ff9f43", "#ff6fae", "#6fe3ff", "#ffd36f"];
+const BORDA = [[94, 66], [94, -66], [54, 66], [54, -66]];
+const ALCANCE_MM = 600, OP_LADO_MM = 152, LENTE_MM = 17.5, MEIO_CONE = 12.5 * Math.PI / 180;
+// alcance de cada ToF como no firmware: a maior leitura que ainda cai no círculo de 600 mm em volta do eixo
+function alcanceSensor([x, y, a]) {
+  const ux = Math.cos(a * Math.PI / 180), uy = Math.sin(a * Math.PI / 180), b = x * ux + y * uy;
+  return -b + Math.sqrt(b * b - (x * x + y * y) + ALCANCE_MM * ALCANCE_MM);
+}
+function adesivo(texto, cor) {
+  return texturaCanvas(512, 128, (g, w, h) => {
+    g.fillStyle = cor; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#ffffff"; g.font = "700 64px 'Saira Condensed', 'Arial Narrow', sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(texto, w / 2, h / 2 + 4);
+  });
+}
+function criaRobo(corPla, nome, corEquipe, comDeteccao) {
+  const raiz = new THREE.Group(), corpo = new THREE.Group();
+  raiz.add(corpo);
+  const matPla = new THREE.MeshStandardMaterial({ color: corPla, roughness: 0.62, metalness: 0 });
+  const add = (k, m) => { const x = new THREE.Mesh(GEO[k], m); x.castShadow = true; x.receiveShadow = true; corpo.add(x); return x; };
+  ["base", "corpo", "suporte", "abracE", "abracD"].forEach((k) => add(k, matPla));
+  add("motorE", matMetal); add("motorD", matMetal);
+  const rodas = [];
+  for (const [lado, kp, kc] of [[-1, "pneuE", "cuboE"], [1, "pneuD", "cuboD"]]) {
+    const piv = new THREE.Group(); piv.position.set(0, RODA_Y, lado * RODA_Z); corpo.add(piv);
+    for (const [k, m] of [[kp, matPneu], [kc, matPla]]) {
+      const x = new THREE.Mesh(GEO[k], m); x.position.set(0, -RODA_Y, -lado * RODA_Z); x.castShadow = true; piv.add(x);
+    }
+    rodas.push(piv);
+  }
+  // placas dos sensores atrás das janelas
+  for (const [x, y, a] of TOF) {
+    const pcb = new THREE.Mesh(new THREE.BoxGeometry(0.0016, 0.0106, 0.0253), matPcbTof);
+    pcb.position.set((x - 3 * Math.cos(a * Math.PI / 180)) / 1000, 0.0175, -(y - 3 * Math.sin(a * Math.PI / 180)) / 1000);
+    pcb.rotation.y = a * Math.PI / 180; corpo.add(pcb);
+  }
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.015), new THREE.MeshStandardMaterial({ map: adesivo(nome, corEquipe), roughness: 0.6 }));
+  tag.rotation.x = -Math.PI / 2; tag.position.set(0.028, 0.0517, 0); corpo.add(tag);
+  cena.add(raiz);
+  const r = { raiz, corpo, matPla, rodas, queda: null, det: null };
+  if (comDeteccao) r.det = criaDeteccao(raiz);
+  return r;
+}
+
+// Detecção do Grupo D, como no painel: cone de cada VL53L0X com a calota na distância medida, mapa
+// de probabilidade do rastreador no chão, caixa vermelha do oponente na posição estimada e um
+// círculo no chão embaixo de cada TCRT5000 (vermelho com o branco confirmado, branco só na leitura
+// crua). Tudo fica preso ao robô, no referencial dele.
+function criaDeteccao(raiz) {
+  const g = new THREE.Group(); raiz.add(g);
+  const cones = [], calotas = [];
+  TOF.forEach((s, i) => {
+    const [x, y, a] = s, L = alcanceSensor(s) / 1000, cor = new THREE.Color(CORES_TOF[i]);
+    const eixo = new THREE.Group(); eixo.position.set(x / 1000, LENTE_MM / 1000, -y / 1000); eixo.rotation.y = a * Math.PI / 180; g.add(eixo);
+    const geo = new THREE.ConeGeometry(Math.tan(MEIO_CONE) * L, L, 32, 1, true);
+    geo.translate(0, -L / 2, 0); geo.rotateZ(Math.PI / 2);
+    const cone = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.06, depthWrite: false, side: THREE.DoubleSide }));
+    eixo.add(cone); cones.push(cone);
+    const cal = new THREE.Mesh(new THREE.CircleGeometry(1, 28), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.75, depthWrite: false, side: THREE.DoubleSide }));
+    cal.rotation.y = Math.PI / 2; cal.visible = false; eixo.add(cal); calotas.push(cal);
+  });
+  const bordas = BORDA.map(([x, y]) => {
+    const anel = new THREE.Mesh(new THREE.RingGeometry(0.0145, 0.016, 32), new THREE.MeshBasicMaterial({ color: 0xc8ccd0, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false }));
+    const disco = new THREE.Mesh(new THREE.CircleGeometry(0.016, 32), new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.85, depthTest: false, depthWrite: false }));
+    for (const m of [anel, disco]) { m.rotation.x = -Math.PI / 2; m.position.set(x / 1000, 0.0006, -y / 1000); m.renderOrder = 20; g.add(m); }
+    disco.visible = false;
+    return { anel, disco };
+  });
+  const cx = new THREE.BoxGeometry(OP_LADO_MM / 1000, 0.06, OP_LADO_MM / 1000);
+  const caixa = new THREE.Group();
+  const caixaCorpo = new THREE.Mesh(cx, new THREE.MeshBasicMaterial({ color: 0xff4646, transparent: true, opacity: 0.45, depthWrite: false }));
+  caixa.add(caixaCorpo, new THREE.LineSegments(new THREE.EdgesGeometry(cx), new THREE.LineBasicMaterial({ color: 0xff8080 })));
+  caixa.visible = false; g.add(caixa);
+  return { g, cones, calotas, bordas, caixa, caixaCorpo, mapa: null, mapaChave: "", tMapa: 0 };
+}
+// mapa de probabilidade do rastreador: um quadrilátero por célula da grade polar, preso ao robô
+function atualizaMapa(det, texto) {
+  const p = texto.split(","); if (p.length < 5) return;
+  const nb = +p[0], nr = +p[1], r0 = +p[2], dr = +p[3], s = p.slice(4).join(",");
+  const chave = [nb, nr, r0, dr].join(",");
+  if (chave !== det.mapaChave) {
+    if (det.mapa) { det.g.remove(det.mapa); det.mapa.geometry.dispose(); }
+    const pos = [], db = 360 / nb;
+    for (let R = 0; R < nr; R++) for (let m = 0; m < nb; m++) {
+      const ra = (r0 + R * dr) / 1000, rb = (r0 + (R + 1) * dr) / 1000;
+      const b0 = (-180 + m * db) * Math.PI / 180, b1 = (-180 + (m + 1) * db) * Math.PI / 180;
+      const P = (r, b) => [r * Math.cos(b), 0.0012, -r * Math.sin(b)];
+      for (const v of [P(ra, b0), P(rb, b0), P(rb, b1), P(ra, b0), P(rb, b1), P(ra, b1)]) pos.push(...v);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(pos.length / 3 * 4), 4));
+    det.mapa = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    det.mapa.renderOrder = 5; det.g.add(det.mapa); det.mapaChave = chave;
+  }
+  const v = new Uint8Array(nb * nr); let k = 0;
+  for (let i = 0; i < s.length && k < v.length; i++) {
+    const ch = s.charCodeAt(i);
+    if (ch === 33) k += s.charCodeAt(++i) - 48; else v[k++] = Math.max(0, Math.min(63, ch - 48));
+  }
+  const col = det.mapa.geometry.attributes.color;
+  for (let c = 0; c < nb * nr; c++) {
+    const lv = v[c] / 63, a = v[c] >= 3 ? 0.03 + 0.75 * Math.pow(lv, 1.5) : 0;
+    for (let q = 0; q < 6; q++) col.setXYZW(c * 6 + q, 1, (150 - 63 * lv) / 255, 40 / 255, a);
+  }
+  col.needsUpdate = true;
+}
+const robos = [criaRobo(0x1c1d1f, "GRUPO D", "#0d7480", true), criaRobo(0x1c1d1f, "ADVERSÁRIO", "#b9541c", false)];
+// estimativas do firmware: onde o robô acha que o oponente está e onde acha que fica o centro do dojô
+function marcadorEstimativa(cor) {
+  const g = new THREE.Group();
+  const anel = new THREE.Mesh(new THREE.RingGeometry(0.03, 0.036, 40), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.9, depthWrite: false }));
+  anel.rotation.x = -Math.PI / 2; g.add(anel);
+  const centro = new THREE.Mesh(new THREE.RingGeometry(0.004, 0.011, 4), new THREE.MeshBasicMaterial({ color: cor, depthWrite: false }));
+  centro.rotation.x = -Math.PI / 2; g.add(centro);
+  const sigma = new THREE.Mesh(new THREE.RingGeometry(0.98, 1, 64), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.5, depthWrite: false }));
+  sigma.rotation.x = -Math.PI / 2;
+  const est = { op: g, centro: new THREE.Group(), sigma };
+  est.centro.add(centro.clone(), sigma);
+  cena.add(g, est.centro);
+  return est;
+}
+const estimativa = marcadorEstimativa(0x39adb9);
+estimativa.op.visible = false;
+// dojô que a localização do Grupo D estima, com o raio de 385 mm em volta do centro estimado
+const dojoEstimado = new THREE.Mesh(new THREE.RingGeometry(0.381, 0.385, 128), new THREE.MeshBasicMaterial({ color: 0x39adb9, transparent: true, opacity: 0.8, depthWrite: false }));
+dojoEstimado.rotation.x = -Math.PI / 2; estimativa.centro.add(dojoEstimado);
+
+// pessoas fora do dojô (dois operadores e o juiz)
+const pessoas = new THREE.Group(); cena.add(pessoas);
+function montaPessoas(lista) {
+  pessoas.clear();
+  const roupas = [0x3c4a5c, 0x5b4636, 0x2f3b33];
+  const pele = new THREE.MeshStandardMaterial({ color: 0x9c7558, roughness: 0.7 });
+  const calca = new THREE.MeshStandardMaterial({ color: 0x2b3442, roughness: 0.9 });
+  const sapato = new THREE.MeshStandardMaterial({ color: 0x1d1d1f, roughness: 0.6 });
+  const peca = (g, m, x, y, z, rx = 0) => { const o = new THREE.Mesh(g, m); o.position.set(x, y, z); o.rotation.x = rx; o.castShadow = true; return o; };
+  lista.forEach(([x, y], i) => {
+    const p = new THREE.Group();
+    const camisa = new THREE.MeshStandardMaterial({ color: roupas[i % 3], roughness: 0.85 });
+    for (const s of [-1, 1]) {
+      p.add(peca(new THREE.CapsuleGeometry(0.058, 0.74, 6, 14), calca, s * 0.1, 0.46, 0));
+      p.add(peca(new THREE.BoxGeometry(0.1, 0.06, 0.26), sapato, s * 0.1, 0.03, 0.04));
+      p.add(peca(new THREE.CapsuleGeometry(0.045, 0.56, 6, 12), camisa, s * 0.235, 1.12, 0.02, 0.06));
+      p.add(peca(new THREE.SphereGeometry(0.04, 12, 10), pele, s * 0.24, 0.8, 0.04));
+    }
+    const tronco = peca(new THREE.CapsuleGeometry(0.15, 0.42, 8, 18), camisa, 0, 1.17, 0);
+    tronco.scale.z = 0.62; p.add(tronco);
+    p.add(peca(new THREE.CylinderGeometry(0.05, 0.055, 0.08, 12), pele, 0, 1.5, 0));
+    p.add(peca(new THREE.SphereGeometry(0.1, 20, 16), pele, 0, 1.63, 0));
+    p.position.set(x, 0, -y); p.lookAt(0, 0, 0);
+    pessoas.add(p);
+  });
+}
+
+// ==================== câmeras ====================
+let modoCam = "orbita";
+const CAMS = {
+  orbita: [[0.62, 0.42, 0.68], [0, 0.03, 0]],
+  cima: [[0.001, 1.25, 0.001], [0, 0, 0]],
+  juiz: [[0, 0.32, 1.15], [0, 0.04, 0]],
+};
+function escolheCam(m) {
+  modoCam = m;
+  document.querySelectorAll(".cameras button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.cam === m)));
+  if (CAMS[m]) { camera.position.set(...CAMS[m][0]); controles.target.set(...CAMS[m][1]); }
+  controles.enabled = m !== "robo";
+}
+document.querySelectorAll(".cameras button").forEach((b) => b.addEventListener("click", () => escolheCam(b.dataset.cam)));
+function redimensiona() {
+  const r = vista.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix();
+}
+new ResizeObserver(redimensiona).observe(vista);
+
+// ==================== controles da tela ====================
+const escolha = { estrA: 0, cor: 0, motor: 1, estrB: -1, pos: 0, vel: 1, manual: 0 };
+function segmentos(id, chave, aoMudar) {
+  const el = $(id);
+  el.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    escolha[chave] = Number(b.dataset.v);
+    el.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    if (aoMudar) aoMudar();
+  }));
+}
+segmentos("selEstrA", "estrA"); segmentos("selCor", "cor", notaDip); segmentos("selMotor", "motor");
+segmentos("selEstrB", "estrB"); segmentos("selPos", "pos"); segmentos("selVel", "vel");
+segmentos("selManual", "manual", () => {
+  $("manche").hidden = escolha.manual === 0;
+  $("notaManual").textContent = escolha.manual === 0 ? "Os dois robôs seguem o firmware."
+    : `Você dirige ${escolha.manual === 1 ? "o robô do Grupo D" : "o adversário"} com as setas ou W A S D, depois dos 5 s parados. O firmware dele continua lendo os sensores.`;
+});
+// teclas e botões do controle manual
+const teclas = { cima: false, baixo: false, esq: false, dir: false };
+const TECLA = { ArrowUp: "cima", KeyW: "cima", ArrowDown: "baixo", KeyS: "baixo", ArrowLeft: "esq", KeyA: "esq", ArrowRight: "dir", KeyD: "dir" };
+function marcaTecla(k, v) {
+  teclas[k] = v;
+  const b = document.querySelector(`#manche [data-k="${k}"]`); if (b) b.setAttribute("aria-pressed", String(v));
+}
+window.addEventListener("keydown", (e) => {
+  const k = TECLA[e.code]; if (!k || escolha.manual === 0) return;
+  if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  e.preventDefault(); marcaTecla(k, true);
+});
+window.addEventListener("keyup", (e) => { const k = TECLA[e.code]; if (k) marcaTecla(k, false); });
+window.addEventListener("blur", () => Object.keys(teclas).forEach((k) => marcaTecla(k, false)));
+document.querySelectorAll("#manche button").forEach((b) => {
+  const k = b.dataset.k;
+  b.addEventListener("pointerdown", (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); marcaTecla(k, true); });
+  for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(ev, () => marcaTecla(k, false));
+});
+// PWM de cada roda a partir das teclas: frente e trás com tudo, curva tirando de uma roda
+function comandoManual() {
+  const acel = (teclas.cima ? 1 : 0) - (teclas.baixo ? 1 : 0), giro = (teclas.esq ? 1 : 0) - (teclas.dir ? 1 : 0);
+  if (!acel) return [-0.75 * giro, 0.75 * giro];
+  const e = acel - 0.6 * giro * Math.sign(acel), d = acel + 0.6 * giro * Math.sign(acel);
+  const m = Math.max(1, Math.abs(e), Math.abs(d));
+  return [e / m, d / m];
+}
+function notaDip() {
+  $("notaDip").textContent = escolha.cor ? "A DIP 4 do Grupo D fica desligada (perfil claro), porque o adversário é branco."
+                                         : "A DIP 4 do Grupo D fica ligada (perfil escuro), porque o adversário é preto.";
+}
+const camadas = { sensores: true, estimativa: false };
+for (const [id, k] of [["camSensores", "sensores"], ["camEstimativa", "estimativa"]]) {
+  $(id).addEventListener("click", () => { camadas[k] = !camadas[k]; $(id).setAttribute("aria-pressed", String(camadas[k])); });
+}
+
+// telemetria de cada robô
+function montaTele(el, nome) {
+  el.innerHTML = `<h3>${nome}</h3>
+  <div class="medidas">
+    <div class="medida"><span>Velocidade</span><b data-k="v">–</b></div>
+    <div class="medida"><span>PWM esq / dir</span><b data-k="pwm">–</b></div>
+    <div class="medida"><span>Corrente</span><b data-k="i">–</b></div>
+    <div class="medida"><span>Bateria</span><b data-k="bat">–</b></div>
+    <div class="medida"><span>Motor (estimado)</span><b data-k="aq">–</b></div>
+    <div class="medida"><span>Motores</span><b data-k="mot">–</b></div>
+  </div>
+  <div class="cargas" aria-label="Peso em cada apoio">
+    <div class="carga"><span>Pneu esq.</span><div class="trilho"><i data-k="nE"></i></div><output data-k="tE">–</output></div>
+    <div class="carga"><span>Pneu dir.</span><div class="trilho"><i data-k="nD"></i></div><output data-k="tD">–</output></div>
+    <div class="carga"><span>Rampa</span><div class="trilho"><i data-k="nS"></i></div><output data-k="tS">–</output></div>
+  </div>`;
+  const q = (k) => el.querySelector(`[data-k="${k}"]`);
+  return { v: q("v"), pwm: q("pwm"), i: q("i"), bat: q("bat"), aq: q("aq"), mot: q("mot"), nE: q("nE"), nD: q("nD"), nS: q("nS"), tE: q("tE"), tD: q("tD"), tS: q("tS") };
+}
+const TELE = [montaTele($("teleA"), "Grupo D"), montaTele($("teleB"), "Adversário")];
+
+// ==================== luta ====================
+let nomesEstados = [], estadoLuta = "carregando", pausado = false, semente = 1, ultimo = performance.now();
+let fimMostrado = false, fimExibido = false, tFimReal = 0;
+const sessao = { v: 0, e: 0, d: 0 };
+const ESTR = ["Rush", "Flank", "Fan out"];
+function novaLuta(repete) {
+  if (!repete) semente = 1 + Math.floor(Math.random() * 1e6);
+  W.cb_inicia(semente, escolha.estrA, escolha.estrB, 0, escolha.cor, escolha.motor, escolha.pos, -1, 90, 1.10, 1.10, 1);
+  const p = new Float32Array(mem.buffer, W.cb_pessoas(), 25);
+  const lista = []; for (let i = 0; i < p[0]; i++) lista.push([p[1 + 3 * i], p[2 + 3 * i]]);
+  montaPessoas(lista);
+  // câmera de órbita no maior vão entre as pessoas; câmera do juiz nos olhos dele (a terceira pessoa)
+  if (lista.length) {
+    const ang = lista.map(([x, y]) => Math.atan2(-y, x)).sort((a, b) => a - b);
+    let melhor = 0, az = 0;
+    ang.forEach((a, i) => { const b = i + 1 < ang.length ? ang[i + 1] : ang[0] + 2 * Math.PI; if (b - a > melhor) { melhor = b - a; az = (a + b) / 2; } });
+    CAMS.orbita[0] = [0.92 * Math.cos(az), 0.42, 0.92 * Math.sin(az)];
+    const [jx, jy] = lista[lista.length - 1];
+    CAMS.juiz[0] = [jx * 0.97, 1.5, -jy * 0.97];
+    if (CAMS[modoCam]) escolheCam(modoCam);
+  }
+  robos[1].matPla.color.set(escolha.cor ? 0xe8e7e2 : 0x1c1d1f);
+  robos.forEach((r) => { r.queda = null; });
+  $("log").innerHTML = ""; tLibLog = -1; $("faixa").hidden = true; fimMostrado = false; fimExibido = false;
+  $("nomeB").textContent = `Adversário ${escolha.motor ? "1000" : "319"} rpm`;
+  $("semente").textContent = `Semente ${semente}. Estratégia do Grupo D: ${ESTR[escolha.estrA]}.`;
+  estadoLuta = "rodando"; pausado = false; $("btPausa").textContent = "Pausar";
+}
+$("btNova").addEventListener("click", () => novaLuta(false));
+$("btRepete").addEventListener("click", () => novaLuta(true));
+$("btPausa").addEventListener("click", () => { pausado = !pausado; $("btPausa").textContent = pausado ? "Continuar" : "Pausar"; });
+
+// tempo de cada linha contado a partir do fim dos 5 s parados (negativo antes disso); as linhas
+// que chegam antes de alguém apertar o start ganham o tempo assim que ele fica conhecido
+let tLibLog = -1;
+function eventosNovos(tLib) {
+  const ul = $("log");
+  if (tLib > 0 && tLibLog < 0) {
+    tLibLog = tLib;
+    for (const li of ul.children) li.firstChild.textContent = fmt(Number(li.dataset.t) - tLib, 2);
+  }
+  const lista = JSON.parse(str(W.cb_eventos()));
+  if (!lista.length) return;
+  const fr = document.createDocumentFragment();
+  for (const [t, r, texto] of lista) {
+    const li = document.createElement("li"); li.className = r ? "b" : "a"; li.dataset.t = t;
+    li.innerHTML = `<span class="t">${tLib > 0 ? fmt(t - tLib, 2) : "–"}</span><span class="q">${r ? "B" : "A"}</span><span class="x"></span>`;
+    li.lastChild.textContent = texto.replace(/^#\s*/, "");
+    fr.appendChild(li);
+  }
+  ul.appendChild(fr);
+  while (ul.children.length > 400) ul.removeChild(ul.firstChild);
+  ul.scrollTop = ul.scrollHeight;
+}
+
+// posição do robô no three: x do dojô, altura, -y do dojô; rumo em torno do eixo vertical
+function poseRobo(r, o, agoraReal) {
+  const ex = o[0], ey = o[1], th = o[2];
+  let x = ex, y = ALT_DOJO, z = -ey, arf = o[5], rol = o[6], extraRol = 0;
+  if (o[7] > 0) {
+    // queda: o robô escorrega para fora e cai os 2,5 cm do dojô, tombando para o lado de fora
+    if (!r.queda) r.queda = { t0: agoraReal, ex, ey };
+    const t = Math.min(1, (agoraReal - r.queda.t0) / 650);
+    const a = Math.atan2(r.queda.ey, r.queda.ex);
+    const d = 0.05 * t;
+    x = r.queda.ex + Math.cos(a) * d; z = -(r.queda.ey + Math.sin(a) * d);
+    y = ALT_DOJO * (1 - t * t) + 0.002;
+    const inc = 0.5 * t;   // rad, tomba para fora
+    const local = a - th;
+    arf += -inc * Math.cos(local); extraRol = -inc * Math.sin(local);
+  }
+  r.raiz.position.set(x, y, z);
+  r.raiz.rotation.set(0, th, 0);
+  r.corpo.rotation.order = "YZX";
+  r.corpo.rotation.set(rol + extraRol, 0, arf);
+  r.rodas[0].rotation.z = -o[3];
+  r.rodas[1].rotation.z = -o[4];
+}
+
+function atualizaTele(T, o) {
+  const v = Math.hypot(o[28], o[29]);
+  T.v.textContent = `${fmt(v * 1000, 0)} mm/s`;
+  T.pwm.textContent = `${fmt(o[11] * 100, 0)} / ${fmt(o[12] * 100, 0)} %`;
+  T.i.textContent = `${fmt(Math.abs(o[17]) + Math.abs(o[18]), 2)} A`;
+  T.bat.textContent = `${fmt(o[13], 2)} V`;
+  T.aq.textContent = `+${fmt(o[26], 1)} K`;
+  T.mot.textContent = `${fmt(o[36], 0)} rpm`;
+  const W0 = 0.98 * 9.81;
+  for (const [k, kt, i] of [["nE", "tE", 14], ["nD", "tD", 15], ["nS", "tS", 16]]) {
+    const pc = Math.max(0, Math.min(100, o[i] / W0 * 100));
+    T[k].style.width = `${pc}%`; T[kt].textContent = `${fmt(o[i], 1)} N`;
+  }
+}
+
+function relogio(q) {
+  const t = q[0], tLib = q[1];
+  let rot, txt;
+  if (tLib < 0) { rot = "Juiz dá o sinal"; txt = "0:00"; }
+  else if (t < tLib) { rot = "5 s parados"; txt = fmt(tLib - t, 1); }
+  else {
+    const s = Math.min(90, q[4] > 0 ? q[7] : t - tLib);
+    rot = q[4] > 0 ? "Fim" : "Luta";
+    txt = `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")},${Math.floor((s * 10) % 10)}`;
+  }
+  $("relRot").textContent = rot; $("rel").textContent = txt;
+}
+
+function mostraFim(q) {
+  const venc = q[5], motivo = str(W.cb_texto(2, q[6])), tempo = q[7];
+  let t, sub;
+  if (venc === 0) { t = "Vitória do Grupo D"; sessao.v++; sub = `Adversário ${motivo} em ${fmt(tempo, 1)} s`; }
+  else if (venc === 1) { t = "Vitória do adversário"; sessao.d++; sub = `Grupo D ${motivo} em ${fmt(tempo, 1)} s`; }
+  else { t = "Empate"; sessao.e++; sub = motivo === "tempo esgotado" ? "Os 90 s acabaram sem ninguém sair do dojô" : motivo; }
+  $("faixa").innerHTML = `${t}<small></small>`; $("faixa").lastChild.textContent = sub; $("faixa").hidden = false;
+  $("sV").textContent = sessao.v; $("sE").textContent = sessao.e; $("sD").textContent = sessao.d;
+}
+
+function atualizaDeteccao(d, o, agoraReal) {
+  const ver = camadas.sensores && o[7] === 0;
+  d.g.visible = ver;
+  if (!ver) return;
+  for (let i = 0; i < 7; i++) {
+    const mm = o[40 + i], vendo = mm > 0;
+    d.cones[i].material.opacity = vendo ? 0.16 : 0.06;
+    d.calotas[i].visible = vendo;
+    if (vendo) { const r = Math.tan(MEIO_CONE) * mm / 1000; d.calotas[i].position.set(mm / 1000, 0, 0); d.calotas[i].scale.set(r, r, 1); }
+  }
+  for (let i = 0; i < 4; i++) {
+    const conf = (o[33] >> i) & 1, cru = (o[48] >> i) & 1;
+    d.bordas[i].disco.visible = !!(conf || cru);
+    d.bordas[i].disco.material.color.setHex(conf ? 0xff3030 : 0xf0f0f0);
+  }
+  // caixa do oponente: vista ou provável (o mapa ainda acha que ele está ali)
+  const provavel = o[19] === 0 && o[49] >= 0.3 && o[50] >= 0.15;
+  d.caixa.visible = o[19] > 0 || provavel;
+  if (d.caixa.visible) {
+    const ang = Math.atan2(o[21], o[20]);
+    d.caixa.position.set(o[20] / 1000, 0.031, -o[21] / 1000); d.caixa.rotation.y = ang;
+    d.caixaCorpo.material.opacity = o[19] > 0 ? 0.45 : 0.12;
+  }
+  if (agoraReal - d.tMapa > 100) { d.tMapa = agoraReal; const t = str(W.cb_mapa(0)); if (t) atualizaMapa(d, t); }
+  if (d.mapa) d.mapa.visible = o[49] > 0.15;
+}
+
+const camAux = new THREE.Vector3();
+function quadroCena(agoraReal, dtReal) {
+  if (!W) { controles.update(); renderer.render(cena, camera); return; }
+  // controle manual: o robô escolhido recebe o PWM das teclas, o outro volta para o firmware
+  const [mE, mD] = comandoManual();
+  W.cb_manual(0, escolha.manual === 1 ? 1 : 0, mE, mD);
+  W.cb_manual(1, escolha.manual === 2 ? 1 : 0, mE, mD);
+  if (estadoLuta === "rodando" && !pausado) {
+    const ms = Math.min(250, dtReal * escolha.vel);
+    const t0 = performance.now();
+    const segue = W.cb_passo(ms);
+    if (!segue && !fimMostrado) { fimMostrado = true; tFimReal = agoraReal; estadoLuta = "fim"; }
+    if (performance.now() - t0 > 40 && escolha.vel > 1) { /* computador lento: a luta anda mais devagar que o pedido */ }
+  }
+  const q = quadro();
+  for (let k = 0; k < 2; k++) {
+    const o = q.subarray(QC + k * QR, QC + (k + 1) * QR);
+    const r = robos[k];
+    poseRobo(r, o, agoraReal);
+    const e = nomesEstados[o[10]] || "";
+    $(k ? "estB" : "estA").textContent = o[7] > 0 ? "FORA" : (o[51] > 0 ? "MANUAL" : e);
+    if (r.det) atualizaDeteccao(r.det, o, agoraReal);
+    if (k === 0) {
+      // localização: centro do dojô estimado pelo filtro de partículas, no referencial do dojô
+      const c = Math.cos(o[2]), s = Math.sin(o[2]);
+      estimativa.centro.visible = camadas.estimativa && o[39] > 0 && o[7] === 0;
+      if (estimativa.centro.visible) {
+        const ax = o[0] + (c * o[22] - s * o[23]) / 1000, ay = o[1] + (s * o[22] + c * o[23]) / 1000;
+        estimativa.centro.position.set(ax, ALT_DOJO + 0.001, -ay);
+        const sg = Math.max(0.01, o[24] / 1000); estimativa.sigma.scale.set(sg, sg, sg);
+        dojoEstimado.material.opacity = o[25] > 0 ? 0.85 : 0.35;
+      }
+    }
+    atualizaTele(TELE[k], o);
+  }
+  relogio(q);
+  eventosNovos(q[1]);
+  if (estadoLuta === "fim" && !fimExibido && agoraReal - tFimReal > 300) { fimExibido = true; mostraFim(q); }
+  if (modoCam === "robo") {
+    const o = q.subarray(QC, QC + QR);
+    camAux.set(o[0] - Math.cos(o[2]) * 0.32, 0.17, -(o[1] - Math.sin(o[2]) * 0.32));
+    camera.position.lerp(camAux, 0.12);
+    camera.lookAt(o[0] + Math.cos(o[2]) * 0.2, 0.03, -(o[1] + Math.sin(o[2]) * 0.2));
+  } else controles.update();
+  renderer.render(cena, camera);
+}
+function anima(t) {
+  const dt = Math.min(250, t - ultimo); ultimo = t;
+  try { quadroCena(t, dt); } catch (e) { console.error(e); }
+  requestAnimationFrame(anima);
+}
+
+// ==================== bateria de lutas (computada fora da página) ====================
+function montaBateria() {
+  const B = window.BATERIA;
+  if (!B || !B.resumo) { $("batNota").textContent = "Sem dados da bateria."; return; }
+  $("batNota").textContent = B.nota || "";
+  const tab = $("batTab");
+  let h = "<thead><tr><th>Grupo D</th><th>Adversário</th><th>Lutas</th><th>Vitórias</th><th>Derrotas</th><th>Empates</th><th>Vitórias nas decididas</th></tr></thead><tbody>";
+  const nomeE = { rush: "Rush", flank: "Flank", fanout: "Fan out" };
+  for (const r of B.resumo) {
+    const dec = r.vitorias + r.derrotas;
+    const pct = dec ? Math.round(100 * r.vitorias / dec) : null;
+    h += `<tr><td>${nomeE[r.estrategia]}</td><td>${r.cor === "preto" ? "Preto" : "Branco"}, ${r.motor} rpm</td><td>${r.lutas}</td><td>${r.vitorias}</td><td>${r.derrotas}${r.quedas ? ` (${r.quedas} sozinho)` : ""}</td><td>${r.empates}</td>`
+       + `<td>${pct === null ? "–" : `<span class="barra" style="width:${Math.max(2, pct * 0.6)}px;background:var(--a)"></span>${pct} %`}</td></tr>`;
+  }
+  tab.innerHTML = h + "</tbody>";
+  $("batResumo").innerHTML = (B.achados || []).map((p) => `<p></p>`).join("");
+  [...$("batResumo").children].forEach((el, i) => { el.textContent = B.achados[i]; });
+  $("comoFunciona").innerHTML = (B.como || []).map(() => "<p></p>").join("");
+  [...$("comoFunciona").children].forEach((el, i) => { el.textContent = B.como[i]; });
+}
+
+// ==================== início ====================
+(async () => {
+  notaDip(); redimensiona(); montaBateria();
+  requestAnimationFrame(anima);
+  try {
+    await carregaWasm();
+    const n = W.cb_n_estados();
+    for (let i = 0; i < n; i++) nomesEstados.push(str(W.cb_texto(0, i)));
+    $("carregando").hidden = true;
+    window.cbAvanca = (ms) => W.cb_passo(ms);   // usado nos testes da página
+    window.cbCamera = (p, alvo) => { modoCam = "livre"; camera.position.set(...p); controles.target.set(...alvo); };
+    semente = 7; novaLuta(true);
+  } catch (e) {
+    $("carregando").textContent = "O navegador não carregou o WebAssembly do firmware: " + e.message;
+  }
+})();
+})();
+</script>

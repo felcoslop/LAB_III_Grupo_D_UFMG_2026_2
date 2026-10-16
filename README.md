@@ -21,6 +21,7 @@ Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **
 - [Estratégias e chave DIP](#estratégias-e-chave-dip)
 - [Localização no dojô](#localização-no-dojô)
 - [Lutas simuladas](#lutas-simuladas)
+- [Combate com dois firmwares](#combate-com-dois-firmwares)
 - [Instalação](#instalação)
 - [Uso](#uso)
 - [Arquitetura](#arquitetura)
@@ -145,7 +146,7 @@ A página [https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/](https://fel
 
 ### Modelo do motor
 
-A base do modelo é a tabela do fabricante para a linha de 12 V e 319 rpm do JGB37-520 [RCDRONE, s.d.] e a medida do pneu [ROBOCORE, s.d.b]. O esquema da placa mostra um L298N, mas a ponte usada é um módulo de 10 A com transistores MOSFET, que perde só alguns décimos de volt; um L298N perderia de 1,8 a 3,2 V com 1 A [STMICROELECTRONICS, s.d.]. O anúncio do motor fala em 21 kgf.cm, valor que não fecha com a corrente de 1,2 A nem com a redução de 18,8:1 e por isso ficou de fora.
+A base do modelo é a tabela do fabricante para a linha de 12 V e 319 rpm do JGB37-520 [RCDRONE, s.d.] e a medida do pneu [ROBOCORE, s.d.b]. O esquema da placa mostra um L298N, mas a ponte usada é um módulo de 10 A com transistores MOSFET, que perde só alguns décimos de volt; um L298N perderia de 1,8 a 3,2 V com 1 A [STMICROELECTRONICS, s.d.a]. O anúncio do motor fala em 21 kgf.cm, valor que não fecha com a corrente de 1,2 A nem com a redução de 18,8:1 e por isso ficou de fora.
 
 | Dado | Valor | Origem |
 |---|---|---|
@@ -156,7 +157,7 @@ A base do modelo é a tabela do fabricante para a linha de 12 V e 319 rpm do JGB
 | Tensão de partida | 1,5 V | tabela do motor |
 | Queda na ponte H | cerca de 0,2 V | estimada para a ponte de MOSFET, precisa de medida |
 | Diâmetro da roda | 32 mm | pneu StickyMAX S20 |
-| Bitola (centro a centro das rodas) | 132 mm | gabarito do robô, precisa de medida no chassi |
+| Bitola (centro a centro das rodas) | 127,3 mm | STL do projeto mecânico com o corte de 2 mm na ponta dos eixos (131,3 mm sem o corte); medir no chassi |
 
 O modelo do motor é uma reta de tensão por velocidade que passa pelos dois pontos da tabela: 1,5 V para sair do lugar e 319 rpm livre com 12 V. Com a bateria 3S em 11,1 V e 0,2 V perdidos na ponte H, o motor recebe 10,9 V com PWM de 100%:
 
@@ -284,7 +285,7 @@ A pasta `teste/sim` compila o firmware de verdade (percepção, ToF, rastreador,
 | errante | anda sem rumo pelo dojô e ataca só de perto |
 | espelho | o mesmo motor, a mesma roda e a mesma lâmina do robô do Grupo D, atacando do mesmo jeito |
 
-Na bateria com pessoas em volta do dojô (3 estratégias, 6 oponentes, claro e escuro, 15 largadas cada, 540 lutas), o robô venceu 361 lutas e nunca saiu do dojô sozinho. Contra o parado, o pesado e o rápido, as três estratégias venceram todas as lutas, claro e escuro; contra o errante, 87 de 90. O lento, com mais torque e uma lâmina melhor, ganhou quase todas as lutas, e o espelho, de força igual, terminou quase sempre empatado; nos dois casos o robô fica travado empurrando um oponente que não cede, e a seção [Travamento](#travamento) mostra por que soltar o empurrão piora o resultado. Sem as pessoas e com o oponente furtivo, que quase não reflete, a bateria de 810 lutas também terminou sem nenhuma queda própria.
+O robô do Grupo D tem as medidas do STL do projeto mecânico: rampa 117,7 mm à frente do eixo das rodas, traseira 25 mm atrás, 149 mm de largura, 980 g e o centro de massa 26,9 mm à frente do eixo. Na bateria com pessoas em volta do dojô (3 estratégias, 6 oponentes, claro e escuro, 15 largadas cada, 540 lutas), o robô venceu 352 lutas e nunca saiu do dojô sozinho: 88 de 90 contra o parado e contra o pesado, 89 contra o rápido e 87 contra o errante. O lento, com mais torque e uma lâmina melhor, ganhou quase todas as lutas, e o espelho, de força igual, terminou quase sempre empatado; nos dois casos o robô fica travado empurrando um oponente que não cede, e a seção [Travamento](#travamento) mostra por que soltar o empurrão piora o resultado. Sem as pessoas e com o oponente furtivo, que quase não reflete, a bateria de 810 lutas também terminou sem nenhuma queda própria.
 
 A página [Lutas simuladas](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/lutas.html) mostra as lutas no navegador: escolha de estratégia, oponente, cor e largada, com os dois robôs, o caminho, o dojô que a localização estima, o oponente que o rastreador estima, o estado e o PWM de cada roda a cada instante. O workflow da página gera os rastros e o placar com o firmware da `main` a cada publicação.
 
@@ -296,6 +297,60 @@ No computador, a mesma bateria roda com:
 bash teste/sim/compila.sh
 python teste/sim/roda_lutas.py teste/sim/luta --dips 1,2,4 --fora --perfil-pela-cor --sementes 15
 ```
+
+## Combate com dois firmwares
+
+A pasta `teste/combate` coloca dois robôs com o mesmo firmware no mesmo dojô: o do Grupo D e um adversário igual, com motores de 1000 rpm ou de 319 rpm. Cada módulo do firmware entra duas vezes no mesmo programa, uma no namespace `fa` e outra no `fb` (`fw_modulo.cpp`), sem nenhuma linha do firmware mudar, e o Arduino de mentira (`hal_combate.cpp`) atende o robô da vez com o relógio, a chave DIP, o botão de start, os quatro TCRT5000, os sete VL53L0X e o PWM da ponte H. O mesmo código vira um executável para a bateria de lutas e um módulo WebAssembly para a página [Combate Grupo D](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/combate.html), compilado com o Zig 0.14 [ZIG SOFTWARE FOUNDATION, 2025].
+
+A página mostra a luta em 3D com as peças do STL do projeto mecânico (base, corpo, suporte da eletrônica, abraçadeiras, JGB37-520, cubos e pneus), numa sala em Belo Horizonte às 20h00 de 2 de setembro, só com a lâmpada de LED do teto acesa. Na tela entram a estratégia do Grupo D, a cor e os motores do adversário, a estratégia dele e a posição na largada; o placar mostra o estado de cada firmware, e a telemetria mostra velocidade, PWM, corrente, bateria e o peso em cada apoio. A camada de detecção mostra só o que o firmware do Grupo D enxerga, como no painel: o cone de cada VL53L0X com a calota na distância medida, o mapa de probabilidade do rastreador, a caixa vermelha do oponente na posição estimada e um círculo embaixo de cada TCRT5000. No controle manual, as setas (ou W A S D) dirigem o robô do Grupo D ou o adversário depois dos 5 s parados.
+
+### Física
+
+| Item | Valor | Origem |
+|---|---|---|
+| Massa | 980 g em cada robô | pedido da equipe |
+| Centro de massa | 26,9 mm à frente do eixo, 24 mm acima do chão | balanço de massa do projeto mecânico |
+| Apoios | pneus com 77% do peso, ponta da rampa com 23% | estática com a ponta a 117,7 mm do eixo |
+| Pneu StickyMAX S20 na madeira laminada | atrito 1,10, parado ou patinando | estimativa; borracha macia não perde atrito ao patinar [GROSCH, 1963]; medir com o robô de lado no dojô inclinado |
+| PLA arrastando no dojô e PLA contra PLA | 0,35 e 0,30 | estimativa |
+| JGB37-520, 319 rpm | 18,8:1, 1,9 kgf.cm e 1,2 A travado | [RCDRONE, s.d.] |
+| JGB37-520, 1000 rpm | o mesmo motor com redução de 6:1, 0,6 kgf.cm e 1,2 A travado | [RCDRONE, s.d.] |
+| Bateria 3S | 12,0 a 12,5 V sem carga, 0,15 ohm com o BMS e os fios | estimativa |
+| Dojô | 77 cm, 2,5 cm de altura, faixa de 2,5 cm, Shikiri de 1 x 10 cm afastadas 10 cm | [ROBOCORE, s.d.a] |
+
+A carga em cada apoio sai do equilíbrio de momentos com o peso, a aceleração e a força do contato, e o pneu sem peso não tem tração. Quando a frente de um robô encosta na lateral ou na traseira do outro, a rampa de 17,7 graus transforma o empurrão em força vertical (1,46 vez a horizontal) até o pneu mais próximo do outro ficar sem peso. Com as duas frentes encostadas, a ponta mais baixa vence, mas levanta só a ponta da rampa do outro. Os VL53L0X lançam raios no cone de 25 graus contra as faces do outro robô: a face da frente inclinada devolve menos luz, os pneus pretos quase nada e as caixas de redução metálicas aparecem com qualquer cor de PLA [STMICROELECTRONICS, s.d.b]. Na sala à noite, só com a lâmpada de LED, quase não existe infravermelho de fundo, e as leituras falsas ficam na metade do modelo da bancada.
+
+### Resultado
+
+Na bateria de 360 lutas (3 estratégias, adversário preto e branco, 1000 e 319 rpm, 30 largadas sorteadas cada, estratégia do adversário sorteada), o Grupo D venceu 163, perdeu 40 e empatou 157, sem nenhuma queda própria.
+
+| Adversário | Vitórias | Derrotas | Empates |
+|---|---|---|---|
+| 1000 rpm | 151 | 23 | 6 |
+| 319 rpm, igual | 12 | 17 | 151 |
+
+| Largada do Grupo D | Vitórias | Derrotas | Empates |
+|---|---|---|---|
+| de frente para o adversário | 83 | 0 | 61 |
+| de lado | 50 | 10 | 48 |
+| de costas | 30 | 30 | 48 |
+
+O motor de 1000 rpm tem um terço do torque: travado, ele empurra com uns 7,4 N (0,6 kgf.cm em cada roda de 16 mm de raio), abaixo dos cerca de 8 N que os pneus do Grupo D aguentam com 77% dos 980 g em cima deles. O empurrão de frente anda devagar e leva o adversário para fora em 13,3 s, em média; as derrotas vêm do primeiro choque, com o Grupo D largando de lado ou de costas e o adversário chegando rápido na lateral ou na traseira dele. Contra o de 319 rpm, os robôs encostam 0,4 s depois dos 5 s parados e ficam empurrando de frente até o fim dos 90 s, porque os dois têm o mesmo limite de tração. A estratégia da chave mudou o resultado em só 5 das 120 combinações de largada, cor e motor, porque cada robô vê o outro assim que os 5 s acabam e vai direto para o ataque. O motor mais quente chegou a 22,1 K acima do ambiente no modelo térmico do firmware, longe do limite de 60 K.
+
+Com as rodas atrás e o centro de massa 26,9 mm à frente do eixo, 23% do peso fica na ponta da rampa, que arrasta no dojô e não traciona; com o centro de massa sobre o eixo, esse peso iria para os pneus e o empurrão máximo subiria uns 30%. A rampa do outro robô que entra por baixo da frente levanta só a ponta e não tira peso dos pneus. A lateral e a traseira são os pontos fracos: ali a rampa do outro tira o peso do pneu mais próximo. O par de sensores de borda "de trás" fica 54 mm à frente do eixo, então, andando de ré, a roda chega à borda antes do sensor.
+
+No computador:
+
+```
+bash teste/combate/compila.sh
+python teste/combate/bateria.py teste/combate/combate --sementes 30 --csv combate.csv
+teste/combate/combate -s 7 -a rush -c preto -m 1000 -v      # uma luta, com o Log dos dois firmwares
+pip install ziglang==0.14.0
+ZIG="python -m ziglang" bash teste/combate/compila.sh wasm  # módulo da página
+python doc/gera_combate.py --wasm teste/combate/combate.wasm --bateria bateria.json
+```
+
+A simulação deixa de fora a rampa entrando fundo embaixo do outro robô (o ponto de apoio não anda), o tombamento, a deformação do pneu, a poeira no dojô e o feixe do VL53L0X batendo no chão. O atrito real do pneu e o centro de massa medido na balança (robô apoiado numa régua, até equilibrar) deixam o resultado mais perto da luta de verdade.
 
 ## Instalação
 
@@ -618,7 +673,7 @@ sumo_esp32/
   debug.h / .cpp            comandos, calibração e stream para o painel
   painel_sumo.html          painel completo para abrir no computador
   .github/workflows/
-    compilacao.yml          CI: compilação do firmware, testes no computador, lutas simuladas e conferência do painel e da página
+    compilacao.yml          CI: compilação do firmware, testes no computador, lutas simuladas, combate e conferência do painel e da página
     pages.yml               publicação das páginas do simulador no GitHub Pages, com os rastros das lutas
   teste/
     teste_cinematica.cpp    testes da cinemática das rodas (g++ no computador)
@@ -634,6 +689,16 @@ sumo_esp32/
       roda_lutas.py         bateria de lutas em paralelo, com tabela e falha no CI
       gera_rastros.py       rastros das lutas para a página
       stub/                 cabeçalhos de mentira do simulador
+    combate/                combate com o mesmo firmware nos dois robôs
+      compila.sh            compila o executável (nativo) ou o módulo WebAssembly (wasm)
+      fisica.h / .cpp       dojô da RoboCore, apoios, rampa, pneus, motores, bateria, ToF e TCRT5000
+      hal_combate.h / .cpp  Arduino de mentira para dois robôs
+      fw_modulo.cpp         um módulo do firmware dentro do namespace de um robô
+      ponte_robo.cpp        funções de cada firmware chamadas pelo simulador
+      combate.h / .cpp      largada, botões, loop dos firmwares e fim do round
+      main_nativo.cpp       linha de comando (resultado em CSV e rastro em JSON)
+      wasm_api.cpp          funções exportadas para a página 3D
+      bateria.py            bateria de lutas em paralelo, com tabela e falha no CI
   doc/
     painel_src.html         código fonte do painel
     gera_painel.py          gera o painel_sumo.html
@@ -642,6 +707,9 @@ sumo_esp32/
     confere_site.py         confere as constantes da página do simulador com o config.h
     site/index.html         página do simulador da cinemática (GitHub Pages)
     site/lutas.html         página das lutas simuladas com o firmware (GitHub Pages)
+    combate_src.html        modelo da página 3D do combate
+    gera_combate.py         gera doc/site/combate.html com o WebAssembly, as malhas e a bateria
+    combate/                malhas do STL (malhas.js, exporta_malhas.py) e textos da página
     gabarito_bancada.pdf    gabarito 1:1 da bancada
     guia_montagem_sensores.pdf  gabarito do robô, ligação e conferência
     guia_montagem_sensores_7.pdf  o mesmo para 7 sensores, com bancada, pinagem e cobertura
@@ -651,7 +719,7 @@ sumo_esp32/
 
 ## Integração contínua
 
-O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados, e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/stub`), o `cinematica.cpp`, o `estados.cpp`, o `arena.cpp`, o `chave.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro, a escolha da estratégia pela chave, a fuga em cada combinação de sensores de borda, a localização no dojô nas duas geometrias (erro, coerência da incerteza e descarte) e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x). Um terceiro teste compila o simulador de lutas e roda 288 lutas (3 estratégias, 6 oponentes, claro e escuro, 8 largadas) com pessoas em volta do dojô; ele falha com qualquer queda própria ou com mais de 2 s mirando algo fora do dojô numa luta, e guarda a tabela no resumo da execução e o CSV como artefato. Um quarto teste gera o painel de novo a partir do `doc/painel_src.html` e falha se o `painel_sumo.html` versionado estiver diferente, e confere se as constantes da página do simulador (`doc/site/index.html`) são as mesmas do `config.h`. O workflow `pages.yml` publica as páginas no GitHub Pages a cada push na `main`, com os rastros e o placar das lutas gerados na hora. As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem.
+O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados, e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/stub`), o `cinematica.cpp`, o `estados.cpp`, o `arena.cpp`, o `chave.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro, a escolha da estratégia pela chave, a fuga em cada combinação de sensores de borda, a localização no dojô nas duas geometrias (erro, coerência da incerteza e descarte) e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x). Um terceiro teste compila o simulador de lutas e roda 288 lutas (3 estratégias, 6 oponentes, claro e escuro, 8 largadas) com pessoas em volta do dojô; ele falha com qualquer queda própria ou com mais de 2 s mirando algo fora do dojô numa luta, e guarda a tabela no resumo da execução e o CSV como artefato. Um quarto teste compila o simulador de combate e roda 48 lutas com o mesmo firmware nos dois robôs (3 estratégias, adversário preto e branco, 1000 e 319 rpm), falhando com qualquer queda própria, e compila o mesmo código para WebAssembly. Um quinto teste gera o painel de novo a partir do `doc/painel_src.html` e falha se o `painel_sumo.html` versionado estiver diferente, e confere se as constantes da página do simulador (`doc/site/index.html`) são as mesmas do `config.h`. O workflow `pages.yml` publica as páginas no GitHub Pages a cada push na `main`, com os rastros e o placar das lutas, o WebAssembly do combate e a bateria de 120 lutas gerados na hora. As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem.
 
 ## Equipe
 
@@ -672,6 +740,8 @@ ESPRESSIF SYSTEMS. **Arduino core for the ESP32**. [S.l.]: Espressif Systems, [s
 
 ESPRESSIF SYSTEMS. **Set Flash Voltage**: espefuse, esptool documentation (ESP32). [S.l.]: Espressif Systems, [s.d.b]. Disponível em: https://docs.espressif.com/projects/esptool/en/latest/esp32/espefuse/set-flash-voltage-cmd.html. Acesso em: 14 out. 2026.
 
+GROSCH, K. A. The relation between the friction and visco-elastic properties of rubber. **Proceedings of the Royal Society of London A**, v. 274, n. 1356, p. 21-39, 1963.
+
 GRUPO D. **Slides sobre máquinas de estados**: estratégias Rush, Flank e Fan out. Belo Horizonte: UFMG, ELE635 Laboratório de Sistemas III, 2026. Apresentação.
 
 JIMENO, Juan Miguel. **linorobot2_hardware**: firmware for linorobot2 compatible robots. [S.l.]: Linorobot, 2021. Disponível em: https://github.com/linorobot/linorobot2_hardware. Acesso em: 13 out. 2026.
@@ -686,10 +756,14 @@ ROBOCORE. **Pneus S20 32 mm para roda StickyMAX (par)**. São Paulo: RoboCore, [
 
 ROS-CONTROLS. **ros2_controllers**: diff_drive_controller. [S.l.]: ros-controls, [s.d.]. Disponível em: https://github.com/ros-controls/ros2_controllers. Acesso em: 13 out. 2026.
 
-STMICROELECTRONICS. **L298**: dual full-bridge driver. Genebra: STMicroelectronics, [s.d.]. Folha de dados.
+STMICROELECTRONICS. **L298**: dual full-bridge driver. Genebra: STMicroelectronics, [s.d.a]. Folha de dados.
+
+STMICROELECTRONICS. **VL53L0X**: world's smallest time-of-flight ranging and gesture detection sensor. Genebra: STMicroelectronics, [s.d.b]. Folha de dados.
 
 THREE.JS. **three.js r147**. [S.l.]: three.js authors, 2022. Disponível em: https://github.com/mrdoob/three.js. Acesso em: 13 out. 2026.
 
 THRUN, Sebastian; BURGARD, Wolfram; FOX, Dieter. **Probabilistic Robotics**. Cambridge: MIT Press, 2005.
 
 WPILIB. **WPILib**: SimpleMotorFeedforward. [S.l.]: FIRST e WPILib, [s.d.]. Disponível em: https://github.com/wpilibsuite/allwpilib. Acesso em: 13 out. 2026.
+
+ZIG SOFTWARE FOUNDATION. **Zig 0.14.0**: compilador C e C++ para WebAssembly (wasm32-wasi). [S.l.]: Zig Software Foundation, 2025. Disponível em: https://ziglang.org. Acesso em: 14 out. 2026.

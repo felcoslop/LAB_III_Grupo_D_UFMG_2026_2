@@ -24,7 +24,9 @@ const double G       = 9.81;
 struct Param {
   std::string nome;
   double massa = 1.0;            // kg
-  double meioX = 0.076, meioY = 0.076;   // metade do comprimento e da largura (m)
+  double frente = 0.076, tras = 0.076;   // do eixo das rodas até a frente e até a traseira (m)
+  double meioY = 0.076;                  // metade da largura (m)
+  double xCg = 0;                        // centro de massa à frente do eixo (m)
   double bitola = 0.132, raio = 0.016;   // rodas (m)
   double fracRodas = 0.8;        // parte do peso nas rodas de tração (o resto na lâmina e no apoio)
   double mu = 1.0;               // atrito do pneu com o dojô

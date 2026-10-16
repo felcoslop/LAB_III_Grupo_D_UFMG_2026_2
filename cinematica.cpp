@@ -105,7 +105,11 @@ void cinematica_comanda(float v_mms, float w_dps, Perfil perfil) {
 
   float uE, uD;
   if (perfil == PERFIL_BORDA) {               // fuga da borda: tensão toda, sem esperar rampa
-    uE = sinal(alvoE); uD = sinal(alvoD);
+    // roda pedida abaixo de 2 mm/s fica parada, como no feed-forward: na SAIDA_LATERAL a roda de
+    // dentro recebe v - w.B/2, que dá zero só no papel; o arredondamento do float deixava um
+    // resto de -0,00001 mm/s, e o sinal disso mandava a roda inteira para trás
+    uE = fabsf(alvoE) < 2.0f ? 0.0f : sinal(alvoE);
+    uD = fabsf(alvoD) < 2.0f ? 0.0f : sinal(alvoD);
   } else {
     uE = fracao(alvoE, (alvoE - eAnt) / dt);
     uD = fracao(alvoD, (alvoD - dAnt) / dt);

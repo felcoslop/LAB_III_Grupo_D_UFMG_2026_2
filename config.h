@@ -35,7 +35,7 @@ struct CfgToF {
   int16_t     offset_mm;
 };
 
-// 1 escolhe a geometria da bancada (protoboard 165 x 54,7 mm), 0 escolhe o robô (152 x 152 mm)
+// 1 escolhe a geometria da bancada (protoboard 165 x 54,7 mm), 0 escolhe o robô montado (STL)
 // O valor também pode vir da compilação (-DGEOMETRIA_BANCADA=0), como o simulador de luta faz.
 #ifndef GEOMETRIA_BANCADA
 #define GEOMETRIA_BANCADA 1
@@ -91,26 +91,31 @@ static const CfgToF TOF[] = {
 #define LENTE_ALTURA_MM   23.0f    // centro das lentes, entre 21 e 24 mm acima da base
 #define GEOMETRIA_NOME    "BANCADA"
 #else
-// Robô de 152 x 152 mm com a origem no centro. Com 7 sensores, TE e TD ficam nos cantos de
-// trás, apontando a ±160 graus, onde os 5 sensores não enxergam nada.
+// Robô montado, com as medidas do STL do projeto mecânico (base, corpo, abraçadeiras e
+// JGB37-520). A origem fica no meio do eixo das rodas, que é o centro de giro: a ponta da rampa
+// fica 117,7 mm à frente dele e a traseira 25 mm atrás, e o corpo tem 149 mm de largura. As
+// janelas da face inclinada do corpo (61,8 graus) guardam FE, FC e FD, a cerca de 17 mm do
+// chão; as aberturas das paredes laterais, entre 70 e 90 mm à frente do eixo, guardam LE e LD.
+// O STL não tem janela para TE e TD: eles ficam na face de trás do berço dos motores, entre as
+// rodas, apontando a ±160 graus.
 static const CfgToF TOF[] = {
   //  nome   xshut  endereço   x     y    ang   offset
-  {  "LE",   17,    0x30,     10,   70,   90,    0  },   // lateral esquerda
-  {  "FE",   23,    0x31,     66,   40,   20,    0  },   // frente esquerda
-  {  "FC",   19,    0x32,     68,    0,    0,    0  },   // frente centro, decide o ataque
-  {  "FD",   18,    0x33,     66,  -40,  -20,    0  },   // frente direita
-  {  "LD",    5,    0x34,     10,  -70,  -90,    0  },   // lateral direita
+  {  "LE",   17,    0x30,     80,   72,   90,    0  },   // abertura da parede lateral esquerda
+  {  "FE",   23,    0x31,     96,   33,   20,    0  },   // janela esquerda da face da frente
+  {  "FC",   19,    0x32,     97,    0,    0,    0  },   // janela do meio, decide o ataque
+  {  "FD",   18,    0x33,     96,  -33,  -20,    0  },   // janela direita da face da frente
+  {  "LD",    5,    0x34,     80,  -72,  -90,    0  },   // abertura da parede lateral direita
 #if QTD_TOF == 7
-  {  "TE",   16,    0x35,    -60,   62,  160,    0  },   // canto traseiro esquerdo
-  {  "TD",    4,    0x36,    -60,  -62, -160,    0  },   // canto traseiro direito
+  {  "TE",   16,    0x35,    -23,   40,  160,    0  },   // face de trás do berço, à esquerda
+  {  "TD",    4,    0x36,    -23,  -40, -160,    0  },   // face de trás do berço, à direita
 #endif
 };
-#define CORPO_FRENTE_MM   76.0f
-#define CORPO_TRAS_MM     76.0f
-#define CORPO_ESQ_MM      76.0f
-#define CORPO_DIR_MM      76.0f
-#define CORPO_ALTURA_MM   40.0f
-#define LENTE_ALTURA_MM   22.0f
+#define CORPO_FRENTE_MM   117.7f   // ponta da rampa
+#define CORPO_TRAS_MM     25.0f    // face de trás da base
+#define CORPO_ESQ_MM      74.5f
+#define CORPO_DIR_MM      74.5f
+#define CORPO_ALTURA_MM   51.5f    // topo do corpo em relação ao chão
+#define LENTE_ALTURA_MM   17.5f    // meio das janelas da face da frente em relação ao chão
 #define GEOMETRIA_NOME    "ROBO"
 #endif
 #define N_TOF  (sizeof(TOF) / sizeof(TOF[0]))   // quantidade de ToF, no máximo 16
@@ -195,14 +200,16 @@ static const CfgBorda BORDA[] = {
 #define BORDA_ALTURA_MM   2.7f     // altura da face do sensor ao chão, só para o painel 3D
 #define BORDA_ATE_RODA_MM 40.0f    // menor distância em x entre um sensor de borda e o centro (rodas)
 #else
+// Janelas quadradas de 10 x 9 mm na base, perto das laterais (STL da base). Os quatro sensores
+// ficam à frente do eixo das rodas: o par "de trás" fica 54 mm à frente dele.
 static const CfgBorda BORDA[] = {
-  {  "BFE",   34,     60,   60,  -1,   true  },
-  {  "BFD",   35,     60,  -60,  +1,   true  },
-  {  "BTE",   32,    -60,   60,  -1,   false },
-  {  "BTD",   33,    -60,  -60,  +1,   false },
+  {  "BFE",   34,     94,   66,  -1,   true  },
+  {  "BFD",   35,     94,  -66,  +1,   true  },
+  {  "BTE",   32,     54,   66,  -1,   false },
+  {  "BTD",   33,     54,  -66,  +1,   false },
 };
 #define BORDA_ALTURA_MM   4.0f
-#define BORDA_ATE_RODA_MM 60.0f    // menor distância em x entre um sensor de borda e o eixo das rodas
+#define BORDA_ATE_RODA_MM 54.0f    // menor distância em x entre um sensor de borda e o eixo das rodas
 #endif
 #define N_BORDA  (sizeof(BORDA) / sizeof(BORDA[0]))
 
@@ -261,7 +268,9 @@ static const CfgBorda BORDA[] = {
 #define BATERIA_V_CHEIA   12.6f    // V, usado só na conta da distância de parada
 #define PONTE_QUEDA_V     0.2f     // V perdidos na ponte H de MOSFET (estimado; medir)
 #define RODA_DIAMETRO_MM  32.0f
-#define BITOLA_MM         132.0f   // distância entre os centros das duas rodas (medir no chassi)
+// distância entre os centros dos pneus: 131,3 mm no STL e 127,3 mm depois do corte de 2 mm na
+// ponta de cada eixo, que o projeto mecânico pede para a largura caber nos 15,2 cm (medir no chassi)
+#define BITOLA_MM         127.3f
 #define ACEL_MAX_MMS2     6000.0f  // limite das manobras normais, abaixo da tração (atrito ~1)
 #define FREIO_MIN_MMS2    4400.0f  // pior frenagem: roda patinando, atrito 0,7 e 80% do peso nas rodas
 #define BORDA_FAIXA_MM    25.0f    // largura da faixa branca da borda (regra RoboCore)
