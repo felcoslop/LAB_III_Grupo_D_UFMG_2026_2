@@ -1,14 +1,20 @@
 // teste_estados.cpp
 // Testes da máquina de estados junto com a cinemática, no computador. A percepção P é montada à
 // mão em cada passo, como se fosse a foto dos sensores, e o teste confere o estado e o PWM que
-// chega nos motores. O foco é a borda: ela precisa ganhar de qualquer outro estado na hora.
-// Uso: g++ -std=c++11 -Wall -Wextra -I teste/stub -I . teste/teste_estados.cpp estados.cpp cinematica.cpp -o t && ./t
+// chega nos motores. O foco é a borda: ela precisa ganhar de qualquer outro estado na hora. Os
+// testes do fim conferem as estratégias da chave DIP (Rush, Flank e Fan out), a fuga lateral, o
+// ataque de ré e o contato segurado.
+// Uso (uma linha só):
+//   g++ -std=c++11 -Wall -Wextra -I teste/stub -I . teste/teste_estados.cpp estados.cpp cinematica.cpp arena.cpp chave.cpp -o t
+//   ./t
 #include <cstdio>
 #include <cstdlib>
 #include "estados.h"
 #include "percepcao.h"
 #include "cinematica.h"
 #include "telemetria.h"
+#include "arena.h"
+#include "chave.h"
 
 uint32_t relogio_us = 0;
 Percepcao P;
@@ -20,6 +26,17 @@ size_t Saida::write(uint8_t c) { if (mostraLog) putchar(c); return 1; }
 size_t Saida::write(const uint8_t* b, size_t n) { for (size_t i = 0; i < n; i++) write(b[i]); return n; }
 Saida Log;
 
+// chave DIP de mentira (bit 0 = DIP 1 ... bit 3 = DIP 4) e perfil dos sensores aplicado na hora
+static uint8_t dip = 0;
+int digitalRead(int pino) {
+  const int pinos[4] = {PINO_DIP1, PINO_DIP2, PINO_DIP3, PINO_DIP4};
+  for (int i = 0; i < 4; i++) if (pino == pinos[i]) return (dip >> i) & 1;
+  return 1;
+}
+static bool perfilEscuro = false;
+void tof_perfil(bool escuro) { perfilEscuro = escuro; }
+bool tof_perfil_escuro() { return perfilEscuro; }
+
 static int falhas = 0;
 static void confere(bool ok, const char* oque, double valor) {
   printf("%s  %-66s %9.1f\n", ok ? "ok   " : "FALHA", oque, valor);
@@ -27,25 +44,46 @@ static void confere(bool ok, const char* oque, double valor) {
 }
 // uma volta do loop a cada 2 ms, com a foto atual em P
 static void passo(int ms = 2) {
-  for (int t = 0; t < ms; t += 2) { relogio_us += 2000; P.t_ms = millis(); estados_passo(); P.start = false; }
+  for (int t = 0; t < ms; t += 2) { relogio_us += 2000; P.t_ms = millis(); chave_atualiza(); estados_passo(); P.start = false; }
 }
 static void semBorda() { P.borda = Borda{}; }
-static void bordaFrente(int8_t lado) { P.borda = Borda{}; P.borda.detectada = true; P.borda.frente = true; P.borda.lado = lado; }
-static void bordaTras(int8_t lado)   { P.borda = Borda{}; P.borda.detectada = true; P.borda.tras = true; P.borda.lado = lado; }
-static void oponente(bool visto, float ang) {
+// sensores de borda no branco, com a máscara montada a partir da tabela BORDA do config.h
+static void borda(bool fe, bool fd, bool te, bool td) {
+  P.borda = Borda{};
+  for (uint8_t i = 0; i < N_BORDA; i++) {
+    bool b = BORDA[i].frente ? (BORDA[i].lado < 0 ? fe : fd) : (BORDA[i].lado < 0 ? te : td);
+    if (b) P.borda.mascara |= (1u << i);
+  }
+  P.borda.cru = P.borda.mascara;
+  P.borda.detectada = P.borda.mascara != 0;
+  P.borda.frente = fe || fd; P.borda.tras = te || td;
+  bool esq = fe || te, dir = fd || td;
+  P.borda.lado = (esq && dir) ? 0 : esq ? -1 : dir ? 1 : 0;
+}
+static void bordaFrente(int8_t lado) { borda(lado <= 0, lado >= 0, false, false); }
+static void bordaTras(int8_t lado)   { borda(false, false, lado <= 0, lado >= 0); }
+// oponente visto no ângulo ang, com a face a dist mm do sensor (centro a dist + 76 mm)
+static void oponente(bool visto, float ang, float dist = 300) {
   P.op.visto = visto; P.op.angulo = ang; P.op.centrado = visto && fabsf(ang) <= CENTRO_DEG;
+  P.op.dist_mm = visto ? (int16_t)dist : -1;
+  P.op.existe = visto ? 1.0f : 0.0f;
+  P.op.aproximacao = 0; P.op.contato = false;
   P.rumo.modo = visto ? (P.op.centrado ? RUMO_ATACAR : RUMO_MIRAR) : RUMO_PROCURAR;
   P.rumo.angulo = visto ? ang : 90;
+  P.rumo.dist_mm = visto ? dist + 76 : 0;
 }
 // começa a luta: start, contagem de 5 s e entrada na BUSCA
 static void luta() {
   estados_parar(); semBorda(); oponente(false, 0);
+  P.arena = Arena{};
+  passo(40);                                     // a chave DIP passa pelo filtro de 30 ms
   P.saude.pronto = true; P.start = true; passo(); passo(T_CONTAGEM_MS + 10);
+  P.arena = Arena{};                             // sem localização confiável, a não ser que o teste diga
 }
 
 int main() {
   memset(&P, 0, sizeof(P));
-  cinematica_init(); estados_init();
+  cinematica_init(); estados_init(); chave_init(); arena_init();
 
   luta();
   confere(estado_atual() == BUSCA, "start + 5 s: entra na BUSCA", estado_atual());
@@ -88,7 +126,8 @@ int main() {
   uint32_t t0 = millis();
   while (estado_atual() == GIRO_BORDA && millis() - t0 < 2000) passo();
   confere(estado_atual() == BUSCA, "GIRO_BORDA termina e volta para a BUSCA", estado_atual());
-  confere(fabsf(cinematica_giro()) >= 134 && fabsf(cinematica_giro()) < 180, "giro de recuperacao com cerca de 135 graus estimados", fabsf(cinematica_giro()));
+  // o comando para 10 graus antes do alvo, porque a roda ainda gira um pouco no atraso do motor
+  confere(fabsf(cinematica_giro()) >= ANG_GIRO_BORDA - 11 && fabsf(cinematica_giro()) < 180, "giro de recuperacao com cerca de 135 graus estimados", fabsf(cinematica_giro()));
   confere(millis() - t0 < T_GIRO_BORDA_MAX_MS, "giro acaba pelo angulo, antes do tempo de seguranca", millis() - t0);
 
   // empurrão por trás: AVANCO_BORDA com tensão toda para a frente
@@ -117,6 +156,83 @@ int main() {
   confere(estados_teste_ativo(), "pwm: teste ativo durante o tempo pedido", estados_teste_ativo());
   passo(250);
   confere(pwmE == 0 && pwmD == 0 && !estados_teste_ativo(), "pwm: para sozinho no fim do tempo", pwmE);
+
+  // ===================== estratégias, fugas novas e contato =====================
+  // borda em um lado inteiro (frente e trás na esquerda): curva para dentro, roda direita parada
+  luta();
+  borda(true, false, true, false); passo();
+  confere(estado_atual() == SAIDA_LATERAL, "borda na lateral esquerda: SAIDA_LATERAL", estado_atual());
+  confere(pwmE == 255 && abs(pwmD) <= 5, "SAIDA_LATERAL: roda esquerda no maximo e direita parada", pwmD);
+  semBorda(); passo(20);
+  confere(estado_atual() == GIRO_BORDA || estado_atual() == BUSCA, "lateral livre: segue para o giro de recuperacao", estado_atual());
+
+  // borda de trás nunca vira giro para trás: AVANCO_BORDA e depois BUSCA
+  luta(); bordaTras(0); passo(4);
+  confere(estado_atual() == AVANCO_BORDA, "borda atras: AVANCO_BORDA (nunca giro para tras)", estado_atual());
+  semBorda(); passo(20);
+  confere(estado_atual() == BUSCA, "fim do AVANCO_BORDA: BUSCA, ja de frente para dentro", estado_atual());
+
+  // giro da borda para o centro do dojô quando a localização é confiável
+  luta(); oponente(false, 0); bordaFrente(0); passo(4);
+  P.arena = Arena{}; P.arena.valida = P.arena.confiavel = true; P.arena.ang = 100; P.arena.dist = 260; P.arena.sigma = 20;
+  semBorda(); passo(14);
+  confere(estado_atual() == GIRO_BORDA, "recuo terminado: GIRO_BORDA", estado_atual());
+  passo(60);
+  confere(pwmD > 0 && pwmE < 0, "GIRO_BORDA com o centro a +100 graus: gira para a esquerda", pwmD);
+
+  // volta ao centro na busca, com a localização confiável e o robô longe do meio
+  luta(); P.arena = Arena{}; P.arena.valida = P.arena.confiavel = true; P.arena.ang = 0; P.arena.dist = 280; P.arena.sigma = 20;
+  passo(300);
+  confere(estado_atual() == BUSCA && pwmE > 50 && pwmD > 50, "BUSCA longe do centro: anda para o centro", pwmE);
+
+  // contato segurado: o ToF perde o alvo colado na frente, e o empurrão continua
+  luta(); oponente(true, 0, 30); passo(100);
+  confere(estado_atual() == ATAQUE, "oponente colado e centrado: ATAQUE", estado_atual());
+  oponente(false, 0); P.op.contato = true; passo(200);
+  confere(estado_atual() == ATAQUE && pwmE > 200, "sem leitura mas em contato: o ATAQUE continua", pwmE);
+  P.op.contato = false; passo(4);
+  confere(estado_atual() == BUSCA, "contato acabou e nada visto: BUSCA", estado_atual());
+
+  // ataque de ré com o oponente colado atrás (7 sensores)
+  luta(); oponente(true, 176, 100); passo(100);
+  confere(estado_atual() == ATAQUE_RE, "oponente colado atras: ATAQUE_RE", estado_atual());
+  confere(pwmE < -200 && pwmD < -200, "ATAQUE_RE: as duas rodas para tras", pwmE);
+  oponente(true, 120, 300); passo(10);
+  confere(estado_atual() == MIRA, "oponente saiu de tras: volta a MIRA", estado_atual());
+
+  // Flank (DIP 2): oponente longe e na frente vira FLANCO, com o rumo desviado para um lado
+  dip = 0x02; luta();
+  confere(estados_estrategia() == FLANK, "DIP 2 ligada: estrategia FLANK travada no start", estados_estrategia());
+  oponente(true, 10, 400); passo(60);
+  confere(estado_atual() == FLANCO, "FLANK com oponente a 400 mm: FLANCO", estado_atual());
+  confere(pwmE > pwmD, "FLANCO com oponente a +10 graus: curva para a direita (passa pelo lado dele)", pwmE - pwmD);
+  oponente(true, 10, 150); passo(10);
+  confere(estado_atual() == MIRA || estado_atual() == ATAQUE, "FLANCO perto do oponente: fecha o ataque", estado_atual());
+  // investida: oponente vindo rápido de frente não recebe flanco, recebe o torque de frente
+  luta(); oponente(true, 5, 400); P.op.aproximacao = 600; passo(40);
+  confere(estado_atual() == ATAQUE || estado_atual() == MIRA, "FLANK com investida rapida: recebe de frente", estado_atual());
+
+  // Fan out (DIP 3): sem pista, a busca oscila o rumo de um lado para o outro e avança devagar
+  dip = 0x04; luta();
+  confere(estados_estrategia() == FAN_OUT, "DIP 3 ligada: estrategia FAN_OUT", estados_estrategia());
+  oponente(false, 0); passo(100);
+  int sinal1 = pwmD > pwmE ? 1 : -1;
+  bool trocou = false, avancou = false;
+  for (int k = 0; k < 400; k++) {
+    passo(2);
+    if ((pwmD > pwmE ? 1 : -1) != sinal1) trocou = true;
+    if (pwmE + pwmD > 20) avancou = true;
+  }
+  confere(trocou, "FAN_OUT: o sentido do giro troca (leque de um lado para o outro)", trocou);
+  confere(avancou, "FAN_OUT: o robo avanca devagar durante o leque", avancou);
+
+  // DIP 4: perfil escuro pedido aos sensores e travado no start; duas estratégias ligadas valem a de menor número
+  dip = 0x08 | 0x06; luta();
+  confere(estados_escuro() && perfilEscuro, "DIP 4 ligada: perfil de oponente escuro", estados_escuro());
+  confere(estados_estrategia() == FLANK, "DIP 2 e 3 ligadas juntas: vale a DIP 2 (FLANK)", estados_estrategia());
+  dip = 0; passo(100);
+  confere(estados_estrategia() == FLANK && estados_escuro(), "chave mexida durante a luta: nada muda", estados_estrategia());
+  dip = 0;
 
   printf("\n%s: %d falha(s)\n", falhas ? "ERRO" : "OK", falhas);
   return falhas ? 1 : 0;

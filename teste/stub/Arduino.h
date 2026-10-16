@@ -16,11 +16,15 @@ inline uint32_t millis() { return relogio_us / 1000; }
 #define RAD_TO_DEG  57.295779513082320876798154814105
 #define HIGH 1
 #define LOW  0
-#define OUTPUT 1
+#define INPUT 1
+#define OUTPUT 3
+#define INPUT_PULLUP 5
+#define INPUT_PULLDOWN 9
 #define constrain(amt, low, high) ((amt) < (low) ? (low) : ((amt) > (high) ? (high) : (amt)))
 #define F(texto) (texto)
 inline void pinMode(int, int) {}
 inline void digitalWrite(int, int) {}
+int digitalRead(int pino);                  // o teste que usa a chave DIP define esta função
 
 // Print simplificado: o printf monta o texto e manda caractere por caractere para o write.
 class Print {

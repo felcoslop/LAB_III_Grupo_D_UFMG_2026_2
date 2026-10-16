@@ -127,6 +127,7 @@ td.num { font-family: var(--fonte-dado); font-size: 13px; white-space: nowrap; }
     <span class="rotulo">Grupo D · ELE635 Lab. de Sistemas III · JGB37-520 de 319 rpm + ponte H de 10 A</span>
     <h1>Cinemática do Robô Sumô</h1>
     <p class="sub">Cada estado da máquina pede um avanço em mm/s e um giro em graus/s. A cinemática transforma esse pedido no PWM de cada roda, com o modelo do motor tirado da tabela do fabricante. A simulação abaixo roda as mesmas contas do firmware: arraste o oponente, aperte Rodar e veja as rodas, o caminho e a fuga da borda.</p>
+    <p class="sub">As estratégias Rush, Flank e Fan out, a localização no dojô e as lutas inteiras com o firmware de verdade ficam na página <a href="lutas.html">Lutas simuladas</a>.</p>
   </header>
 
   <section class="bancada" aria-label="Simulação">
@@ -215,17 +216,22 @@ td.num { font-family: var(--fonte-dado); font-size: 13px; white-space: nowrap; }
             <tr><td>ATAQUE</td><td class="num">478</td><td class="num">6·â</td></tr>
             <tr><td>RECUO (borda)</td><td class="num">−478, tensão toda</td><td class="num">0</td></tr>
             <tr><td>AVANCO_BORDA (borda)</td><td class="num">478, tensão toda</td><td class="num">0</td></tr>
-            <tr><td>GIRO_BORDA</td><td class="num">0</td><td class="num">±370 até 135°</td></tr>
+            <tr><td>GIRO_BORDA</td><td class="num">0</td><td class="num">±370 até o centro do dojô</td></tr>
+            <tr><td>SAIDA_LATERAL (borda de um lado)</td><td class="num">239, tensão toda</td><td class="num">roda de dentro parada</td></tr>
+            <tr><td>FLANCO (Flank)</td><td class="num">478·cos(â ± 35°)</td><td class="num">6·(â ± 35°)</td></tr>
+            <tr><td>ATAQUE_RE (oponente colado atrás)</td><td class="num">−478</td><td class="num">6·ê</td></tr>
+            <tr><td>BUSCA longe do centro</td><td class="num">320·cos(ĉ)</td><td class="num">6·ĉ</td></tr>
+            <tr><td>BUSCA do Fan out</td><td class="num">0 ou 140</td><td class="num">±260, vai e volta 45°</td></tr>
           </tbody>
         </table></div>
-        <p class="dica">â é o ângulo do oponente em graus, positivo para a esquerda. Velocidades em mm/s e giros em graus/s.</p>
+        <p class="dica">â é o ângulo do oponente em graus, positivo para a esquerda; ê é o erro do oponente em relação à traseira; ĉ é a direção do centro do dojô dada pela localização. Velocidades em mm/s e giros em graus/s.</p>
       </div>
     </div>
   </section>
 
   <section class="fontes" aria-label="Fontes">
     <span class="rotulo">Bases usadas</span>
-    <span>Firmware e documentação: <a href="https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2" target="_blank" rel="noopener">repositório do Grupo D no GitHub</a>. Esta página é publicada pelo GitHub Pages a cada mudança na <code>main</code>, e o CI confere se as constantes do simulador batem com o <code>config.h</code>.</span>
+    <span><a href="lutas.html">Lutas simuladas com o firmware de verdade</a>, com as três estratégias e o placar da bateria do CI. Firmware e documentação: <a href="https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2" target="_blank" rel="noopener">repositório do Grupo D no GitHub</a>. Esta página é publicada pelo GitHub Pages a cada mudança na <code>main</code>, e o CI confere se as constantes do simulador batem com o <code>config.h</code>.</span>
     <span>Cinemática inversa e limitador: <a href="https://github.com/ros-controls/ros2_controllers" target="_blank" rel="noopener">diff_drive_controller, ros2_controllers</a>. Saturação das rodas: <a href="https://github.com/linorobot/linorobot2_hardware" target="_blank" rel="noopener">linorobot2_hardware</a>. Feed-forward kS, kV, kA: <a href="https://github.com/wpilibsuite/allwpilib" target="_blank" rel="noopener">WPILib SimpleMotorFeedforward</a>. Motor: <a href="https://rcdrone.top/products/jgb37-520-dc-gear-motor" target="_blank" rel="noopener">tabela do JGB37-520</a>. Pneu: <a href="https://www.robocore.net/pneus-s20-32mm-para-roda-stickymax-par" target="_blank" rel="noopener">RoboCore StickyMAX S20</a>. Táticas e borda: Sumo Robot Blackbook, capítulos 2, 10 e 11.</span>
   </section>
 </div>
@@ -236,7 +242,7 @@ const C = {
   B: 132, RAIO: 16, KS: 1.5, KA: 0.00125, VDISP: 10.9, QUEDA: 0.2, TAU: 0.06, ACEL: 6000,
   K_MIRA: 6, ANG_CURVA: 40, GIRO_MIRA_MAX: 370, GIRO_BUSCA: 200, VEL_BUSCA: 240,
   GIRO_BORDA: 370, ANG_GIRO_BORDA: 135, T_GIRO_MAX: 900, T_RECUO_EXTRA: 10,
-  T_BUSCA_GIRO: 1500, T_BUSCA_AVANCO: 250, CENTRO: 7, ALCANCE: 542, PERDE_MS: 100,
+  T_BUSCA_GIRO: 1500, T_BUSCA_AVANCO: 250, CENTRO: 7, ALCANCE: 600, PERDE_MS: 100,
   R_DOJO: 385, FAIXA: 25, LADO: 152, FREIO_FRAC: 0.8 * 0.8, BORDA_X: 60
 };
 C.KV = (12 - C.KS) / (319 * 2 * Math.PI / 60 * C.RAIO);   // V por mm/s

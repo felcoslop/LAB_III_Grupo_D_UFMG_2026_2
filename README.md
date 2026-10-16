@@ -8,7 +8,7 @@
 [![Compilação](https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2/actions/workflows/compilacao.yml/badge.svg)](https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2/actions/workflows/compilacao.yml)
 [![Simulador](https://img.shields.io/badge/simulador-GitHub%20Pages-2ea44f)](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/)
 
-Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **Grupo D**, desenvolvido na disciplina ELE635 Laboratório de Sistemas III da UFMG. O ESP32 lê cinco ou sete sensores de distância VL53L0X e quatro sensores de linha TCRT5000, estima onde está o oponente com um filtro bayesiano em grade e decide o movimento com uma máquina de estados. Um painel web, que abre direto no navegador e conversa com o robô pela USB, mostra sensores, mapa de probabilidade, rumo e estado em 2D e 3D.
+Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **Grupo D**, desenvolvido na disciplina ELE635 Laboratório de Sistemas III da UFMG. O ESP32 lê cinco ou sete sensores de distância VL53L0X e quatro sensores de linha TCRT5000, estima onde está o oponente com um filtro bayesiano em grade, estima onde fica o centro do dojô com um filtro de partículas e decide o movimento com uma máquina de estados de três estratégias, escolhidas na chave DIP. Um painel web, que abre direto no navegador e conversa com o robô pela USB, mostra sensores, mapa de probabilidade, rumo e estado em 2D e 3D, e um simulador com o firmware de verdade roda lutas inteiras no GitHub Pages.
 
 ![Painel do robô em modo demo, com radar 2D, ambiente 3D, tabela de precisão e sensores de borda](doc/img/painel_demo.jpg)
 
@@ -18,6 +18,9 @@ Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **
 - [Funcionalidades](#funcionalidades)
 - [Hardware](#hardware)
 - [Cinemática das rodas](#cinemática-das-rodas)
+- [Estratégias e chave DIP](#estratégias-e-chave-dip)
+- [Localização no dojô](#localização-no-dojô)
+- [Lutas simuladas](#lutas-simuladas)
 - [Instalação](#instalação)
 - [Uso](#uso)
 - [Arquitetura](#arquitetura)
@@ -38,13 +41,17 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 
 - Identificação dos VL53L0X (5 ou 7, escolhidos no `config.h`) pelo pino XSHUT, com endereço I2C próprio para cada sensor e nova tentativa automática quando algum para de responder.
 - Leitura escalonada e sem bloqueio dos ToF, com mediana de 3 leituras e calibração de 2 pontos gravada na memória do ESP32.
-- Rastreador bayesiano em grade polar, rodando no segundo núcleo, que aproveita também a informação dos sensores que não veem nada e reconhece a arena vazia.
+- Rastreador bayesiano em grade polar, que aproveita também a informação dos sensores que não veem nada e reconhece a arena vazia. A leitura dos ToF e o rastreador rodam no núcleo 0, e o loop com a borda, a localização e a estratégia roda no núcleo 1.
+- Perfil de oponente escuro na DIP 4: sensores com mais tempo de medida e limiar de sinal menor para robôs pretos e foscos, e o rastreador com o modelo de ruído desse perfil. O perfil claro continua igual ao de antes.
+- Localização no dojô sem encoder: um filtro de partículas estima onde fica o centro do dojô a partir do modelo das rodas e dos sensores de borda. A fuga da borda termina virada para o centro, a busca volta para o meio e leituras de pessoas e objetos fora do dojô não viram oponente.
+- Três estratégias na chave DIP (Rush, Flank e Fan out), com resposta de frente a investidas rápidas, empurrão de ré com o oponente colado atrás e reconhecimento do oponente encostado na lateral.
 - Rumo (a seta do painel) até o oponente ou até os pontos cegos, usado pela máquina de estados na busca.
 - Leitura analógica da linha branca, com confirmação por tempo e calibração guiada em três medidas (ar, preto e branco).
-- Máquina de estados com contagem obrigatória de 5 s, busca, mira, ataque e fuga da borda.
+- Máquina de estados com contagem obrigatória de 5 s, busca, mira, ataque, flanco, ataque de ré e fuga da borda em quatro direções, sem nunca girar para trás quando a borda está atrás.
 - Cinemática das duas rodas com o modelo do motor JGB37-520 e da ponte H: cada estado pede avanço em mm/s e giro em graus/s, a fuga da borda usa a tensão toda na hora e o firmware não compila se a distância de parada não couber na margem até as rodas. Os comandos `pwm` e `mov` testam os motores com o robô parado.
 - Painel 2D e 3D em um único arquivo HTML, sem internet, ligado ao robô pela USB, com dados a 50 Hz e comandos pelo navegador.
-- Firmware sem rádio: o robô compete de forma autônoma, sem WiFi e sem Bluetooth, o que deixa o núcleo 0 livre para o rastreador.
+- Firmware sem rádio: o robô compete de forma autônoma, sem WiFi e sem Bluetooth, o que deixa o núcleo 0 livre para os sensores e o rastreador.
+- Simulador de lutas (software in the loop): o firmware compilado no computador luta contra seis tipos de oponente, com pessoas paradas em volta do dojô, e o CI roda uma bateria de lutas em todo pull request.
 - Terminal de comandos pela USB ou pelo painel para teste, calibração e diagnóstico.
 
 ## Hardware
@@ -58,7 +65,7 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 | Bateria 3S de Li-ion (18650) com BMS | 1 | alimentação dos motores; o ESP32 tem bateria e conversor próprios |
 | Módulo HW-956 de ponte H dupla de 10 A (3 a 18 V, entradas IN1 a IN4) | 1 | ponte H de MOSFET dos dois motores, com PWM de até 2 kHz (desativada na bancada) |
 | Botão | 1 | start, ligado entre o GPIO 0 e o GND, em paralelo com o botão BOOT da placa |
-| Chave DIP de 4 vias | 1 | ligada nos GPIOs 12, 14, 2 e 15; ainda sem uso no firmware |
+| Chave DIP de 4 vias | 1 | ligada nos GPIOs 12, 14, 2 e 15: estratégia (DIP 1 a 3) e perfil do oponente escuro (DIP 4) |
 
 | Função | GPIO | Observação |
 |---|---|---|
@@ -74,7 +81,7 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 
 A pinagem segue o documento de ligação da placa nova (Lab3-Liga) e o esquema do Fritzing. Todos os sensores ficam no 3V3 do ESP32. As placas clone do VL53L0X puxam SDA e SCL para 2,8 V, nível que o ESP32 entende como 1, e o firmware nunca coloca nível alto no XSHUT: para desligar um sensor o pino vira saída em LOW e, para ligar, vira entrada com o pull-up interno. Os sensores de borda usam os pinos 34, 35, 32 e 33 do ADC1 e precisam do fio na saída A0 dos módulos; no esquema atual o fio sai do D0, que só entrega 0 ou 3,3 V e não separa arranhão de linha.
 
-A chave DIP pede três cuidados. A DIP 1, no GPIO 12, precisa estar desligada na hora de ligar o ESP32, porque nível alto nesse pino durante o boot muda a tensão da memória flash e a placa não liga. A DIP 3, no GPIO 2, precisa estar desligada na hora de gravar o firmware. E o GPIO 2 deixou de acender o LED de status (`PINO_LED -1`): com a chave ligada e o pino em LOW, o 3V3 ficaria em curto com o pino.
+A chave DIP pede três cuidados. A DIP 1, no GPIO 12, precisa estar desligada na hora de ligar o ESP32, porque nível alto nesse pino durante o boot muda a tensão da memória flash e a placa não liga. A DIP 3, no GPIO 2, precisa estar desligada na hora de gravar o firmware. E o GPIO 2 deixou de acender o LED de status (`PINO_LED -1`): com a chave ligada e o pino em LOW, o 3V3 ficaria em curto com o pino. Como o firmware lê a chave o tempo todo e trava a escolha só no start, a DIP 1 pode ser ligada depois do boot, com o robô já no dojô. Outra saída para o GPIO 12 é gravar os eFuses da tensão da flash em 3,3 V (`espefuse.py set_flash_voltage 3.3V` no esptool 4, `espefuse set-flash-voltage 3.3V` no esptool 5), que fazem o ESP32 ignorar o pino no boot; a gravação é permanente e só serve para módulos com flash de 3,3 V, como o ESP32-WROOM-32 do DevKit [ESPRESSIF SYSTEMS, s.d.b].
 
 Na bancada (`GEOMETRIA_BANCADA 1`), a origem do referencial é o centro da protoboard, com x para a frente e y para a esquerda, em milímetros:
 
@@ -198,6 +205,87 @@ O giro de recuperação (GIRO_BORDA) também mudou. Antes ele durava um tempo fi
 
 Os valores marcados com "medir" no `config.h` ficam certos só com o robô montado. O capítulo 11 do Blackbook manda medir as primitivas de movimento antes de montar qualquer tática: a distância percorrida em um tempo fixo e o tempo de uma volta completa no eixo [DEDE, s.d.]. O comando `cin` mostra os números do modelo, e o comando `mov V W MS` faz o robô parado em ESPERA andar com avanço V e giro W por MS milissegundos e, no fim, mostra a distância e o giro estimados. Com `mov 300 0 1000`, a distância medida com a régua, comparada com a estimada, acerta o `MOTOR_RPM_LIVRE` ou a `PONTE_QUEDA_V`; com `mov 0 300 1000`, o giro medido no chão acerta a `BITOLA_MM`. Qualquer borda vista interrompe o teste na hora. Antes disso, o comando `pwm E D MS` confere os fios: cada roda recebe a porcentagem de PWM pedida (de -100 a 100, positivo para a frente), sem passar pela cinemática. Com `pwm 30 0 1000` só a roda esquerda precisa girar, para a frente; roda ao contrário se corrige com `INVERTE_ESQ` ou `INVERTE_DIR` e rodas trocadas com `TROCA_MOTORES`. Os dois testes funcionam com os sensores desligados, porque rodam no estado ESPERA, e durante eles o firmware não tenta religar os ToF.
 
+## Estratégias e chave DIP
+
+As três estratégias da proposta do Grupo D [GRUPO D, 2026] ficam nas vias 1 a 3 da chave DIP, e a via 4 escolhe o perfil do oponente. O firmware lê a chave com um filtro de 30 ms contra trepidação e trava a escolha no start: mexer na chave durante a luta não muda nada. Sem nenhuma via de estratégia ligada vale o Rush, e com mais de uma ligada vale a de menor número (o comando `lista` avisa o conflito). Os comandos `estrategia` e `perfil` passam por cima da chave para testes na bancada.
+
+| DIP 1 | DIP 2 | DIP 3 | Estratégia | Busca sem pista | Chegada no oponente |
+|---|---|---|---|---|---|
+| ligada | desligada | desligada | Rush | giro no eixo para o lado do rumo, com avanços curtos | mira em curva e ataque com o torque todo |
+| desligada | ligada | desligada | Flank | igual ao Rush | espiral que fecha na lateral do oponente |
+| desligada | desligada | ligada | Fan out | leque: o rumo oscila 45° para cada lado e o robô avança devagar | igual ao Rush |
+
+| DIP 4 | Perfil | Sensores | Rastreador |
+|---|---|---|---|
+| desligada | oponente claro | o perfil de sempre: 20 ms por medida, limite de sinal 0,25 MCPS | o modelo de sempre |
+| ligada | oponente escuro | 33 ms por medida, limite de sinal 0,10 MCPS e pulsos longos (VCSEL 18 e 14), alcance de 700 mm no preto | 15% de chance de não ver o oponente dentro do cone, 2,5 vezes mais leituras falsas, 1,5 vez mais ruído e 180 ms até perder o alvo |
+
+O perfil escuro troca velocidade e limpeza da medida por sensibilidade. Um robô preto e fosco devolve pouca luz ao VL53L0X, e no perfil claro ele some antes do fim do dojô; com mais tempo de medida e um limite de sinal menor, o sensor enxerga mais longe, ao custo de uma medida a cada 33 ms e de mais leituras falsas, que o rastreador absorve com o modelo de ruído do perfil. Nas lutas simuladas contra oponentes escuros e furtivos (240 lutas, Rush, com e sem a DIP 4), o perfil escuro baixou o tempo até achar um oponente furtivo parado de 1,0 s para 0,5 s e o tempo até vencer o oponente errante escuro de 8,6 s para 4,4 s; as 240 lutas terminaram em vitória nos dois perfis.
+
+No Flank, com o oponente à vista a mais de 24 cm e sem investida, o robô mira 35° ao lado dele; com o desvio constante, o caminho vira uma espiral que termina na lateral do oponente. O lado é o que tem mais espaço até a borda, pela localização no dojô. A 18 cm do oponente, com ele aberto mais de 75°, depois de 1,5 s ou se ele investir, o robô ataca direto. No Fan out, o leque só avança com pelo menos 20 cm livres à frente.
+
+Algumas regras valem nas três estratégias. Um oponente que vem de frente a mais de 300 mm/s (investida) é recebido de frente, e o robô empurra com o torque todo: o JGB37-520 tem redução de 18,8:1, e um robô rápido costuma ter pouco torque, então oferecer a lateral numa curva é o pior caso. Com o oponente colado na frente, o ToF pode perder a leitura por estar perto demais, e o ataque continua por 400 ms sem confirmação. Com o oponente colado atrás (versão de 7 sensores), o robô empurra de ré em vez de girar 180° na frente dele. Uma leitura abaixo de 15 mm, o mínimo do VL53L0X, conta como oponente encostado naquele lado: o rastreador recebe essa posição, e o robô vira para ele em vez de perseguir outra coisa. E a busca sem pista começa voltando para o meio do dojô, quando a localização mostra o robô a mais de 15 cm do centro.
+
+### Fuga da borda
+
+A borda vem antes de qualquer estratégia. Cada sensor de borda confirmado no branco diz de que lado está a faixa, e a manobra depende da combinação:
+
+| Sensores no branco | Estado | Manobra |
+|---|---|---|
+| só os da frente | RECUO | ré com a tensão toda até o branco sumir, mais 10 ms; um recuo que não tira a frente do branco em 300 ms (robô preso entre a borda e o oponente) vira uma curva de ré que desencaixa a traseira |
+| só os de trás | AVANCO_BORDA | avanço com a tensão toda, sem nenhum giro para trás |
+| frente e trás do mesmo lado | SAIDA_LATERAL | curva para dentro com a roda de dentro parada, o movimento que menos joga o canto de trás para fora |
+| frente e trás em lados opostos | GIRO_BORDA | giro direto para o centro do dojô |
+
+Depois do recuo, o GIRO_BORDA vira o robô de frente para o centro do dojô, pela localização, e a busca leva o robô de volta para o meio, já de frente para a outra metade do dojô; sem localização confiável, o giro é de 135° para longe da borda. O giro continua vigiando o oponente e a borda. Com a borda de trás no branco, girar para olhar para trás não faz sentido, porque atrás da faixa só existe o lado de fora e nenhum oponente: o robô avança, e por 400 ms os ToF de trás ignoram qualquer coisa a mais de 120 mm.
+
+## Localização no dojô
+
+O JGB37-520 não tem encoder e o robô não tem IMU, então a posição no dojô sai do modelo das rodas (`cinematica.cpp`) e dos quatro sensores de borda. O dojô é um círculo: o rumo absoluto não importa, basta saber onde fica o centro do dojô visto do robô. O `arena.cpp` guarda 600 hipóteses desse ponto em um filtro de partículas [THRUN; BURGARD; FOX, 2005]. A cada 5 ms o centro de cada hipótese anda ao contrário do movimento estimado do robô; cada partícula tem o próprio erro de escala do avanço e do giro, porque o erro do modelo das rodas é sistemático (bateria, atrito, pneu). Um sensor no branco diz que ele está na faixa, um sensor no preto diz que ele não está, e as rodas precisam estar dentro do dojô, senão o robô já teria caído. O modelo do branco tem um pico estreito onde o sensor deve estar e uma cauda larga, que puxa a nuvem para a explicação certa quando nenhuma hipótese bate com a borda.
+
+Em contato com o oponente, ou com algo encostado num ToF, o modelo das rodas deixa de valer: o robô pode estar travado, patinando ou sendo empurrado de lado. Nesse caso cada partícula sorteia quanto do movimento pedido aconteceu e uma velocidade de empurrão, e guarda esse sorteio enquanto o contato dura; a borda escolhe as hipóteses certas. O mesmo modelo entra quando o branco que continua aparece onde o filtro confiante esperava preto, sinal de que o movimento real fugiu do modelo.
+
+A localização tem três usos. O GIRO_BORDA termina de frente para o centro e a busca volta para o meio do dojô. O Flank e o Fan out medem o espaço livre até a borda em cada direção. E a percepção descarta o que cai fora do dojô: uma leitura de ToF só é descartada quando as 64 hipóteses da amostra colocam o ponto a mais de 30 mm além da borda, e o mapa do rastreador apaga, em cada direção, só os anéis que ficam fora em todas elas. O alcance dos ToF, de 600 mm, vem do pior caso dentro do dojô (o robô do Grupo D numa borda e o oponente encostado na borda oposta), então o oponente em qualquer ponto do dojô fica dentro do alcance.
+
+O teste `teste/teste_arena.cpp` roda 150 lutas de um robô de mentira que larga como manda a CoRA, anda até a borda, recua, gira para o centro estimado e repete cinco vezes, com o modelo das rodas certo ou errado em 15%. Com 12 sementes e as duas geometrias (9000 medidas):
+
+| Medida | Resultado |
+|---|---|
+| Erro do centro depois de 5 toques na borda, mediana | 19 a 23 mm |
+| Erro do centro depois de 5 toques, 90% das lutas | 46 a 60 mm |
+| Incerteza coerente com o erro (erro abaixo de 2,5 sigma + 2 cm) | 99% a 100% |
+| Localização marcada como confiável com erro acima de 10 cm | 1,2% a 4,5% |
+| Leitura do oponente a 6 cm da borda descartada como fora | 3 em 9000 (0,03%) |
+| Pessoa a 12 cm além da borda descartada | 45% a 51% |
+
+Os três descartes errados aconteceram com o filtro confiante e errado por mais de 30 cm, caso que o motor sem encoder não permite eliminar; uma leitura descartada vira "sem informação", e as leituras seguintes, de outros sensores ou de mais perto, continuam valendo. O descarte das pessoas não precisa ser completo: o que escapa dele bate no alcance de 600 mm, na regra da borda de trás e no rastreador, e nas lutas simuladas o robô mirou objetos de fora do dojô por no máximo 1,4 s numa luta inteira. O comando `arena` mostra o centro estimado, a incerteza, o espaço livre em 8 direções e o tempo do passo do filtro, que no computador leva uns 20 µs.
+
+## Lutas simuladas
+
+A pasta `teste/sim` compila o firmware de verdade (percepção, ToF, rastreador, localização, borda, estados, cinemática e motores) junto com um mundo simulado: física das rodas com atrito e tração, VL53L0X com cone, sinal, ruído e leituras falsas, TCRT5000 com o analógico do preto, do branco e do chão de fora, e um oponente com inteligência própria. Os robôs largam como manda a CoRA, cada um na sua metade, atrás da linha Shikiri e virado para qualquer lado, e a luta dura até alguém sair do dojô ou 90 s. Com a opção `-f`, pessoas paradas a 12 a 80 cm da borda entram na cena, visíveis para os ToF.
+
+| Oponente | Comportamento |
+|---|---|
+| parado | caixa parada, com os motores desligados e a redução travada |
+| pesado | parado, com pneu mais grudento e lâmina melhor |
+| rápido | ataca a 1,3 m/s, com motor de alta rotação e pouco torque |
+| lento | ataca a 0,2 m/s, com redução alta, muito torque, pneu grudento e lâmina melhor |
+| errante | anda sem rumo pelo dojô e ataca só de perto |
+| espelho | o mesmo motor, a mesma roda e a mesma lâmina do robô do Grupo D, atacando do mesmo jeito |
+
+Na bateria com pessoas em volta do dojô (3 estratégias, 6 oponentes, claro e escuro, 15 largadas cada, 540 lutas), o robô venceu 360 lutas e nunca saiu do dojô sozinho. Contra o parado, o pesado e o rápido, as três estratégias venceram todas as lutas, claro e escuro; contra o errante, 14 ou 15 de 15. O lento, com mais torque e uma lâmina melhor, ganhou quase todas as lutas, e o espelho, de força igual, terminou quase sempre empatado; nos dois casos o robô fica travado empurrando um oponente que não cede, assunto da próxima etapa. Sem as pessoas e com o oponente furtivo, que quase não reflete, a bateria de 810 lutas também terminou sem nenhuma queda própria.
+
+A página [Lutas simuladas](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/lutas.html) mostra as lutas no navegador: escolha de estratégia, oponente, cor e largada, com os dois robôs, o caminho, o dojô que a localização estima, o oponente que o rastreador estima, o estado e o PWM de cada roda a cada instante. O workflow da página gera os rastros e o placar com o firmware da `main` a cada publicação.
+
+[![Luta simulada na página: Flank contra o oponente errante e escuro, com o dojô estimado pela localização e as pessoas em volta](doc/img/lutas_simuladas.jpg)](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/lutas.html)
+
+No computador, a mesma bateria roda com:
+
+```
+bash teste/sim/compila.sh
+python teste/sim/roda_lutas.py teste/sim/luta --dips 1,2,4 --fora --perfil-pela-cor --sementes 15
+```
+
 ## Instalação
 
 ### Requisitos
@@ -209,7 +297,7 @@ Os valores marcados com "medir" no `config.h` ficam certos só com o robô monta
 | Biblioteca VL53L0X da Pololu | 1.3.1 | Gerenciador de Bibliotecas |
 | Python 3 | 3.x | necessário só para gerar o painel de novo |
 
-O firmware usa o core do ESP32 [ESPRESSIF SYSTEMS, s.d.] e a biblioteca VL53L0X da Pololu [POLOLU, s.d.]. As bibliotecas Preferences e Wire já vêm com o core.
+O firmware usa o core do ESP32 [ESPRESSIF SYSTEMS, s.d.a] e a biblioteca VL53L0X da Pololu [POLOLU, s.d.]. As bibliotecas Preferences e Wire já vêm com o core.
 
 ### Passo a passo
 
@@ -254,6 +342,9 @@ Os comandos funcionam no Monitor Serial e no terminal do painel.
 | `cin` | números do modelo das rodas: velocidade e giro máximos, feed-forward e distância de parada |
 | `mov V W MS` | teste com o robô parado: avanço V mm/s e giro W graus/s por MS ms (até 3000), com a estimativa no fim |
 | `pwm E D MS` | teste dos fios: PWM direto de E% na roda esquerda e D% na direita (-100 a 100) por MS ms |
+| `estrategia rush`, `flank`, `fan` ou `chave` | estratégia escolhida pelo terminal; `chave` volta a seguir a DIP |
+| `perfil claro`, `escuro` ou `chave` | perfil do oponente pelo terminal; `chave` volta a seguir a DIP 4 |
+| `arena` | localização no dojô: centro estimado, incerteza, espaço livre em 8 direções, leituras descartadas e tempo do filtro |
 | `go` e `stop` | início (contagem de 5 s) e parada da máquina de estados |
 | `s1` e `s0` | stream de dados para o painel, ligado e desligado |
 
@@ -275,7 +366,7 @@ Os sensores de borda passam pelo `calborda`. A medida no ar revela reflexo indes
 
 ### Teste da máquina de estados
 
-O comando `go` (ou o botão de start) inicia a contagem de 5 s e depois a luta. Na bancada, com `USAR_MOTORES 0`, nenhum pino de motor muda, mas o modo `ver` e o painel mostram o estado atual, o PWM e a velocidade estimada de cada roda. O teste consiste em mover um objeto em volta dos sensores e acompanhar as trocas entre BUSCA, MIRA e ATAQUE. O comando `stop` volta para ESPERA.
+O comando `go` (ou o botão de start) inicia a contagem de 5 s e depois a luta, com a estratégia e o perfil da chave DIP naquele momento. Na bancada, com `USAR_MOTORES 0`, nenhum pino de motor muda, mas o modo `ver` e o painel mostram o estado atual, a estratégia, o PWM e a velocidade estimada de cada roda. O teste consiste em mover um objeto em volta dos sensores e acompanhar as trocas entre BUSCA, MIRA, FLANCO e ATAQUE. O comando `stop` volta para ESPERA. Antes do start, um ToF que lê menos de 15 mm com o robô parado aparece como OBSTRUIDO no `lista` (fio, lâmina ou poeira na frente da lente), e essa leitura deixa de contar como oponente encostado até o sensor ler normal de novo.
 
 ## Arquitetura
 
@@ -283,16 +374,23 @@ O firmware segue uma regra simples: a máquina de estados só conhece a struct `
 
 ```mermaid
 flowchart LR
-    TOF["5 ou 7 x VL53L0X<br/>I2C e XSHUT"] --> OPO["oponente.cpp<br/>leitura e fusão"]
-    OPO <--> RAS["rastreador.cpp<br/>filtro bayesiano<br/>núcleo 0"]
+    subgraph N0["núcleo 0"]
+        OPO["oponente.cpp<br/>leitura dos ToF"] <--> RAS["rastreador.cpp<br/>filtro bayesiano"]
+    end
+    TOF["5 ou 7 x VL53L0X<br/>I2C e XSHUT"] --> OPO
     TCRT["4 x TCRT5000<br/>ADC1"] --> BOR["borda.cpp<br/>limiar e confirmação"]
+    DIP["chave DIP"] --> CHA["chave.cpp<br/>estratégia e perfil"]
     BOT["botão de start"] --> PER
     OPO --> PER["percepcao.cpp<br/>struct P e rumo"]
     BOR --> PER
+    PER <--> ARE["arena.cpp<br/>centro do dojô"]
+    ARE -. "hipóteses do centro" .-> OPO
+    CHA --> EST
     PER --> EST["estados.cpp<br/>máquina de estados"]
     EST --> CIN["cinematica.cpp<br/>v e w para cada roda"]
     CIN --> MOT["motores.cpp<br/>ponte H"]
     CIN -. "giro e avanço estimados" .-> RAS
+    CIN -. "giro e avanço estimados" .-> ARE
     PER --> DEB["debug.cpp<br/>comandos e stream"]
     DEB --> TEL["telemetria.cpp<br/>Log pela USB"]
     TEL --> USB["Monitor Serial"]
@@ -304,12 +402,12 @@ Nenhum módulo usa `delay()` dentro do loop. Cada volta chama os módulos na ord
 
 | Ordem | Chamada | Arquivo | Papel |
 |---|---|---|---|
-| 1 | `percepcao_atualiza()` | percepcao.cpp | leitura dos sensores, fusão, rumo e montagem de `P` |
+| 1 | `percepcao_atualiza()` | percepcao.cpp | chave DIP, estimativa do oponente, rumo, borda, localização no dojô e montagem de `P` |
 | 2 | `estados_passo()` | estados.cpp e cinematica.cpp | decisão, cinemática das rodas e comando dos motores |
 | 3 | `percepcao_manutencao()` | percepcao.cpp | nova tentativa nos ToF que caíram, só em ESPERA |
 | 4 | `debug_passo()` | debug.cpp | comandos e envio de dados para o painel |
 
-O ESP32 tem dois núcleos. O loop do Arduino roda no núcleo 1, e o rastreador bayesiano, que leva alguns milissegundos por passo, roda em uma tarefa do FreeRTOS no núcleo 0. Como o firmware não liga o rádio, a pilha do WiFi não disputa esse núcleo com o rastreador. A troca de dados entre os dois acontece dentro de uma trava curta (spinlock), então o loop nunca espera o filtro terminar.
+O ESP32 tem dois núcleos, e o trabalho fica dividido entre eles. No núcleo 0, uma tarefa do FreeRTOS lê os ToF, descarta as leituras de fora do dojô e roda o rastreador bayesiano, que leva alguns milissegundos por passo. No núcleo 1, o loop do Arduino lê a borda a cada volta, roda a localização no dojô, decide o estado e comanda os motores, então a reação à borda nunca espera um sensor I2C nem o rastreador. Como o firmware não liga o rádio, a pilha do WiFi não disputa o núcleo 0. A troca de dados entre os núcleos acontece dentro de travas curtas (spinlock), e o I2C tem um mutex para os comandos do terminal que mexem nos sensores.
 
 O referencial é o mesmo em todo o código: origem no centro de giro do robô, x para a frente, y para a esquerda e ângulo positivo para a esquerda. Com isso, o ângulo do oponente já é o quanto o robô precisa girar.
 
@@ -321,11 +419,11 @@ Arquivo principal. O `setup()` configura primeiro os motores, para o robô nasce
 
 ### `config.h`
 
-Este arquivo concentra tudo o que depende do hardware: pinos, posição dos sensores, limiares, velocidades e tempos. As tabelas `TOF[]` e `BORDA[]` descrevem os sensores, e o tamanho delas sai de `sizeof`, então um sensor a mais é só uma linha a mais na tabela (até 16 ToF). A chave `GEOMETRIA_BANCADA` escolhe entre as posições da bancada e as do robô, e a `QTD_TOF` escolhe entre 5 e 7 sensores; qualquer outro valor interrompe a compilação com uma mensagem de erro. O alcance `TOF_ALCANCE_MM` vem da geometria do dojô: no pior caso, com o robô encostado em uma borda e o oponente encostado na borda oposta, a face do oponente fica a 77 cm menos 7,6 cm menos 15,2 cm, ou seja, 54,2 cm do centro do robô. Qualquer leitura mais longe é parede, mesa ou pessoa e vale como "nada".
+Este arquivo concentra tudo o que depende do hardware: pinos, posição dos sensores, limiares, velocidades e tempos. As tabelas `TOF[]` e `BORDA[]` descrevem os sensores, e o tamanho delas sai de `sizeof`, então um sensor a mais é só uma linha a mais na tabela (até 16 ToF). A chave `GEOMETRIA_BANCADA` escolhe entre as posições da bancada e as do robô, e a `QTD_TOF` escolhe entre 5 e 7 sensores; qualquer outro valor interrompe a compilação com uma mensagem de erro. O alcance `TOF_ALCANCE_MM` vem da geometria do dojô: no pior caso, o centro do robô chega a uns 340 mm do centro do dojô (sensor de borda na faixa, que começa a 360 mm, mais a distância de parada), e o oponente, inteiro dentro do dojô, tem o centro a até 385 − 76 = 309 mm do centro. Em lados opostos, a face do oponente fica a 340 + 309 − 76 = 573 mm do centro do robô, e com 27 mm de folga o alcance fica em 600 mm. Qualquer leitura mais longe é parede, mesa ou pessoa e vale como "nada"; o que fica mais perto, mas cai fora do dojô pela localização, também não vira oponente.
 
 ### `percepcao.h` e `percepcao.cpp`
 
-Estes arquivos definem a struct `P` e as partes dela: `op` (oponente), `rumo`, `borda`, `saude`, o evento `start` e o instante `t_ms`. A função `percepcao_atualiza()` mede a duração do ciclo, chama a leitura e a fusão dos ToF, calcula o rumo, lê a borda, atualiza a saúde dos sensores e trata o botão de start com debounce de 30 ms. A `percepcao_manutencao()` tenta religar os ToF que falharam a cada 2 s, somente com o robô parado, porque essa operação bloqueia por alguns milissegundos.
+Estes arquivos definem a struct `P` e as partes dela: `op` (oponente), `rumo`, `borda`, `arena` (localização no dojô), `saude`, o evento `start` e o instante `t_ms`. A função `percepcao_atualiza()` mede a duração do ciclo, lê a chave DIP, pega a estimativa do oponente, calcula o rumo, lê a borda, atualiza a localização no dojô, atualiza a saúde dos sensores e trata o botão de start com debounce de 30 ms. O campo `op.aproximacao` dá a velocidade com que o oponente se aproxima (usada na resposta à investida), o `op.contato` indica o oponente colado na frente e o `op.colados` marca os ToF com algo encostado; com contato, oponente perto ou borda vista por mais de 150 ms, a localização trata o movimento das rodas como incerto. A `percepcao_manutencao()` tenta religar os ToF que falharam a cada 2 s, somente com o robô parado, porque essa operação bloqueia por alguns milissegundos.
 
 O rumo é a direção que o robô deve seguir agora e aparece no painel como uma seta:
 
@@ -338,7 +436,7 @@ O rumo é a direção que o robô deve seguir agora e aparece no painel como uma
 
 ### `oponente.h` e `oponente.cpp`
 
-Módulo dos VL53L0X, com três tarefas. A primeira é a inicialização: todos os sensores começam desligados pelo XSHUT, e cada um é ligado sozinho, responde no endereço de fábrica 0x29 e recebe o endereço da tabela. A segunda é a leitura: os sensores medem em modo contínuo a cada 20 ms e o código só consulta cada um perto da hora de ter medida nova, o que deixa o barramento I2C livre; a leitura passa pela calibração `ganho * bruto + offset`, pela mediana das 3 últimas medidas e pelo alcance de cada sensor. A terceira é a fusão: com `FUSAO_BAYES 0` as leituras do mesmo objeto viram um ponto médio, e com `FUSAO_BAYES 1` (padrão) as medidas vão para o rastreador. Um sensor só é marcado como FALHOU depois de erros repetidos de I2C, então uma pausa longa do loop não derruba um sensor bom.
+Módulo dos VL53L0X, com quatro tarefas. A primeira é a inicialização: todos os sensores começam desligados pelo XSHUT, e cada um é ligado sozinho, responde no endereço de fábrica 0x29 e recebe o endereço da tabela. A segunda é a leitura, numa tarefa do FreeRTOS no núcleo 0: os sensores medem em modo contínuo (a cada 20 ms no perfil claro e 33 ms no escuro) e a tarefa só consulta cada um perto da hora de ter medida nova; a leitura passa pela calibração `ganho * bruto + offset`, pela mediana das 3 últimas medidas e pelo alcance de cada sensor. Uma leitura abaixo de 15 mm durante a luta vira o oponente encostado naquele lado; com o robô parado antes da luta, ela marca o sensor como obstruído. A terceira é o descarte: a leitura cujo ponto cai fora do dojô em todas as hipóteses da localização vira "sem informação", e por 400 ms depois da borda de trás os ToF de trás ignoram o que passa de 120 mm. A quarta é a fusão: com `FUSAO_BAYES 0` as leituras do mesmo objeto viram um ponto médio, e com `FUSAO_BAYES 1` (padrão) as medidas vão para o rastreador, rodado na mesma tarefa. A troca de perfil pedida pela DIP 4 também acontece nessa tarefa. Um sensor só é marcado como FALHOU depois de erros repetidos de I2C, então uma pausa longa não derruba um sensor bom.
 
 ### `rastreador.h` e `rastreador.cpp`
 
@@ -346,10 +444,18 @@ Filtro bayesiano em grade (filtro de histograma) para um único oponente quadrad
 
 1. Predição: o mapa espalha um pouco, porque o oponente pode ter andado até 1,5 m/s e o robô pode ter girado; com o giro conhecido pelos motores, o mapa também gira junto.
 2. Correção: cada sensor confirma as células em que a face do oponente ficaria na distância lida, e um sensor sem leitura desmente as células no meio do próprio cone (informação negativa).
-3. Regra: células dentro do corpo do robô valem zero e uma pequena mistura uniforme permite reencontrar o oponente se o mapa errar.
+3. Regra: células dentro do corpo do robô valem zero, células que ficam fora do dojô em todas as hipóteses da localização perdem a probabilidade (um oponente fora do dojô já perdeu a luta), e uma pequena mistura uniforme permite reencontrar o oponente se o mapa errar.
 4. Existência: uma probabilidade separada indica se existe oponente no alcance, e ela só sobe quando as leituras aparecem repetidas e coerentes. Por isso a arena vazia quase nunca gera oponente falso.
 
 A estimativa final traz ângulo, distância, posição, incerteza (sigma), concentração do mapa, chance de existir e o giro de busca. O giro de busca sai de uma avaliação de vários giros possíveis, de 6 em 6 graus para cada lado: para cada um, o código soma quanto do mapa os cones vão varrer e divide pelo tempo de girar, e o melhor vira o rumo PROCURAR. O resultado é que o robô olha primeiro os pontos cegos onde o oponente pode estar.
+
+### `arena.h` e `arena.cpp`
+
+Localização no dojô por filtro de partículas, descrita na seção [Localização no dojô](#localização-no-dojô). A `arena_atualiza()` roda no loop, no núcleo 1, com o avanço e o giro estimados pela cinemática, a borda crua e a confirmada e o aviso de movimento incerto; a `arena_le()` entrega uma cópia protegida para o outro núcleo. A `arena_limite()` dá, em cada direção, a distância além da qual um ponto fica fora do dojô em todas as hipóteses, e a `arena_fora()` usa esse limite no descarte das leituras. A `arena_livre()` dá o espaço até a borda numa direção, usado pelo Flank e pelo Fan out.
+
+### `chave.h` e `chave.cpp`
+
+Leitura da chave DIP de 4 vias, com `INPUT_PULLDOWN` nos quatro pinos e filtro de 30 ms. As vias 1 a 3 escolhem a estratégia e a via 4 o perfil do oponente escuro; os comandos `estrategia` e `perfil` passam por cima da chave.
 
 ### `borda.h` e `borda.cpp`
 
@@ -357,7 +463,7 @@ Leitura dos quatro TCRT5000 pela saída analógica, em milivolts, seguindo a rec
 
 ### `estados.h` e `estados.cpp`
 
-Máquina de estados da estratégia. A borda tem prioridade sobre tudo durante a luta, e o ataque só acontece com o sensor central vendo o oponente centrado (até 7°), como recomenda o Blackbook [DEDE, s.d.]. O recuo da borda dura enquanto o sensor vê branco e mais uma folga de 10 ms, e o giro de recuperação continua vigiando o oponente e a borda. Cada estado pede avanço e giro para a cinemática, como mostra a seção [Cinemática das rodas](#cinemática-das-rodas).
+Máquina de estados da estratégia. A borda tem prioridade sobre tudo durante a luta, e o ataque só acontece com o sensor central vendo o oponente centrado (até 7°), como recomenda o Blackbook [DEDE, s.d.]. A estratégia e o perfil saem da chave DIP e ficam travados no start, junto com o começo da localização, que usa o oponente visto na contagem para saber de que lado fica o centro. As regras da fuga da borda e de cada estratégia estão nas seções [Estratégias e chave DIP](#estratégias-e-chave-dip) e [Fuga da borda](#fuga-da-borda). Cada estado pede avanço e giro para a cinemática, como mostra a seção [Cinemática das rodas](#cinemática-das-rodas).
 
 ```mermaid
 stateDiagram-v2
@@ -368,26 +474,33 @@ stateDiagram-v2
         [*] --> BUSCA
         BUSCA --> MIRA: oponente visto
         BUSCA --> ATAQUE: oponente centrado
+        BUSCA --> FLANCO: Flank, oponente longe
+        BUSCA --> ATAQUE_RE: oponente colado atrás
         MIRA --> ATAQUE: centrado
         MIRA --> BUSCA: perdido
+        FLANCO --> ATAQUE: perto, aberto ou investida
         ATAQUE --> MIRA: fora do centro
         ATAQUE --> BUSCA: perdido
+        ATAQUE_RE --> MIRA: saiu de trás
     }
     LUTA --> RECUO: borda na frente
     LUTA --> AVANCO_BORDA: borda atrás
+    LUTA --> SAIDA_LATERAL: borda num lado
     LUTA --> GIRO_BORDA: borda na frente e atrás
     RECUO --> GIRO_BORDA: branco sumiu ou traseira na borda
+    RECUO --> ATAQUE_RE: recuo empurrando o oponente
+    SAIDA_LATERAL --> GIRO_BORDA: lado limpo
     AVANCO_BORDA --> GIRO_BORDA: frente na borda
     AVANCO_BORDA --> LUTA: branco sumiu
-    GIRO_BORDA --> LUTA: oponente visto ou 135 graus
+    GIRO_BORDA --> LUTA: oponente visto ou de frente para o centro
     GIRO_BORDA --> RECUO: borda de novo na frente
     GIRO_BORDA --> AVANCO_BORDA: borda de novo atrás
     LUTA --> ESPERA: stop
 ```
 
-No diagrama, LUTA agrupa BUSCA, MIRA e ATAQUE. A saída de GIRO_BORDA cai em ATAQUE, MIRA ou BUSCA, conforme o oponente esteja centrado, visto ou perdido, e a saída de AVANCO_BORDA cai em BUSCA. O comando `stop` leva qualquer estado para ESPERA.
+No diagrama, LUTA agrupa BUSCA, MIRA, FLANCO, ATAQUE e ATAQUE_RE. A saída de GIRO_BORDA cai em ATAQUE_RE, FLANCO, ATAQUE, MIRA ou BUSCA, conforme a posição do oponente, e a saída de AVANCO_BORDA cai em BUSCA. O comando `stop` leva qualquer estado para ESPERA.
 
-Na BUSCA, o robô gira no eixo a 170 graus/s para o lado do rumo; depois de 1,5 s girando sem pista (rumo PROCURAR), avança a 200 mm/s por 0,25 s para mudar o ponto de vista e volta a girar. Quando o rumo é PROVÁVEL e o oponente deve estar bem à frente (até 12°), o robô avança em vez de girar. Com `MODO_DEFENSIVO 1`, o robô só gira e mira, sem avançar.
+Na BUSCA, longe do centro do dojô, o robô volta para o meio procurando no caminho. Perto do centro, no Rush e no Flank, o robô gira no eixo a 200 graus/s para o lado do rumo; depois de 1,5 s girando sem pista (rumo PROCURAR), avança a 240 mm/s por 0,25 s para mudar o ponto de vista e volta a girar. No Fan out, o rumo oscila em leque. Quando o rumo é PROVÁVEL e o oponente deve estar bem à frente (até 12°), o robô avança em vez de girar. Com `MODO_DEFENSIVO 1`, o robô só gira e mira, sem avançar.
 
 ### `motores.h` e `motores.cpp`
 
@@ -431,15 +544,26 @@ Os ajustes principais ficam no `config.h`:
 | `GEOMETRIA_BANCADA` | 1 | 1 usa as posições da bancada e 0 as do robô |
 | `QTD_TOF` | 5 | quantidade de sensores de oponente, 5 ou 7 (também aceita `-DQTD_TOF=7` na compilação) |
 | `I2C_CLOCK_HZ` | 100000 | velocidade do I2C; 400000 só com fios curtos |
-| `TOF_TIMING_US` | 20000 | tempo de cada medida do ToF |
-| `TOF_ALCANCE_MM` | 542 (calculado) | alcance máximo a partir do centro do robô |
+| `TOF_TIMING_US` | 20000 | tempo de cada medida do ToF no perfil claro |
+| `TOF_ALCANCE_MM` | 600 | alcance máximo a partir do centro do robô (pior caso dentro do dojô) |
 | `TOF_MINIMO_PARA_LUTAR` | 3 | quantidade mínima de ToF para o robô iniciar |
 | `CENTRO_DEG` | 7 | ângulo máximo para o oponente contar como centrado |
 | `FUSAO_BAYES` | 1 | 1 usa o rastreador e 0 a fusão simples |
 | `OPONENTE_LADO_MM` | 152 | lado do oponente, pela regra da classe |
 | `ALCANCE_PRETO_MM` | 550 | distância até onde o ToF vê um robô preto sem falhar |
 | `OP_VEL_MAX_MMS` | 1500 | velocidade máxima considerada para o oponente |
-| `RASTREADOR_NUCLEO` | 0 | núcleo da tarefa do rastreador; -1 roda dentro do loop |
+| `SENSORES_NUCLEO` | 0 | núcleo da tarefa dos ToF e do rastreador; -1 roda dentro do loop |
+| `PINO_DIP1` a `PINO_DIP4` | 12, 14, 2 e 15 | chave DIP: estratégia nas vias 1 a 3 e perfil escuro na via 4 |
+| `ESCURO_TIMING_US`, `ESCURO_SINAL_MCPS` e `ESCURO_ALCANCE_MM` | 33000, 0,10 e 700 | perfil do oponente escuro nos ToF |
+| `ESCURO_PD_MAX`, `ESCURO_FALSA_FATOR`, `ESCURO_RUIDO_FATOR` e `ESCURO_PERDE_MS` | 0,85, 2,5, 1,5 e 180 | modelo do rastreador no perfil escuro |
+| `ARENA_N` e `ARENA_PASSO_MS` | 600 e 5 | partículas e intervalo do filtro da localização |
+| `ARENA_SIGMA_OK` e `ARENA_MARGEM_MM` | 70 e 30 | incerteza abaixo da qual a localização guia o robô e folga além da borda no descarte |
+| `APROX_RAPIDA_MMS` e `APROX_RAPIDA_DEG` | 300 e 45 | investida: velocidade e ângulo a partir dos quais o robô recebe de frente |
+| `DIST_RE_MM` e `ANG_RE_DEG` | 260 e 35 | oponente colado atrás: distância e ângulo do ataque de ré |
+| `RETORNO_DIST_MM` e `VEL_RETORNO_MMS` | 150 e 320 | volta ao centro na busca |
+| `FLANCO_DESVIO_DEG`, `FLANCO_FECHA_MM` e `T_FLANCO_MAX_MS` | 35, 180 e 1500 | Flank: desvio da mira, distância de fechar e tempo máximo |
+| `FAN_AMPL_DEG`, `FAN_GIRO_DPS` e `FAN_VEL_MMS` | 45, 260 e 140 | Fan out: amplitude, giro e avanço do leque |
+| `T_RECUO_BLOQ_MS` | 300 | recuo preso no branco por esse tempo vira curva de ré |
 | `BORDA_LIMIAR_MV` | 600 | limiar fixo da borda antes da calibração |
 | `BORDA_FRACAO` | 0,35 | posição do limiar calibrado entre o branco e o preto |
 | `BORDA_CONFIRMA_MS` | 3 | tempo mínimo de branco contínuo para confirmar a borda |
@@ -451,7 +575,7 @@ Os ajustes principais ficam no `config.h`:
 | `ACEL_MAX_MMS2` e `FREIO_MIN_MMS2` | 6000 e 4400 | limite de aceleração das manobras e pior frenagem na borda |
 | `VEL_BUSCA_MMS` e `GIRO_BUSCA_DPS` | 240 e 200 | avanço curto e giro da busca |
 | `K_MIRA`, `ANG_MIRA_CURVA` e `GIRO_MIRA_MAX_DPS` | 6, 40 e 370 | ganho da mira, ângulo até onde a mira é curva e giro máximo da mira |
-| `GIRO_BORDA_DPS`, `ANG_GIRO_BORDA` e `T_GIRO_BORDA_MAX_MS` | 370, 135 e 900 | giro de recuperação na borda e limite de segurança |
+| `GIRO_BORDA_DPS`, `ANG_GIRO_BORDA` e `T_GIRO_BORDA_MAX_MS` | 370, 135 e 900 | giro de recuperação na borda (135° só sem localização) e limite de segurança |
 | `T_CONTAGEM_MS` | 5000 | contagem obrigatória antes da luta |
 | `T_BUSCA_GIRO_MS` e `T_BUSCA_AVANCO_MS` | 1500 e 250 | tempo girando na busca e tempo do avanço curto |
 | `MODO_DEFENSIVO` | 0 | 1 faz o robô só mirar, sem avançar |
@@ -465,21 +589,32 @@ sumo_esp32/
   percepcao.h / .cpp        struct P, rumo, saúde e botão de start
   oponente.h / .cpp         VL53L0X: endereço, leitura, calibração e fusão
   rastreador.h / .cpp       filtro bayesiano em grade (núcleo 0)
+  arena.h / .cpp            localização no dojô: filtro de partículas do centro
+  chave.h / .cpp            chave DIP: estratégia e perfil do oponente
   borda.h / .cpp            TCRT5000: leitura analógica, limiar e confirmação
-  estados.h / .cpp          máquina de estados
+  estados.h / .cpp          máquina de estados com as três estratégias
   motores.h / .cpp          ponte H dupla de 10 A
   cinematica.h / .cpp       cinemática das rodas e modelo do motor
   telemetria.h / .cpp       Log e entrada de comandos pela USB
   debug.h / .cpp            comandos, calibração e stream para o painel
   painel_sumo.html          painel completo para abrir no computador
   .github/workflows/
-    compilacao.yml          CI: compilação do firmware, testes no computador e conferência do painel e da página
-    pages.yml               publicação da página do simulador no GitHub Pages
+    compilacao.yml          CI: compilação do firmware, testes no computador, lutas simuladas e conferência do painel e da página
+    pages.yml               publicação das páginas do simulador no GitHub Pages, com os rastros das lutas
   teste/
     teste_cinematica.cpp    testes da cinemática das rodas (g++ no computador)
-    teste_estados.cpp       testes da máquina de estados com a cinemática
+    teste_estados.cpp       testes da máquina de estados com a cinemática, a localização e a chave
+    teste_arena.cpp         testes estatísticos da localização no dojô
     teste_motores.cpp       testes do PWM da ponte H (API do LEDC dos cores 2.x e 3.x)
     stub/Arduino.h          Arduino.h de mentira para os testes
+    sim/                    simulador de lutas com o firmware de verdade
+      compila.sh            compila o simulador (teste/sim/luta)
+      luta.cpp              uma luta: firmware, mundo e oponente, com resultado em CSV e rastro em JSON
+      mundo.h / .cpp        física, dojô, ToF, TCRT5000 e oponentes
+      hal.h / .cpp          Arduino, I2C, VL53L0X e pinos de mentira ligados ao mundo
+      roda_lutas.py         bateria de lutas em paralelo, com tabela e falha no CI
+      gera_rastros.py       rastros das lutas para a página
+      stub/                 cabeçalhos de mentira do simulador
   doc/
     painel_src.html         código fonte do painel
     gera_painel.py          gera o painel_sumo.html
@@ -487,6 +622,7 @@ sumo_esp32/
     gera_guia.py            gera o guia de montagem (5 ou 7 sensores)
     confere_site.py         confere as constantes da página do simulador com o config.h
     site/index.html         página do simulador da cinemática (GitHub Pages)
+    site/lutas.html         página das lutas simuladas com o firmware (GitHub Pages)
     gabarito_bancada.pdf    gabarito 1:1 da bancada
     guia_montagem_sensores.pdf  gabarito do robô, ligação e conferência
     guia_montagem_sensores_7.pdf  o mesmo para 7 sensores, com bancada, pinagem e cobertura
@@ -496,7 +632,7 @@ sumo_esp32/
 
 ## Integração contínua
 
-O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados, e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/stub`), o `cinematica.cpp`, o `estados.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de 135 graus na recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x). Um terceiro teste gera o painel de novo a partir do `doc/painel_src.html` e falha se o `painel_sumo.html` versionado estiver diferente, e confere se as constantes da página do simulador (`doc/site/index.html`) são as mesmas do `config.h`. O workflow `pages.yml` publica essa página no GitHub Pages a cada push na `main` que mexa em `doc/site`. As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem.
+O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados, e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/stub`), o `cinematica.cpp`, o `estados.cpp`, o `arena.cpp`, o `chave.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro, a escolha da estratégia pela chave, a fuga em cada combinação de sensores de borda, a localização no dojô nas duas geometrias (erro, coerência da incerteza e descarte) e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x). Um terceiro teste compila o simulador de lutas e roda 288 lutas (3 estratégias, 6 oponentes, claro e escuro, 8 largadas) com pessoas em volta do dojô; ele falha com qualquer queda própria ou com mais de 2 s mirando algo fora do dojô numa luta, e guarda a tabela no resumo da execução e o CSV como artefato. Um quarto teste gera o painel de novo a partir do `doc/painel_src.html` e falha se o `painel_sumo.html` versionado estiver diferente, e confere se as constantes da página do simulador (`doc/site/index.html`) são as mesmas do `config.h`. O workflow `pages.yml` publica as páginas no GitHub Pages a cada push na `main`, com os rastros e o placar das lutas gerados na hora. As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem.
 
 ## Equipe
 
@@ -513,7 +649,11 @@ O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusi
 
 DEDE, Fırat Faris. **Sumo Robot Blackbook**: robot sumo strategies, tactics to win! Istambul: JSumo, [s.d.]. E-book.
 
-ESPRESSIF SYSTEMS. **Arduino core for the ESP32**. [S.l.]: Espressif Systems, [s.d.]. Disponível em: https://github.com/espressif/arduino-esp32. Acesso em: 13 out. 2026.
+ESPRESSIF SYSTEMS. **Arduino core for the ESP32**. [S.l.]: Espressif Systems, [s.d.a]. Disponível em: https://github.com/espressif/arduino-esp32. Acesso em: 13 out. 2026.
+
+ESPRESSIF SYSTEMS. **Set Flash Voltage**: espefuse, esptool documentation (ESP32). [S.l.]: Espressif Systems, [s.d.b]. Disponível em: https://docs.espressif.com/projects/esptool/en/latest/esp32/espefuse/set-flash-voltage-cmd.html. Acesso em: 14 out. 2026.
+
+GRUPO D. **Slides sobre máquinas de estados**: estratégias Rush, Flank e Fan out. Belo Horizonte: UFMG, ELE635 Laboratório de Sistemas III, 2026. Apresentação.
 
 JIMENO, Juan Miguel. **linorobot2_hardware**: firmware for linorobot2 compatible robots. [S.l.]: Linorobot, 2021. Disponível em: https://github.com/linorobot/linorobot2_hardware. Acesso em: 13 out. 2026.
 

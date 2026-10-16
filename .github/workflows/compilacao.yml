@@ -1,11 +1,13 @@
 # Integração contínua do firmware.
 # Todo pull request (para a main ou empilhado sobre outro pull request) e todo push na main
-# passam por três testes: a compilação do firmware para o ESP32 Dev Module (na linha 2.x e na
+# passam por quatro testes: a compilação do firmware para o ESP32 Dev Module (na linha 2.x e na
 # linha 3.x do core da Espressif, com 5 e com 7 sensores de oponente, com os motores desligados
-# como na bancada e também ligados), os testes da cinemática, da máquina de estados e do PWM
-# dos motores rodando no computador, e a conferência de que o painel_sumo.html foi gerado a
-# partir do doc/painel_src.html atual e de que a página do simulador (doc/site) usa as mesmas
-# constantes do config.h.
+# como na bancada e também ligados), os testes da cinemática, da máquina de estados, da
+# localização no dojô e do PWM dos motores rodando no computador, uma bateria de lutas
+# simuladas com o firmware de verdade (nenhuma queda própria e nenhuma perseguição longa de
+# objeto fora do dojô) e a conferência de que o painel_sumo.html foi gerado a partir do
+# doc/painel_src.html atual e de que a página do simulador (doc/site) usa as mesmas constantes
+# do config.h.
 name: Compilação
 
 on:
@@ -79,7 +81,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   testes:
-    name: Testes no computador (cinemática, estados e motores)
+    name: Testes no computador (cinemática, estados, localização e motores)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -89,10 +91,17 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror -I teste/stub -I . teste/teste_cinematica.cpp cinematica.cpp -o teste_cinematica
           ./teste_cinematica
-      - name: Máquina de estados com a cinemática
+      - name: Máquina de estados com a cinemática, a localização e a chave DIP
         run: |
-          g++ -std=c++11 -Wall -Wextra -Werror -I teste/stub -I . teste/teste_estados.cpp estados.cpp cinematica.cpp -o teste_estados
+          g++ -std=c++11 -Wall -Wextra -Werror -I teste/stub -I . teste/teste_estados.cpp estados.cpp cinematica.cpp arena.cpp chave.cpp -o teste_estados
           ./teste_estados
+      # filtro de partículas do dojô nas duas geometrias dos sensores de borda
+      - name: Localização no dojô (bancada e robô montado)
+        run: |
+          for g in 1 0; do
+            g++ -std=c++11 -O2 -Wall -Wextra -Werror -I teste/stub -I . -DGEOMETRIA_BANCADA=$g teste/teste_arena.cpp arena.cpp -o teste_arena
+            ./teste_arena
+          done
       # o PWM dos motores é conferido com a API do LEDC das duas linhas do core
       - name: PWM dos motores (core 2.x e 3.x)
         run: |
@@ -100,6 +109,33 @@ jobs:
             g++ -std=c++11 -Wall -Wextra -Werror -I teste/stub -I . -DUSAR_MOTORES=1 -DESP_ARDUINO_VERSION_MAJOR=$v teste/teste_motores.cpp motores.cpp -o teste_motores
             ./teste_motores
           done
+
+  lutas:
+    name: Lutas simuladas (software in the loop)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Simulador com o firmware
+        run: bash teste/sim/compila.sh
+      # as 3 estratégias contra os 6 oponentes, claro e escuro, com pessoas em volta do dojô:
+      # falha com qualquer queda própria ou com mais de 2 s mirando algo fora do dojô numa luta
+      - name: Bateria com pessoas em volta do dojô
+        run: |
+          python teste/sim/roda_lutas.py teste/sim/luta --sementes 8 --dips 1,2,4 --fora --perfil-pela-cor \
+            --exige --fantasma-max 2 --csv lutas.csv | tee lutas.txt
+      - name: Resumo da bateria
+        if: always()
+        run: |
+          { echo "### Lutas simuladas"; echo '```'; cat lutas.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lutas-simuladas
+          path: lutas.csv
 
   painel:
     name: Painel e página do simulador

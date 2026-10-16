@@ -1,0 +1,8 @@
+# Arquivos gerados no computador ou no CI (não entram no repositório)
+/teste_cinematica
+/teste_estados
+/teste_motores
+/teste_arena
+/teste/sim/luta
+/doc/site/lutas/
+__pycache__/

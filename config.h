@@ -36,7 +36,10 @@ struct CfgToF {
 };
 
 // 1 escolhe a geometria da bancada (protoboard 165 x 54,7 mm), 0 escolhe o robô (152 x 152 mm)
+// O valor também pode vir da compilação (-DGEOMETRIA_BANCADA=0), como o simulador de luta faz.
+#ifndef GEOMETRIA_BANCADA
 #define GEOMETRIA_BANCADA 1
+#endif
 
 // Quantidade de sensores de oponente: 5 (montagem original) ou 7, com um par a mais nos cantos
 // de trás (TE e TD, a ±160 graus). A frente continua com os 3 sensores de antes e o FC segue
@@ -112,13 +115,15 @@ static const CfgToF TOF[] = {
 #endif
 #define N_TOF  (sizeof(TOF) / sizeof(TOF[0]))   // quantidade de ToF, no máximo 16
 
-#define TOF_TIMING_US     20000   // 20 ms por medida (33000 aumenta o alcance em alvo preto)
-#define DOHYO_DIAMETRO_MM 770     // dohyo RoboCore 1 kg: 77 cm, a faixa branca faz parte dele
-// Alcance contado a partir do centro do robô; leitura mais longe vira "nada" (parede,
-// mesa, pessoas). Pior caso dentro do dohyo: o robô encostado numa borda (centro a 7,6 cm
-// dela) e o oponente encostado na borda oposta, com a face a 77 - 7,6 - 15,2 = 54,2 cm do
-// centro do robô. Para o sensor da frente, que fica 8,7 cm à frente do centro, isso dá uns 45 cm.
-#define TOF_ALCANCE_MM    (DOHYO_DIAMETRO_MM - OPONENTE_LADO_MM / 2 - OPONENTE_LADO_MM)
+#define TOF_TIMING_US     20000   // 20 ms por medida no perfil de oponente claro (o escuro usa 33 ms)
+#define DOHYO_DIAMETRO_MM 770     // dojô da CoRA: 77 cm, a faixa branca faz parte dele
+// Alcance contado a partir do centro do robô; leitura mais longe vira "nada". Pior caso dentro
+// do dojô: o centro do robô chega a uns 340 mm do centro do dojô (sensor de borda na faixa, que
+// começa a 360 mm, mais a distância de parada) e o oponente, inteiro dentro do dojô, tem o
+// centro a até 385 - 76 = 309 mm do centro. Nos dois lados opostos, a face do oponente fica a
+// 340 + 309 - 76 = 573 mm do centro do robô; com 27 mm de folga, o alcance fica em 600 mm. O que
+// passa desse raio, ou cai fora do dojô pela localização (arena.cpp), não vira oponente.
+#define TOF_ALCANCE_MM    600
 #define TOF_MIN_MM        15      // leitura menor que isso é descartada
 #define TOF_TIMEOUT_MS    150     // sem medida nova por esse tempo, a leitura é descartada
 #define TOF_PERDIDO_MS    500     // sem responder por esse tempo, o sensor fica marcado como FALHOU
@@ -148,7 +153,11 @@ static const CfgToF TOF[] = {
 #define FUSAO_EXISTE_MIN  0.5f    // chance mínima de existir oponente para contar como "visto"
                                   // (arena vazia e leitura falsa isolada ficam abaixo disso)
 #define MAPA_MS           250     // intervalo de envio do mapa de probabilidade para o painel
-#define RASTREADOR_NUCLEO 0       // núcleo do rastreador (o loop fica no 1); -1 roda dentro do loop
+// Divisão entre os dois núcleos do ESP32: a leitura dos ToF pelo I2C e o rastreador rodam numa
+// tarefa do núcleo 0, e o loop do Arduino, no núcleo 1, fica só com a borda, a localização, a
+// máquina de estados, a cinemática, os motores e a USB. Assim a borda é lida a cada poucos
+// microssegundos, sem esperar o I2C. Com -1 tudo roda dentro do loop, como antes.
+#define SENSORES_NUCLEO   0
 
 // Valores usados apenas quando FUSAO_BAYES é 0
 #define FUSAO_CLUSTER_MM  150     // leituras com diferença até esse valor são o mesmo objeto
@@ -289,6 +298,100 @@ static const CfgBorda BORDA[] = {
 #define ANG_GIRO_BORDA    135    // tamanho desse giro em graus, estimado pela cinemática
 #define T_GIRO_BORDA_MAX_MS 900  // segurança: o giro termina mesmo se a estimativa não chegar lá
 #define T_RECUO_EXTRA_MS  10     // folga depois que a borda some (Blackbook, capítulo 10)
+#define T_RECUO_BLOQ_MS   300    // recuo que não sai do branco nesse tempo vira curva de ré
 #define T_BUSCA_GIRO_MS   1500   // BUSCA: tempo girando nos pontos cegos sem achar nada
 #define T_BUSCA_AVANCO_MS 250    // BUSCA: tempo do avanço curto que muda o ponto de vista
 #define MODO_DEFENSIVO    0      // 1 faz o robô só mirar e nunca avançar
+
+// ============================================================================
+// Chave DIP de 4 vias: estratégia (DIP 1 a 3) e cor do oponente (DIP 4)
+// Cada via liga o pino no 3V3, e o pull-down interno deixa o pino em LOW com a via desligada.
+// DIP 1 = Rush, DIP 2 = Flank, DIP 3 = Fan out; nenhuma via ligada também vale Rush, então a
+// DIP 1 pode ficar sempre desligada (o GPIO 12 em nível alto na hora de ligar muda a tensão da
+// flash e o ESP32 não liga). Mais de uma via de estratégia ligada é um erro de ajuste: vale a de
+// menor número e o terminal mostra um aviso. DIP 4 ligada escolhe o perfil de oponente escuro.
+// A escolha fica travada no start: mexer na chave durante a luta não muda nada.
+// ============================================================================
+#define PINO_DIP1         12
+#define PINO_DIP2         14
+#define PINO_DIP3         2
+#define PINO_DIP4         15
+#define DIP_DEBOUNCE_MS   30
+
+// ============================================================================
+// Perfis de oponente (DIP 4)
+// Claro: os valores de sempre, ajustados na bancada para oponente claro (TOF_TIMING_US,
+// ALCANCE_PRETO_MM e o modelo do rastreador ficam como estavam).
+// Escuro (preto fosco): o VL53L0X vai para o modo de longo alcance da Pololu e da ST, com
+// limite de sinal de 0,10 MCPS (o padrão é 0,25), pulsos do laser mais longos (18 e 14 PCLK) e
+// 33 ms por medida. O chip passa a aceitar retornos mais fracos e enxerga o preto mais longe, em
+// troca de mais ruído e de mais leitura falsa. O rastreador acompanha a troca: espera um alvo
+// que some com mais frequência (chance de detecção menor e queda mais suave com a distância),
+// conta mais leitura falsa e segura o oponente por mais tempo antes de dar como perdido.
+// ============================================================================
+#define ESCURO_TIMING_US    33000
+#define ESCURO_SINAL_MCPS   0.10f
+#define ESCURO_VCSEL_PRE    18
+#define ESCURO_VCSEL_FINAL  14
+#define ESCURO_ALCANCE_MM   700     // alcance em alvo preto no longo alcance (medir como o ALCANCE_PRETO_MM)
+#define ESCURO_PD_MAX       0.85f   // chance de ver o preto dentro do alcance (0,95 no perfil claro)
+#define ESCURO_FALSA_FATOR  2.5f    // leituras falsas a mais em relação ao perfil claro
+#define ESCURO_RUIDO_FATOR  1.5f    // ruído a mais na distância
+#define ESCURO_PERDE_MS     180     // tempo sem confirmação até perder o alvo (100 ms no claro)
+
+// ============================================================================
+// Localização no dojô (arena.cpp): filtro de partículas do centro do dojô
+// ============================================================================
+#ifndef ARENA_N
+#define ARENA_N              600    // partículas (com 300, o teste_arena achou 10% de "confiável" com erro acima de 10 cm)
+#endif
+#define ARENA_PASSO_MS       5      // intervalo entre passos do filtro
+#define ARENA_D_MIN          120    // distância inicial do centro do robô ao centro do dojô (mm),
+#define ARENA_D_MAX          300    // atrás da linha Shikiri e com os sensores de borda no preto
+#define ARENA_RUIDO_MOV      0.12f  // erro de escala do modelo das rodas sem encoder (desvio no sorteio de cada partícula)
+#define ARENA_SIGMA_OK       70     // incerteza (mm) abaixo da qual a localização guia o robô
+#define ARENA_SIGMA_DESCARTE 150    // acima desta incerteza (mm) nenhuma leitura é descartada (trava de segurança;
+                                    // quem decide o descarte é a concordância de todas as hipóteses, no arena.h)
+#define ARENA_SORTEIO_ESCALA  0.04f  // sorteio na escala de cada partícula copiada na reamostragem
+#ifndef ARENA_DISCORDA
+#define ARENA_DISCORDA       0      // hipóteses (de 64) que podem discordar de "fora do dojô" no descarte
+#endif
+#ifndef ARENA_MARGEM_MM
+#define ARENA_MARGEM_MM      30     // folga além da borda antes de uma leitura contar como fora
+#endif
+#define ARENA_CONTATO_MM     80     // leitura do oponente abaixo disso indica contato (movimento incerto)
+#define T_TRAS_BRANCO_MS     400    // depois da borda traseira, os ToF de trás ignoram o que passa de 120 mm
+
+// ============================================================================
+// Estratégias (Rush, Flank e Fan out), baseadas na proposta do Grupo D e no Blackbook
+// ============================================================================
+// Comum às três: com o oponente vindo rápido de frente, o robô recebe de frente e empurra com
+// o torque todo (o JGB37-520 tem redução alta, e um robô rápido costuma ter pouco torque).
+#define APROX_RAPIDA_MMS     300    // oponente chegando acima disso conta como investida
+#define APROX_RAPIDA_DEG     45     // e só vale dentro deste ângulo da frente
+// Contato: com o oponente centrado e perto, o ToF da frente pode perder a leitura (alvo colado na
+// lente); o ataque continua por este tempo sem confirmação, com a borda sempre em primeiro lugar.
+#define CONTATO_MM           60
+#define T_SEGURA_CONTATO_MS  400
+// Ataque de ré: com o oponente colado atrás (centro dele a até DIST_RE_MM do centro do robô e a até
+// ANG_RE_DEG da traseira), o robô empurra de ré em vez de girar 180 graus na frente dele.
+#define DIST_RE_MM           260
+#define ANG_RE_DEG           35
+// Volta ao centro: depois da fuga da borda (ou sempre que a localização mostra o robô longe do
+// meio), a busca leva o robô de volta para o centro do dojô, girando e procurando no caminho.
+#define RETORNO_DIST_MM      150    // abaixo disso o robô já está no meio
+#define VEL_RETORNO_MMS      320
+// Flank: em vez de ir reto, o robô mira ao lado do oponente e chega pela lateral dele, numa curva
+// que fecha conforme a distância cai (espiral). O lado escolhido é o que tem mais espaço até a
+// borda; perto o bastante, aberto demais ou depois do tempo máximo, o robô ataca direto.
+#define FLANCO_DESVIO_DEG    35
+#define FLANCO_FECHA_MM      180    // distância do sensor até a face do oponente para fechar o ataque
+#define FLANCO_ABRE_DEG      75     // oponente além deste ângulo: o robô já passou do lado dele
+#define T_FLANCO_MAX_MS      1500
+#define FLANCO_LIVRE_MIN_MM  220    // espaço mínimo até a borda na direção da curva
+// Fan out: a busca oscila o rumo de um lado para o outro e avança devagar, varrendo com os
+// sensores da frente uma faixa larga; o ataque é igual ao do Rush.
+#define FAN_AMPL_DEG         45
+#define FAN_GIRO_DPS         260
+#define FAN_VEL_MMS          140
+#define FAN_LIVRE_MIN_MM     200    // com menos espaço que isso à frente, o leque não avança
