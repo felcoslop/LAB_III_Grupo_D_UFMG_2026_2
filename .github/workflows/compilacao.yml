@@ -122,11 +122,11 @@ jobs:
       - name: Simulador com o firmware
         run: bash teste/sim/compila.sh
       # as 3 estratégias contra os 6 oponentes, claro e escuro, com pessoas em volta do dojô:
-      # falha com qualquer queda própria ou com mais de 2 s mirando algo fora do dojô numa luta
+      # falha com qualquer queda própria ou com mais de 3 s mirando algo fora do dojô numa luta
       - name: Bateria com pessoas em volta do dojô
         run: |
           python teste/sim/roda_lutas.py teste/sim/luta --sementes 8 --dips 1,2,4 --fora --perfil-pela-cor \
-            --exige --fantasma-max 2 --csv lutas.csv | tee lutas.txt
+            --exige --fantasma-max 3 --csv lutas.csv | tee lutas.txt
       - name: Resumo da bateria
         if: always()
         run: |

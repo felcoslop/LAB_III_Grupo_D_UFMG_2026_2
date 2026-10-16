@@ -48,6 +48,7 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 - Rumo (a seta do painel) até o oponente ou até os pontos cegos, usado pela máquina de estados na busca.
 - Leitura analógica da linha branca, com confirmação por tempo e calibração guiada em três medidas (ar, preto e branco).
 - Máquina de estados com contagem obrigatória de 5 s, busca, mira, ataque, flanco, ataque de ré e fuga da borda em quatro direções, sem nunca girar para trás quando a borda está atrás.
+- Reconhecimento de travamento sem encoder: o giro preso pelo oponente encostado na lateral vira uma manobra curta de soltura, e o empurrão longo em contato aparece no painel; um modelo térmico de cada motor limita o PWM das manobras se o motor travado esquentar demais.
 - Cinemática das duas rodas com o modelo do motor JGB37-520 e da ponte H: cada estado pede avanço em mm/s e giro em graus/s, a fuga da borda usa a tensão toda na hora e o firmware não compila se a distância de parada não couber na margem até as rodas. Os comandos `pwm` e `mov` testam os motores com o robô parado.
 - Painel 2D e 3D em um único arquivo HTML, sem internet, ligado ao robô pela USB, com dados a 50 Hz e comandos pelo navegador.
 - Firmware sem rádio: o robô compete de forma autônoma, sem WiFi e sem Bluetooth, o que deixa o núcleo 0 livre para os sensores e o rastreador.
@@ -226,6 +227,16 @@ No Flank, com o oponente à vista a mais de 24 cm e sem investida, o robô mira 
 
 Algumas regras valem nas três estratégias. Um oponente que vem de frente a mais de 300 mm/s (investida) é recebido de frente, e o robô empurra com o torque todo: o JGB37-520 tem redução de 18,8:1, e um robô rápido costuma ter pouco torque, então oferecer a lateral numa curva é o pior caso. Com o oponente colado na frente, o ToF pode perder a leitura por estar perto demais, e o ataque continua por 400 ms sem confirmação. Com o oponente colado atrás (versão de 7 sensores), o robô empurra de ré em vez de girar 180° na frente dele. Uma leitura abaixo de 15 mm, o mínimo do VL53L0X, conta como oponente encostado naquele lado: o rastreador recebe essa posição, e o robô vira para ele em vez de perseguir outra coisa. E a busca sem pista começa voltando para o meio do dojô, quando a localização mostra o robô a mais de 15 cm do centro.
 
+### Travamento
+
+Sem encoder e sem medida de corrente, o firmware não vê a roda parada, mas reconhece dois travamentos pelo que a cinemática estima e pelo que os sensores veem.
+
+O giro preso acontece com o oponente encostado na lateral: a mira pede giro, a cinemática estima mais de 90° de giro em 0,6 s, e o ângulo do oponente melhora menos de 15°, porque a quina dele segura a quina do robô. O robô entra no estado DESTRAVA: ré reta por 250 ms quando existe espaço atrás (sem branco atrás há pouco e, com a localização confiável, mais de 14 cm até a borda), ou avanço reto por 250 ms sem espaço atrás, e volta a mirar com a quina livre. Uma ré que termina na borda de trás faz as manobras dos 5 s seguintes usarem o avanço.
+
+O empurrão travado é o ataque em contato que passa de 1,6 s sem a luta acabar. Nesse caso o robô continua empurrando, e o travamento só aparece no log e no painel. A decisão saiu das lutas simuladas: com 360 lutas por versão (3 estratégias, 6 oponentes, claro e escuro, 10 largadas), soltar o empurrão travado com ré e curva derrubou as vitórias contra o errante de 56 para 28 a 33 e transformou 49 empates contra o espelho em derrotas, com o limite de 1,6 s, 2,5 s ou 4 s; girar sob pressão (uma roda no máximo e a outra a 20%), girar no eixo ou dar ré em curva também perderam. Contra um oponente que empurra de volta, qualquer soltura entrega o lugar, e o empurrão mais longo que dá certo nessas lutas, contra o oponente pesado, passa de 5 s.
+
+O cuidado com a sobrecarga fica com o modelo térmico de cada motor no `cinematica.cpp`. A corrente sai da tensão aplicada menos a força contraeletromotriz, sobre a resistência de 10 Ω (12 V e 1,2 A com o eixo travado, pela tabela do motor), e com a roda travada a força contraeletromotriz é zero. O calor entra num modelo de primeira ordem, com capacidade e resistência térmicas estimadas para um motor de 37 mm. Pelo modelo, um round inteiro de 90 s com o motor travado no máximo esquenta o motor uns 22 K, e o limite de 70% do PWM só liga com 60 K, depois de uns 7 minutos travado, como numa bancada com o robô preso contra a parede; a fuga da borda nunca é limitada. A ponte H HW-956 aguenta 10 A por canal, bem acima dos 1,2 A do motor travado, e a bateria 3S entrega os 2,4 A dos dois motores sem esforço. A capacidade e a resistência térmicas do modelo precisam de medida com um termômetro no motor, com o robô montado.
+
 ### Fuga da borda
 
 A borda vem antes de qualquer estratégia. Cada sensor de borda confirmado no branco diz de que lado está a faixa, e a manobra depende da combinação:
@@ -258,7 +269,7 @@ O teste `teste/teste_arena.cpp` roda 150 lutas de um robô de mentira que larga 
 | Leitura do oponente a 6 cm da borda descartada como fora | 3 em 9000 (0,03%) |
 | Pessoa a 12 cm além da borda descartada | 45% a 51% |
 
-Os três descartes errados aconteceram com o filtro confiante e errado por mais de 30 cm, caso que o motor sem encoder não permite eliminar; uma leitura descartada vira "sem informação", e as leituras seguintes, de outros sensores ou de mais perto, continuam valendo. O descarte das pessoas não precisa ser completo: o que escapa dele bate no alcance de 600 mm, na regra da borda de trás e no rastreador, e nas lutas simuladas o robô mirou objetos de fora do dojô por no máximo 1,4 s numa luta inteira. O comando `arena` mostra o centro estimado, a incerteza, o espaço livre em 8 direções e o tempo do passo do filtro, que no computador leva uns 20 µs.
+Os três descartes errados aconteceram com o filtro confiante e errado por mais de 30 cm, caso que o motor sem encoder não permite eliminar; uma leitura descartada vira "sem informação", e as leituras seguintes, de outros sensores ou de mais perto, continuam valendo. O descarte das pessoas não precisa ser completo: o que escapa dele bate no alcance de 600 mm, na regra da borda de trás e no rastreador, e nas lutas simuladas o robô mirou objetos de fora do dojô por no máximo 2,5 s numa luta inteira, numa luta de 36 s com o oponente encostado na lateral. O comando `arena` mostra o centro estimado, a incerteza, o espaço livre em 8 direções e o tempo do passo do filtro, que no computador leva uns 20 µs.
 
 ## Lutas simuladas
 
@@ -273,7 +284,7 @@ A pasta `teste/sim` compila o firmware de verdade (percepção, ToF, rastreador,
 | errante | anda sem rumo pelo dojô e ataca só de perto |
 | espelho | o mesmo motor, a mesma roda e a mesma lâmina do robô do Grupo D, atacando do mesmo jeito |
 
-Na bateria com pessoas em volta do dojô (3 estratégias, 6 oponentes, claro e escuro, 15 largadas cada, 540 lutas), o robô venceu 360 lutas e nunca saiu do dojô sozinho. Contra o parado, o pesado e o rápido, as três estratégias venceram todas as lutas, claro e escuro; contra o errante, 14 ou 15 de 15. O lento, com mais torque e uma lâmina melhor, ganhou quase todas as lutas, e o espelho, de força igual, terminou quase sempre empatado; nos dois casos o robô fica travado empurrando um oponente que não cede, assunto da próxima etapa. Sem as pessoas e com o oponente furtivo, que quase não reflete, a bateria de 810 lutas também terminou sem nenhuma queda própria.
+Na bateria com pessoas em volta do dojô (3 estratégias, 6 oponentes, claro e escuro, 15 largadas cada, 540 lutas), o robô venceu 361 lutas e nunca saiu do dojô sozinho. Contra o parado, o pesado e o rápido, as três estratégias venceram todas as lutas, claro e escuro; contra o errante, 87 de 90. O lento, com mais torque e uma lâmina melhor, ganhou quase todas as lutas, e o espelho, de força igual, terminou quase sempre empatado; nos dois casos o robô fica travado empurrando um oponente que não cede, e a seção [Travamento](#travamento) mostra por que soltar o empurrão piora o resultado. Sem as pessoas e com o oponente furtivo, que quase não reflete, a bateria de 810 lutas também terminou sem nenhuma queda própria.
 
 A página [Lutas simuladas](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/lutas.html) mostra as lutas no navegador: escolha de estratégia, oponente, cor e largada, com os dois robôs, o caminho, o dojô que a localização estima, o oponente que o rastreador estima, o estado e o PWM de cada roda a cada instante. O workflow da página gera os rastros e o placar com o firmware da `main` a cada publicação.
 
@@ -345,6 +356,7 @@ Os comandos funcionam no Monitor Serial e no terminal do painel.
 | `estrategia rush`, `flank`, `fan` ou `chave` | estratégia escolhida pelo terminal; `chave` volta a seguir a DIP |
 | `perfil claro`, `escuro` ou `chave` | perfil do oponente pelo terminal; `chave` volta a seguir a DIP 4 |
 | `arena` | localização no dojô: centro estimado, incerteza, espaço livre em 8 direções, leituras descartadas e tempo do filtro |
+| `cin` | também mostra o aquecimento estimado dos motores e se o limite térmico está ligado |
 | `go` e `stop` | início (contagem de 5 s) e parada da máquina de estados |
 | `s1` e `s0` | stream de dados para o painel, ligado e desligado |
 
@@ -482,6 +494,8 @@ stateDiagram-v2
         ATAQUE --> MIRA: fora do centro
         ATAQUE --> BUSCA: perdido
         ATAQUE_RE --> MIRA: saiu de trás
+        MIRA --> DESTRAVA: giro preso
+        DESTRAVA --> MIRA: quina solta
     }
     LUTA --> RECUO: borda na frente
     LUTA --> AVANCO_BORDA: borda atrás
@@ -498,7 +512,7 @@ stateDiagram-v2
     LUTA --> ESPERA: stop
 ```
 
-No diagrama, LUTA agrupa BUSCA, MIRA, FLANCO, ATAQUE e ATAQUE_RE. A saída de GIRO_BORDA cai em ATAQUE_RE, FLANCO, ATAQUE, MIRA ou BUSCA, conforme a posição do oponente, e a saída de AVANCO_BORDA cai em BUSCA. O comando `stop` leva qualquer estado para ESPERA.
+No diagrama, LUTA agrupa BUSCA, MIRA, FLANCO, ATAQUE, ATAQUE_RE e DESTRAVA. A saída de GIRO_BORDA cai em ATAQUE_RE, FLANCO, ATAQUE, MIRA ou BUSCA, conforme a posição do oponente, e a saída de AVANCO_BORDA cai em BUSCA. O comando `stop` leva qualquer estado para ESPERA.
 
 Na BUSCA, longe do centro do dojô, o robô volta para o meio procurando no caminho. Perto do centro, no Rush e no Flank, o robô gira no eixo a 200 graus/s para o lado do rumo; depois de 1,5 s girando sem pista (rumo PROCURAR), avança a 240 mm/s por 0,25 s para mudar o ponto de vista e volta a girar. No Fan out, o rumo oscila em leque. Quando o rumo é PROVÁVEL e o oponente deve estar bem à frente (até 12°), o robô avança em vez de girar. Com `MODO_DEFENSIVO 1`, o robô só gira e mira, sem avançar.
 
@@ -564,6 +578,11 @@ Os ajustes principais ficam no `config.h`:
 | `FLANCO_DESVIO_DEG`, `FLANCO_FECHA_MM` e `T_FLANCO_MAX_MS` | 35, 180 e 1500 | Flank: desvio da mira, distância de fechar e tempo máximo |
 | `FAN_AMPL_DEG`, `FAN_GIRO_DPS` e `FAN_VEL_MMS` | 45, 260 e 140 | Fan out: amplitude, giro e avanço do leque |
 | `T_RECUO_BLOQ_MS` | 300 | recuo preso no branco por esse tempo vira curva de ré |
+| `T_GIRO_TRAVA_MS`, `GIRO_TRAVA_DEG` e `GIRO_TRAVA_GANHO_DEG` | 600, 90 e 15 | giro preso: janela, giro estimado e melhora mínima do ângulo do oponente |
+| `T_DESTRAVA_RE_MS` e `T_DESTRAVA_AVANCO_MS` | 250 e 250 | ré (com espaço atrás) ou avanço da manobra DESTRAVA |
+| `T_TRAVA_MS` | 1600 | empurrão em contato a partir do qual o travamento aparece no painel |
+| `MOTOR_C_TERM_JK` e `MOTOR_R_TERM_KW` | 40 e 6 | capacidade (J/K) e resistência (K/W) térmicas de cada motor (estimadas; medir) |
+| `MOTOR_QUENTE_K`, `MOTOR_FRIO_K` e `MOTOR_PWM_QUENTE` | 60, 45 e 0,7 | limite térmico: liga, desliga e PWM máximo das manobras normais |
 | `BORDA_LIMIAR_MV` | 600 | limiar fixo da borda antes da calibração |
 | `BORDA_FRACAO` | 0,35 | posição do limiar calibrado entre o branco e o preto |
 | `BORDA_CONFIRMA_MS` | 3 | tempo mínimo de branco contínuo para confirmar a borda |

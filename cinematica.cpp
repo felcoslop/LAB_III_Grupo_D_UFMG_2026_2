@@ -25,6 +25,22 @@ static float    rodaE = 0, rodaD = 0;     // velocidade estimada de cada roda (m
 static float    giroAcum = 0;             // giro estimado desde o último zera (graus)
 static float    distAcum = 0;             // avanço estimado desde o último zera (mm)
 static uint32_t tAnt = 0;                 // momento da chamada anterior (micros)
+static float    aquecE = 0, aquecD = 0;   // elevação de temperatura estimada de cada motor (K)
+static bool     travadas = false;         // rodas travadas, avisado pela máquina de estados
+static bool     quente = false;           // limite térmico ligado
+
+// Corrente e aquecimento de um motor num intervalo dt: corrente = (tensão no motor - força
+// contraeletromotriz) / resistência, com a força contraeletromotriz kV.v (zero com a roda
+// travada); calor I²R; resfriamento proporcional à elevação.
+static float aquece(float elev, float u, float vRoda, float dt) {
+  const float R = MOTOR_V_NOMINAL / MOTOR_I_TRAVADO_A;
+  float vm = u * CIN_V_DISP, fcem = travadas ? 0.0f : CIN_KV * vRoda;
+  float i = (vm - fcem) / R;
+  if (vm * i < 0) i = 0;                   // gerando (freio): calor desprezível no modelo
+  float p = i * i * R;
+  elev += (p - elev / MOTOR_R_TERM_KW) / MOTOR_C_TERM_JK * dt;
+  return elev < 0 ? 0 : elev;
+}
 
 void cinematica_init() { tAnt = micros(); cinematica_para(); }
 
@@ -93,9 +109,18 @@ void cinematica_comanda(float v_mms, float w_dps, Perfil perfil) {
   } else {
     uE = fracao(alvoE, (alvoE - eAnt) / dt);
     uD = fracao(alvoD, (alvoD - dAnt) / dt);
+    if (quente) {                             // proteção térmica: só nas manobras normais
+      uE = constrain(uE, -MOTOR_PWM_QUENTE, MOTOR_PWM_QUENTE);
+      uD = constrain(uD, -MOTOR_PWM_QUENTE, MOTOR_PWM_QUENTE);
+    }
   }
   motores((int16_t)lroundf(uE * 255.0f), (int16_t)lroundf(uD * 255.0f));
 
+  aquecE = aquece(aquecE, uE, rodaE, dt);
+  aquecD = aquece(aquecD, uD, rodaD, dt);
+  float a = aquecE > aquecD ? aquecE : aquecD;
+  if (!quente && a >= MOTOR_QUENTE_K) quente = true;
+  else if (quente && a <= MOTOR_FRIO_K) quente = false;
   rodaE = estima(rodaE, uE, dt);
   rodaD = estima(rodaD, uD, dt);
   giroAcum += cinematica_w_dps() * dt;
@@ -107,6 +132,9 @@ void cinematica_para() { cinematica_comanda(0, 0, PERFIL_BORDA); }
 float cinematica_v_mms()     { return (rodaE + rodaD) / 2.0f; }
 float cinematica_w_dps()     { return (rodaD - rodaE) / BITOLA_MM * (float)RAD_TO_DEG; }
 float cinematica_giro()      { return giroAcum; }
+void  cinematica_rodas_travadas(bool t) { travadas = t; }
+float cinematica_aquecimento_k()  { return aquecE > aquecD ? aquecE : aquecD; }
+bool  cinematica_limite_termico() { return quente; }
 float cinematica_dist()      { return distAcum; }
 void  cinematica_zera_odometria() { giroAcum = 0; distAcum = 0; }
 float cinematica_roda_esq()  { return rodaE; }

@@ -16,6 +16,7 @@ void     tof_libera_manutencao(bool sim);   // nova tentativa automática nos se
 void     tof_perfil(bool escuro);     // perfil do oponente pedido pela chave DIP 4 (aplicado pela tarefa)
 bool     tof_perfil_escuro();         // perfil já aplicado nos sensores
 void     oponente_borda_tras(bool branco);  // borda de trás no branco: os ToF de trás ignoram o que fica além dela
+bool     oponente_borda_tras_recente();     // borda de trás vista há menos de T_TRAS_BRANCO_MS
 void     tof_i2c_pega();              // reserva do I2C para comandos do terminal (scan, init)
 void     tof_i2c_solta();
 uint16_t tof_descartes();             // leituras descartadas por cair fora do dojô (contador)

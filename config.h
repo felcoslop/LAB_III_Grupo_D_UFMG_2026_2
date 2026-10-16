@@ -395,3 +395,34 @@ static const CfgBorda BORDA[] = {
 #define FAN_GIRO_DPS         260
 #define FAN_VEL_MMS          140
 #define FAN_LIVRE_MIN_MM     200    // com menos espaço que isso à frente, o leque não avança
+
+// ============================================================================
+// Travamento (estados.cpp) e aquecimento dos motores (cinematica.cpp)
+// ============================================================================
+// Sem encoder e sem medida de corrente, o firmware reconhece dois travamentos:
+//   - giro travado: a mira pede giro, a cinemática estima que o robô girou mais de
+//     GIRO_TRAVA_DEG em T_GIRO_TRAVA_MS, e o ângulo do oponente quase não mudou. É o oponente
+//     encostado na lateral, que segura o giro; o robô se solta (ré curta, ou avanço reto sem
+//     espaço atrás) e volta a mirar com a quina livre;
+//   - empurrão travado: o ataque em contato passa de T_TRAVA_MS sem a luta acabar. O robô continua
+//     empurrando: nas lutas simuladas, soltar ou girar no meio do empurrão entregou o lugar ao
+//     oponente e transformou vitórias em derrotas, contra oponentes de força igual ou maior.
+#define T_GIRO_TRAVA_MS      600
+#define GIRO_TRAVA_DEG       90     // giro estimado na janela, quase todo travado
+#define GIRO_TRAVA_GANHO_DEG 15     // melhora mínima do ângulo do oponente para o giro valer
+#define T_DESTRAVA_RE_MS     250    // ré para soltar a quina presa
+#define T_DESTRAVA_AVANCO_MS 250    // avanço reto para soltar a quina, sem espaço atrás
+#define DESTRAVA_LIVRE_MM    140    // espaço mínimo atrás (localização) para a ré
+#define T_TRAVA_MS           1600   // empurrão em contato por mais disso aparece como travado
+// Modelo térmico de cada motor: corrente = (tensão aplicada - força contraeletromotriz) /
+// resistência, com resistência de 12 V / 1,2 A = 10 ohms (tabela do motor) e força
+// contraeletromotriz zero com a roda travada. Aquecimento de primeira ordem com capacidade e
+// resistência térmicas estimadas para um motor de 37 mm (medir com termômetro no robô montado).
+// Acima de MOTOR_QUENTE_K de elevação, as manobras normais ficam limitadas a MOTOR_PWM_QUENTE;
+// a fuga da borda nunca é limitada.
+#define MOTOR_I_TRAVADO_A    1.2f
+#define MOTOR_C_TERM_JK      40.0f  // J/K (estimado; medir)
+#define MOTOR_R_TERM_KW      6.0f   // K/W (estimado; medir)
+#define MOTOR_QUENTE_K       60.0f  // elevação de temperatura que liga o limite
+#define MOTOR_FRIO_K         45.0f  // elevação abaixo da qual o limite sai
+#define MOTOR_PWM_QUENTE     0.7f
