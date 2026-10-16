@@ -5,4 +5,4 @@
   16,5 x 13 mm para o módulo CJVL53L0XV2, furos M3 e janela de 6 x 3 mm. Os 7 sensores de oponente
   usam este suporte. O arquivo é de terceiros: antes de publicar o repositório, confirmar a licença
   na página do modelo e manter o crédito.
-- `cj_vl53l0x.stl`: modelo simplificado do módulo dentro do suporte, gerado por `gera_modulo_cj.py`.
+- `cj_vl53l0x.stl`: modelo simplificado do módulo dentro do suporte, gerado por `ferramentas/gera_modulo_cj.py`.

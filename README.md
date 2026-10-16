@@ -99,11 +99,23 @@ Na bancada (`GEOMETRIA_BANCADA 1`), a origem do referencial é o centro da proto
 | TE (7 sensores, posição prevista) | 16 | 0x35 | -80 | 25 | 160° |
 | TD (7 sensores, posição prevista) | 4 | 0x36 | -80 | -25 | -160° |
 
-Os PDFs da pasta `doc/` trazem os gabaritos em escala 1:1 da bancada e do robô, o mapa de ligação na protoboard e uma lista de conferência antes de energizar. O `guia_montagem_sensores_7.pdf` faz o mesmo para a versão de 7 sensores e traz também a pinagem completa do ESP32.
+No robô montado (`GEOMETRIA_BANCADA 0`), a origem fica no meio do eixo das rodas, no chão, e as posições saem do chassi do STEP: FE, FC e FD nas janelas da face inclinada da frente, LE e LD na janela da lateral à frente do eixo e TE e TD na janela da lateral mais perto do eixo, retos como o LE e o LD:
+
+| Sensor | XSHUT | Endereço | x | y | Ângulo |
+|---|---|---|---|---|---|
+| LE | 17 | 0x30 | 55 | 72 | 90° |
+| FE | 23 | 0x31 | 85 | 35 | 17° |
+| FC | 19 | 0x32 | 95 | 0 | 0° |
+| FD | 18 | 0x33 | 85 | -35 | -17° |
+| LD | 5 | 0x34 | 55 | -72 | -90° |
+| TE (7 sensores) | 16 | 0x35 | 33 | 72 | 90° |
+| TD (7 sensores) | 4 | 0x36 | 33 | -72 | -90° |
+
+Os PDFs da pasta `doc/pdf/` trazem os gabaritos em escala 1:1 da bancada e do robô, o mapa de ligação na protoboard e uma lista de conferência antes de energizar. O `guia_montagem_sensores_7.pdf` faz o mesmo para a versão de 7 sensores e traz também a pinagem completa do ESP32.
 
 ### Posição dos sensores: 5 ou 7
 
-A constante `QTD_TOF` do `config.h` escolhe entre os 5 sensores originais e a versão de 7, que acrescenta um par atrás do eixo (TE e TD). Na bancada e na previsão do estudo abaixo o par fica nas quinas de trás, a ±160°; no robô montado as janelas do chassi só deixam o par reto, a ±90° (o `config.h` do robô já tem essa posição). Os 5 sensores de antes não mudam: FC no centro, que é quem decide o ataque, FE e FD a ±20° e LE e LD a ±90°. O par novo fica no fim da tabela, então os 5 sensores de antes mantêm XSHUT, endereço, cor no painel e calibração gravada; com `QTD_TOF 5` o firmware compilado é idêntico ao anterior.
+A constante `QTD_TOF` do `config.h` escolhe entre os 5 sensores originais e a versão de 7, que acrescenta um par atrás do eixo (TE e TD). Na bancada e na previsão do estudo abaixo o par fica nas quinas de trás, a ±160°; no robô montado as janelas do chassi só deixam o par reto, a ±90° (o `config.h` do robô já tem essa posição). Os 5 sensores de antes não mudam: FC no centro, que é quem decide o ataque, FE e FD a ±20° na bancada (±17° no robô montado) e LE e LD a ±90°. O par novo fica no fim da tabela, então os 5 sensores de antes mantêm XSHUT, endereço, cor no painel e calibração gravada; com `QTD_TOF 5` o firmware compilado é idêntico ao anterior.
 
 O capítulo 2 do Sumo Robot Blackbook pede número ímpar de sensores, com um no centro para centralizar o oponente, e diz que os sensores precisam vigiar todas as áreas por onde o oponente pode atacar, principalmente os cantos [DEDE, s.d.]. O exemplo de 7 do livro acrescenta duas diagonais na frente, mas o livro não trata de sensores atrás. Com os 5 sensores de hoje, a frente já enxerga bem: o buraco entre FE e LE (de 32,5° a 77,5°) só existe a mais de uns 25 cm, porque os cones se cruzam perto do robô, e o oponente que vem por ali entra em algum cone antes de encostar. A traseira, de 115° a 180°, não tem nenhum sensor. Com o par atrás, o total continua ímpar, o FC continua sozinho no centro e a área sem cobertura passa a ser vigiada.
 
@@ -142,7 +154,7 @@ flowchart LR
 
 ### Simulador na web
 
-A página [https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/) roda no navegador as mesmas contas do `cinematica.cpp` e da máquina de estados: o dojô aparece visto de cima, o oponente pode ser arrastado com o mouse e o botão Rodar mostra, a cada instante, o pedido do estado, a desaturação, o limitador, a cinemática inversa, o feed-forward e o PWM de cada roda, junto com o caminho do robô e a fuga da borda. Embaixo, a página refaz a conta da distância de parada para qualquer tensão de bateria e qualquer atrito. O código da página fica em `doc/site/index.html`; o workflow `pages.yml` publica a página no GitHub Pages a cada mudança na `main`, e o CI roda o `doc/confere_site.py` em todo pull request para garantir que as constantes da página continuam iguais às do `config.h`.
+A página [https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/) roda no navegador as mesmas contas do `cinematica.cpp` e da máquina de estados: o dojô aparece visto de cima, o oponente pode ser arrastado com o mouse e o botão Rodar mostra, a cada instante, o pedido do estado, a desaturação, o limitador, a cinemática inversa, o feed-forward e o PWM de cada roda, junto com o caminho do robô e a fuga da borda. Embaixo, a página refaz a conta da distância de parada para qualquer tensão de bateria e qualquer atrito. O código da página fica em `site/index.html`; o workflow `pages.yml` publica a página no GitHub Pages a cada mudança na `main`, e o CI roda o `ferramentas/confere_site.py` em todo pull request para garantir que as constantes da página continuam iguais às do `config.h`.
 
 [![Simulador da cinemática no navegador, com o robô empurrando o oponente para fora do dojô](doc/img/simulador_cinematica.jpg)](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/)
 
@@ -276,7 +288,7 @@ Em contato com o oponente, ou com algo encostado num ToF, o modelo das rodas dei
 
 A localização tem três usos. O GIRO_BORDA termina de frente para o centro e a busca volta para o meio do dojô. O Flank e o Fan out medem o espaço livre até a borda em cada direção. E a percepção descarta o que cai fora do dojô: uma leitura de ToF só é descartada quando as 64 hipóteses da amostra colocam o ponto a mais de 30 mm além da borda, e o mapa do rastreador apaga, em cada direção, só os anéis que ficam fora em todas elas. O alcance dos ToF, de 600 mm, vem do pior caso dentro do dojô (o robô do Grupo D numa borda e o oponente encostado na borda oposta), então o oponente em qualquer ponto do dojô fica dentro do alcance.
 
-O teste `teste/teste_arena.cpp` roda 150 lutas de um robô de mentira que larga como manda a CoRA, anda até a borda, recua, gira para o centro estimado e repete cinco vezes, com o modelo das rodas certo ou errado em 15%. Com 12 sementes e as duas geometrias (9000 medidas):
+O teste `teste/unidade/teste_arena.cpp` roda 150 lutas de um robô de mentira que larga como manda a CoRA, anda até a borda, recua, gira para o centro estimado e repete cinco vezes, com o modelo das rodas certo ou errado em 15%. Com 12 sementes e as duas geometrias (9000 medidas):
 
 | Medida | Resultado |
 |---|---|
@@ -389,10 +401,10 @@ teste/combate/combate -s 7 -a rush -c preto -m 1000 -v      # uma luta, com o Lo
 pip install ziglang==0.14.0
 ZIG="python -m ziglang" bash teste/combate/compila.sh wasm  # módulo da página
 python teste/combate/bateria.py teste/combate/combate --sementes 10 --json doc/combate/bateria.json
-python doc/gera_combate.py --wasm teste/combate/combate.wasm  # refaz doc/site/combate.html
+python ferramentas/gera_combate.py --wasm teste/combate/combate.wasm  # refaz site/combate.html
 ```
 
-A página do combate fica no repositório (`doc/site/combate.html`), como o painel: depois de mudar o firmware, o simulador ou a página, rode as três últimas linhas e faça o commit da página e do `doc/combate/bateria.json`. O CI compila o WebAssembly de novo e falha se a página versionada for diferente da gerada. O `--fragmento` gera a mesma página sem o `<head>`, para publicar como artefato.
+A página do combate fica no repositório (`site/combate.html`), como o painel: depois de mudar o firmware, o simulador ou a página, rode as três últimas linhas e faça o commit da página e do `doc/combate/bateria.json`. O CI compila o WebAssembly de novo e falha se a página versionada for diferente da gerada. O `--fragmento` gera a mesma página sem o `<head>`, para publicar como artefato.
 
 A simulação deixa de fora a rampa entrando fundo embaixo do outro robô (o ponto de apoio não anda), o tombamento, a deformação do pneu, a poeira no dojô e o feixe do VL53L0X batendo no chão. O atrito real do pneu e o centro de massa medido na balança (robô apoiado numa régua, até equilibrar) deixam o resultado mais perto da luta de verdade.
 
@@ -435,10 +447,10 @@ As posições dos componentes dentro do chassi são provisórias e foram conferi
 Com os STL do chassi remodelado:
 
 ```
-python doc/montagem/step_para_stl.py LAB3-Modelagem.step PASTA_DO_CHASSI        # um STL por peça do STEP
-python doc/montagem/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES      # refaz o doc/montagem/pecas.js
+python ferramentas/step_para_stl.py LAB3-Modelagem.step PASTA_DO_CHASSI        # um STL por peça do STEP
+python ferramentas/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES      # refaz o doc/montagem/pecas.js
 # ajuste pos e rot das peças no doc/montagem/montagem.json
-python doc/montagem/gera_montagem.py --interferencias                           # refaz a página e a lista de interferências
+python ferramentas/gera_montagem.py --interferencias                           # refaz a página e a lista de interferências
 ```
 
 O `step_para_stl.py` precisa de `pip install cadquery-ocp`; o `exporta_pecas.py` e a conferência de interferências precisam de `pip install trimesh fast-simplification networkx scipy`; o resto do `gera_montagem.py` usa só o Python, com as contas em float do próprio Python, então a página sai igual em qualquer computador.
@@ -452,14 +464,14 @@ O `step_para_stl.py` precisa de `pip install cadquery-ocp`; o `exporta_pecas.py`
 | Arduino IDE | 1.8.x ou 2.x | |
 | Core ESP32 da Espressif | 2.x ou 3.x | Gerenciador de Placas, pacote "esp32 by Espressif Systems" |
 | Biblioteca VL53L0X da Pololu | 1.3.1 | Gerenciador de Bibliotecas |
-| Python 3 | 3.x | necessário só para gerar o painel de novo |
+| Python 3 | 3.x | necessário só para gerar de novo o painel, as páginas e os PDFs |
 
 O firmware usa o core do ESP32 [ESPRESSIF SYSTEMS, s.d.a] e a biblioteca VL53L0X da Pololu [POLOLU, s.d.]. As bibliotecas Preferences e Wire já vêm com o core.
 
 ### Passo a passo
 
-1. Extração do zip em uma pasta chamada `sumo_esp32`. A Arduino IDE exige que o nome da pasta seja igual ao do arquivo `.ino`, e o "Extrair tudo" do Windows usa o nome do zip, então `sumo_esp32.zip` já gera a pasta certa. Em um clone do repositório, o nome da pasta precisa do mesmo cuidado, por exemplo com `git clone https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2 sumo_esp32`.
-2. Abertura do `sumo_esp32.ino` na IDE. Os outros arquivos `.h` e `.cpp` aparecem como abas.
+1. Download do repositório (botão Code e depois Download ZIP, ou `git clone https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2`) e extração em qualquer pasta. O firmware fica em `firmware/sumo_esp32/`, uma pasta com o mesmo nome do arquivo `.ino`, como a Arduino IDE exige; o nome da pasta de fora não faz diferença.
+2. Abertura do `firmware/sumo_esp32/sumo_esp32.ino` na IDE. Os outros arquivos `.h` e `.cpp` da mesma pasta aparecem como abas.
 3. Ajustes no menu Ferramentas, conforme a tabela abaixo.
 4. Compilação e gravação pela USB, com o botão Carregar.
 5. Monitor Serial em 115200 baud, com a opção "Nova linha".
@@ -509,7 +521,7 @@ Os comandos funcionam no Monitor Serial e no terminal do painel.
 
 ### Painel pela USB
 
-O arquivo `painel_sumo.html` abre direto no Chrome ou no Edge do computador, sem internet, porque o three.js está embutido nele [THREE.JS, 2022]. O botão "Conectar USB" usa a Web Serial do navegador a 115200 baud; logo depois de abrir a porta, o painel envia `s1` e passa a receber os dados a 50 Hz. O Monitor Serial da IDE precisa estar fechado, porque só um programa por vez usa a porta. O botão "Modo demo" simula um oponente preto de 15,2 cm e roda em JavaScript o mesmo rastreador do firmware; o quadrado pode ser arrastado no radar 2D e, com a opção "robô se mexe", o robô simulado obedece à seta.
+O arquivo `painel/painel_sumo.html` abre direto no Chrome ou no Edge do computador, sem internet, porque o three.js está embutido nele [THREE.JS, 2022]. O botão "Conectar USB" usa a Web Serial do navegador a 115200 baud; logo depois de abrir a porta, o painel envia `s1` e passa a receber os dados a 50 Hz. O Monitor Serial da IDE precisa estar fechado, porque só um programa por vez usa a porta. O botão "Modo demo" simula um oponente preto de 15,2 cm e roda em JavaScript o mesmo rastreador do firmware; o quadrado pode ser arrastado no radar 2D e, com a opção "robô se mexe", o robô simulado obedece à seta.
 
 | Oponente à vista (rumo ATACAR) | Arena vazia (rumo PROCURAR) |
 |---|---|
@@ -546,6 +558,8 @@ flowchart LR
     ARE -. "hipóteses do centro" .-> OPO
     CHA --> EST
     PER --> EST["estados.cpp<br/>máquina de estados"]
+    RAS -. "caixa do oponente" .-> ANT["antitrava.cpp<br/>empurrão travado"]
+    ANT --> EST
     EST --> CIN["cinematica.cpp<br/>v e w para cada roda"]
     CIN --> MOT["motores.cpp<br/>ponte H"]
     CIN -. "giro e avanço estimados" .-> RAS
@@ -571,6 +585,8 @@ O ESP32 tem dois núcleos, e o trabalho fica dividido entre eles. No núcleo 0, 
 O referencial é o mesmo em todo o código: origem no centro de giro do robô, x para a frente, y para a esquerda e ângulo positivo para a esquerda. Com isso, o ângulo do oponente já é o quanto o robô precisa girar.
 
 ## Mapa do código
+
+Todos os arquivos desta seção ficam em `firmware/sumo_esp32/`, a pasta do sketch. Os módulos ficam juntos, sem subpastas, porque a Arduino IDE só mostra como abas os arquivos da própria pasta do sketch e só compila, além dela, a subpasta `src/`.
 
 ### `sumo_esp32.ino`
 
@@ -696,11 +712,11 @@ Comandos de teste e calibração, os modos contínuos (`ver`, `id`, `borda`) e o
 
 ### Painel
 
-O `painel_sumo.html` é o painel completo, com o three.js e o OrbitControls embutidos. O código fonte fica em `doc/painel_src.html`, e o script `doc/gera_painel.py` junta o fonte com as bibliotecas de `doc/vendor/` e gera o `painel_sumo.html`. Qualquer mudança no painel exige rodar `python doc/gera_painel.py` e fazer o commit dos dois arquivos; o CI confere se eles estão iguais.
+O `painel/painel_sumo.html` é o painel completo, com o three.js e o OrbitControls embutidos. O código fonte fica em `painel/painel_src.html`, e o script `ferramentas/gera_painel.py` junta o fonte com as bibliotecas de `painel/vendor/` e gera o `painel/painel_sumo.html`. Qualquer mudança no painel exige rodar `python ferramentas/gera_painel.py` e fazer o commit dos dois arquivos; o CI confere se eles estão iguais.
 
 ### Documentos de montagem
 
-A pasta `doc/` traz o `gabarito_bancada.pdf` (bancada em escala 1:1, vista lateral, cotas e montagem dos sensores de borda) , o `guia_montagem_sensores.pdf` (gabarito do robô, mapa de ligação na protoboard e lista de conferência) e o `guia_montagem_sensores_7.pdf`, com a mesma estrutura para 7 sensores mais o gabarito da bancada com o par novo, a pinagem completa do ESP32 e o estudo de cobertura. Os scripts `gera_bancada.py` e `gera_guia.py` geram esses PDFs a partir das tabelas do `config.h` com a biblioteca ReportLab (`python doc/gera_guia.py --sensores 7` gera a versão de 7).
+A pasta `doc/pdf/` traz o `gabarito_bancada.pdf` (bancada em escala 1:1, vista lateral, cotas e montagem dos sensores de borda), o `guia_montagem_sensores.pdf` (gabarito 1:1 do robô montado, com o corpo do chassi do STEP e a origem no eixo das rodas, mapa de ligação na protoboard e lista de conferência) e o `guia_montagem_sensores_7.pdf`, com a mesma estrutura para 7 sensores mais o gabarito da bancada com o par novo, a pinagem completa do ESP32 e o estudo de cobertura de 08/10. Os scripts `ferramentas/gera_bancada.py` e `ferramentas/gera_guia.py` geram esses PDFs a partir das tabelas do `config.h` com a biblioteca ReportLab (`python ferramentas/gera_guia.py --sensores 7` gera a versão de 7). Depois de qualquer mudança na posição de um sensor no `config.h`, os guias precisam sair de novo.
 
 ## Configuração
 
@@ -759,31 +775,56 @@ Os ajustes principais ficam no `config.h`:
 ## Estrutura de pastas
 
 ```
-sumo_esp32/
-  sumo_esp32.ino            arquivo principal (setup e loop)
-  config.h                  pinos, sensores, limiares, velocidades e tempos
-  percepcao.h / .cpp        struct P, rumo, saúde e botão de start
-  oponente.h / .cpp         VL53L0X: endereço, leitura, calibração e fusão
-  rastreador.h / .cpp       filtro bayesiano em grade (núcleo 0)
-  arena.h / .cpp            localização no dojô: filtro de partículas do centro
-  chave.h / .cpp            chave DIP: estratégia e perfil do oponente
-  borda.h / .cpp            TCRT5000: leitura analógica, limiar e confirmação
-  estados.h / .cpp          máquina de estados com as três estratégias
-  antitrava.h / .cpp        empurrão travado pela caixa do rastreador e manobras (experimental)
-  motores.h / .cpp          ponte H dupla de 10 A
-  cinematica.h / .cpp       cinemática das rodas e modelo do motor
-  telemetria.h / .cpp       Log e entrada de comandos pela USB
-  debug.h / .cpp            comandos, calibração e stream para o painel
-  painel_sumo.html          painel completo para abrir no computador
-  .github/workflows/
-    compilacao.yml          CI: compilação do firmware, testes no computador, lutas simuladas, combate e conferência do painel e da página
-    pages.yml               publicação das páginas do simulador no GitHub Pages, com os rastros das lutas
+LAB_III_Grupo_D_UFMG_2026_2/
+  README.md                 este documento
+  CLAUDE.md                 guia do repositório para o Claude Code (estrutura, comandos e regras)
+  firmware/sumo_esp32/      firmware: abrir o sumo_esp32.ino na Arduino IDE
+    sumo_esp32.ino          arquivo principal (setup e loop)
+    config.h                pinos, sensores, limiares, velocidades e tempos
+    percepcao.h / .cpp      struct P, rumo, saúde e botão de start
+    oponente.h / .cpp       VL53L0X: endereço, leitura, calibração e fusão
+    rastreador.h / .cpp     filtro bayesiano em grade (núcleo 0)
+    arena.h / .cpp          localização no dojô: filtro de partículas do centro
+    chave.h / .cpp          chave DIP: estratégia e perfil do oponente
+    borda.h / .cpp          TCRT5000: leitura analógica, limiar e confirmação
+    estados.h / .cpp        máquina de estados com as três estratégias
+    antitrava.h / .cpp      empurrão travado pela caixa do rastreador e manobras (experimental)
+    motores.h / .cpp        ponte H dupla de 10 A
+    cinematica.h / .cpp     cinemática das rodas e modelo do motor
+    telemetria.h / .cpp     Log e entrada de comandos pela USB
+    debug.h / .cpp          comandos, calibração e stream para o painel
+  painel/
+    painel_sumo.html        painel completo para abrir no computador (gerado, versionado)
+    painel_src.html         código fonte do painel
+    vendor/                 three.js r147, OrbitControls e licença MIT
+  site/                     páginas publicadas no GitHub Pages
+    index.html              simulador da cinemática
+    lutas.html              lutas simuladas com o firmware (os rastros saem no workflow pages.yml)
+    combate.html            combate 3D com o firmware nos dois robôs (gerado, versionado, conferido no CI)
+    montagem.html           montagem 3D com os jumpers (gerado, versionado, conferido no CI)
+  doc/
+    img/                    imagens deste README
+    pdf/                    gabarito_bancada.pdf, guia_montagem_sensores.pdf e guia_montagem_sensores_7.pdf
+    combate/                modelo da página do combate (combate_src.html), malhas do STL, textos e bateria.json
+    montagem/               modelo da página da montagem, montagem.json, pecas.js, interferencias.json e README.md
+      modelos/              suporte do VL53L0X (STL e .scad) e módulo CJVL53L0XV2
+  ferramentas/              scripts em Python que geram os arquivos versionados
+    gera_painel.py          painel/painel_src.html e painel/vendor/ -> painel/painel_sumo.html
+    gera_combate.py         WebAssembly, doc/combate/ -> site/combate.html
+    gera_montagem.py        config.h, doc/montagem/ -> site/montagem.html (e a lista de interferências)
+    confere_site.py         confere as constantes do site/index.html com o config.h
+    gera_bancada.py         config.h -> doc/pdf/gabarito_bancada.pdf
+    gera_guia.py            config.h -> doc/pdf/guia_montagem_sensores(_7).pdf
+    step_para_stl.py        STEP do projeto mecânico -> um STL por peça
+    exporta_pecas.py        STL do chassi e dos componentes -> doc/montagem/pecas.js
+    exporta_malhas.py       STL do robô -> doc/combate/malhas.js
+    gera_modulo_cj.py       módulo CJVL53L0XV2 -> doc/montagem/modelos/cj_vl53l0x.stl
   teste/
-    teste_cinematica.cpp    testes da cinemática das rodas (g++ no computador)
-    teste_estados.cpp       testes da máquina de estados com a cinemática, a localização e a chave
-    teste_arena.cpp         testes estatísticos da localização no dojô
-    teste_motores.cpp       testes do PWM da ponte H (API do LEDC dos cores 2.x e 3.x)
-    stub/Arduino.h          Arduino.h de mentira para os testes
+    unidade/                testes no computador (g++), com um Arduino.h de mentira em stub/
+      teste_cinematica.cpp  cinemática das rodas
+      teste_estados.cpp     máquina de estados com a cinemática, a localização e a chave
+      teste_arena.cpp       testes estatísticos da localização no dojô
+      teste_motores.cpp     PWM da ponte H (API do LEDC dos cores 2.x e 3.x)
     sim/                    simulador de lutas com o firmware de verdade
       compila.sh            compila o simulador (teste/sim/luta)
       luta.cpp              uma luta: firmware, mundo e oponente, com resultado em CSV e rastro em JSON
@@ -796,37 +837,26 @@ sumo_esp32/
       compila.sh            compila o executável (nativo) ou o módulo WebAssembly (wasm)
       fisica.h / .cpp       dojô da RoboCore, apoios, rampa, pneus, motores, bateria, ToF e TCRT5000
       hal_combate.h / .cpp  Arduino de mentira para dois robôs
+      fw_pre.h              cabeçalhos incluídos fora do namespace de cada robô
       fw_modulo.cpp         um módulo do firmware dentro do namespace de um robô
-      ponte_robo.cpp        funções de cada firmware chamadas pelo simulador
+      ponte.h / ponte_robo.cpp  funções de cada firmware chamadas pelo simulador
       combate.h / .cpp      largada, botões, loop dos firmwares e fim do round
       main_nativo.cpp       linha de comando (resultado em CSV e rastro em JSON)
       wasm_api.cpp          funções exportadas para a página 3D
       bateria.py            bateria de lutas em paralelo, com tabela e falha no CI
-  doc/
-    painel_src.html         código fonte do painel
-    gera_painel.py          gera o painel_sumo.html
-    gera_bancada.py         gera o gabarito_bancada.pdf
-    gera_guia.py            gera o guia de montagem (5 ou 7 sensores)
-    confere_site.py         confere as constantes da página do simulador com o config.h
-    site/index.html         página do simulador da cinemática (GitHub Pages)
-    site/lutas.html         página das lutas simuladas com o firmware (GitHub Pages)
-    site/combate.html       página 3D do combate, gerada pelo gera_combate.py (versionada, conferida no CI)
-    site/montagem.html      página da montagem 3D com os jumpers, gerada pelo gera_montagem.py (versionada, conferida no CI)
-    combate_src.html        modelo da página 3D do combate
-    gera_combate.py         gera doc/site/combate.html com o WebAssembly, as malhas e a bateria
-    combate/                malhas do STL (malhas.js, exporta_malhas.py), textos da página e bateria.json (placar da página)
-    montagem_src.html       modelo da página da montagem 3D
-    montagem/               montagem.json (peças, pinos, rotas), pecas.js, exporta_pecas.py, gera_montagem.py e interferencias.json
-    gabarito_bancada.pdf    gabarito 1:1 da bancada
-    guia_montagem_sensores.pdf  gabarito do robô, ligação e conferência
-    guia_montagem_sensores_7.pdf  o mesmo para 7 sensores, com bancada, pinagem e cobertura
-    img/                    imagens deste README
-    vendor/                 three.js r147, OrbitControls e licença MIT
+      stub/                 Preferences.h de mentira para os dois robôs
+  .github/workflows/
+    compilacao.yml          CI: firmware, testes no computador, lutas simuladas, combate e conferência do painel e das páginas
+    pages.yml               publicação da pasta site/ no GitHub Pages, com os rastros das lutas
 ```
+
+A divisão segue o que cada pasta entrega: o firmware que vai para o ESP32, o painel que abre no computador, o site que vai para o GitHub Pages, a documentação, os scripts que geram os arquivos versionados e os testes. Os arquivos gerados que ficam no repositório (painel, páginas do combate e da montagem) são conferidos pelo CI, que gera cada um de novo e falha se o versionado estiver diferente.
 
 ## Integração contínua
 
-O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados, e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/stub`), o `cinematica.cpp`, o `estados.cpp`, o `arena.cpp`, o `chave.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro, a escolha da estratégia pela chave, a fuga em cada combinação de sensores de borda, a localização no dojô nas duas geometrias (erro, coerência da incerteza e descarte) e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x). Um terceiro teste compila o simulador de lutas e roda 288 lutas (3 estratégias, 6 oponentes, claro e escuro, 8 largadas) com pessoas em volta do dojô; ele falha com qualquer queda própria ou com mais de 2 s mirando algo fora do dojô numa luta, e guarda a tabela no resumo da execução e o CSV como artefato. Um quarto teste compila o simulador de combate e roda 48 lutas com o mesmo firmware nos dois robôs (3 estratégias, adversário preto e branco, 1000 e 319 rpm), falhando com qualquer queda própria, compila o mesmo código para WebAssembly e falha se o `doc/site/combate.html` versionado for diferente da página gerada com esse WebAssembly e a bateria do `doc/combate/bateria.json`. Um quinto teste gera o painel de novo a partir do `doc/painel_src.html` e a página da montagem a partir do `config.h` e do `doc/montagem/montagem.json`, falha se o `painel_sumo.html` ou o `doc/site/montagem.html` versionados estiverem diferentes, e confere se as constantes da página do simulador (`doc/site/index.html`) são as mesmas do `config.h`. O workflow `pages.yml` publica as páginas no GitHub Pages a cada push na `main`, com os rastros e o placar das lutas gerados na hora; o combate e a montagem vão como estão no repositório. As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem.
+O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados, e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/unidade/stub`), o `cinematica.cpp`, o `estados.cpp`, o `arena.cpp`, o `chave.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/unidade/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro, a escolha da estratégia pela chave, a fuga em cada combinação de sensores de borda, a localização no dojô nas duas geometrias (erro, coerência da incerteza e descarte) e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x). Um terceiro teste compila o simulador de lutas e roda 288 lutas (3 estratégias, 6 oponentes, claro e escuro, 8 largadas) com pessoas em volta do dojô; ele falha com qualquer queda própria ou com mais de 2 s mirando algo fora do dojô numa luta, e guarda a tabela no resumo da execução e o CSV como artefato. Um quarto teste compila o simulador de combate e roda 48 lutas com o mesmo firmware nos dois robôs (3 estratégias, adversário preto e branco, 1000 e 319 rpm), falhando com qualquer queda própria, compila o mesmo código para WebAssembly e falha se o `site/combate.html` versionado for diferente da página gerada com esse WebAssembly e a bateria do `doc/combate/bateria.json`. Um quinto teste gera o painel de novo a partir do `painel/painel_src.html` e a página da montagem a partir do `config.h` e do `doc/montagem/montagem.json`, falha se o `painel/painel_sumo.html` ou o `site/montagem.html` versionados estiverem diferentes, e confere se as constantes da página do simulador (`site/index.html`) são as mesmas do `config.h`. O workflow `pages.yml` publica as páginas no GitHub Pages a cada push na `main`, com os rastros e o placar das lutas gerados na hora; o combate e a montagem vão como estão no repositório. O GitHub Pages precisa estar ligado uma vez em Settings > Pages, com a fonte GitHub Actions.
+
+As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem, sempre com merge commit. Com isso, o botão Revert de cada pull request no GitHub desfaz só aquela mudança, por meio de um pull request novo, sem reescrever o histórico. Quando vários pull requests foram empilhados, um em cima do outro, a reversão segue a ordem contrária à do merge, do mais novo para o mais antigo, porque cada um parte do anterior.
 
 ## Equipe
 

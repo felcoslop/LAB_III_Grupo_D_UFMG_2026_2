@@ -1,18 +1,20 @@
 # Montagem 3D: modelos, posições e espaço no chassi
 
-Esta pasta gera a página `doc/site/montagem.html` (robô montado em 3D, com cada jumper). O
-`README.md` da raiz explica a página; aqui ficam o fluxo de arquivos e a conferência de espaço no
-chassi do projeto mecânico (STEP LAB3-Modelagem, outubro de 2026).
+Esta pasta guarda os dados da página `site/montagem.html` (robô montado em 3D, com cada jumper),
+que o `ferramentas/gera_montagem.py` gera. O `README.md` da raiz explica a página; aqui ficam o
+fluxo de arquivos e a conferência de espaço no chassi do projeto mecânico (STEP LAB3-Modelagem,
+outubro de 2026).
 
 ## Arquivos
 
 | Arquivo | Para que serve |
 |---|---|
-| `step_para_stl.py` | separa o STEP do projeto mecânico em um STL por peça (precisa de `pip install cadquery-ocp`) |
-| `exporta_pecas.py` | junta os STL do chassi e dos componentes em malhas compactas (`pecas.js`) |
+| `ferramentas/step_para_stl.py` | separa o STEP do projeto mecânico em um STL por peça (precisa de `pip install cadquery-ocp`) |
+| `ferramentas/exporta_pecas.py` | junta os STL do chassi e dos componentes em malhas compactas (`pecas.js`, nesta pasta) |
 | `montagem.json` | posição e giro de cada peça, pinos de cada modelo, ordem dos pinos do ESP32 na protoboard, uso da protoboard (I2C, 3V3 e GND) e caminho dos feixes de fios |
-| `gera_montagem.py` | monta a página, a lista de jumpers e a lista de interferências (`interferencias.json`) |
-| `modelos/` | suporte do VL53L0X (`vl53l0x-bracket.stl`, do Cults3D, e o `.scad` de origem) e o módulo CJVL53L0XV2 no rebaixo dele |
+| `montagem_src.html` | modelo da página, com as marcações que o gerador troca pelas peças e pelos dados |
+| `ferramentas/gera_montagem.py` | monta a página, a lista de jumpers e a lista de interferências (`interferencias.json`, nesta pasta) |
+| `modelos/` | suporte do VL53L0X (`vl53l0x-bracket.stl`, do Cults3D, e o `.scad` de origem) e o módulo CJVL53L0XV2 no rebaixo dele (`cj_vl53l0x.stl`, do `ferramentas/gera_modulo_cj.py`) |
 
 Referencial do robô: origem no meio do eixo das rodas, no chão, x para a frente, y para a esquerda
 e z para cima, em mm. O STEP tem a frente em -x, o eixo das rodas em x = 51 mm e o chão 3 mm abaixo
@@ -22,9 +24,9 @@ do z = 0 do desenho; o `exporta_pecas.py` converte para o referencial do robô (
 Para trocar o chassi:
 
 ```
-python doc/montagem/step_para_stl.py LAB3-Modelagem.step PASTA_DO_CHASSI
-python doc/montagem/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES
-python doc/montagem/gera_montagem.py --interferencias
+python ferramentas/step_para_stl.py LAB3-Modelagem.step PASTA_DO_CHASSI
+python ferramentas/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES
+python ferramentas/gera_montagem.py --interferencias
 ```
 
 ## Suporte dos sete VL53L0X
