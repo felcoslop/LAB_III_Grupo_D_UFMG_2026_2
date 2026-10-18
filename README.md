@@ -99,23 +99,23 @@ Na bancada (`GEOMETRIA_BANCADA 1`), a origem do referencial é o centro da proto
 | TE (7 sensores, posição prevista) | 16 | 0x35 | -80 | 25 | 160° |
 | TD (7 sensores, posição prevista) | 4 | 0x36 | -80 | -25 | -160° |
 
-No robô montado (`GEOMETRIA_BANCADA 0`), a origem fica no meio do eixo das rodas, no chão, e as posições saem do chassi do STEP: FE, FC e FD nas janelas da face inclinada da frente, LE e LD na janela da lateral à frente do eixo e TE e TD na janela da lateral mais perto do eixo, inclinados a ±160° para trás e para fora (o LE e o LD ficam retos, a ±90°):
+No robô montado (`GEOMETRIA_BANCADA 0`), a origem fica no meio do eixo das rodas, no chão, e as posições saem do chassi de dois andares do editor 3D v11 (a página `montagem.html` confere esta tabela contra o editor): FE, FC e FD na face inclinada da frente, LE e LD na lateral à frente do eixo, retos, e TE e TD em suportes angulares atrás da roda, a ±160° para trás e para fora:
 
 | Sensor | XSHUT | Endereço | x | y | Ângulo |
 |---|---|---|---|---|---|
-| LE | 17 | 0x30 | 55 | 72 | 90° |
-| FE | 23 | 0x31 | 85 | 35 | 17° |
-| FC | 19 | 0x32 | 95 | 0 | 0° |
-| FD | 18 | 0x33 | 85 | -35 | -17° |
-| LD | 5 | 0x34 | 55 | -72 | -90° |
-| TE (7 sensores) | 16 | 0x35 | 33 | 74 | 160° |
-| TD (7 sensores) | 4 | 0x36 | 33 | -74 | -160° |
+| LE | 17 | 0x30 | 46 | 70 | 90° |
+| FE | 23 | 0x31 | 77 | 32 | 17° |
+| FC | 19 | 0x32 | 83 | 0 | 0° |
+| FD | 18 | 0x33 | 77 | -34 | -17° |
+| LD | 5 | 0x34 | 46 | -70 | -90° |
+| TE (7 sensores) | 16 | 0x35 | -30 | 66 | 160° |
+| TD (7 sensores) | 4 | 0x36 | -30 | -66 | -160° |
 
 Os PDFs da pasta `doc/pdf/` trazem os gabaritos em escala 1:1 da bancada e do robô, o mapa de ligação na protoboard e uma lista de conferência antes de energizar. O `guia_montagem_sensores_7.pdf` faz o mesmo para a versão de 7 sensores e traz também a pinagem completa do ESP32.
 
 ### Posição dos sensores: 5 ou 7
 
-A constante `QTD_TOF` do `config.h` escolhe entre os 5 sensores originais e a versão de 7, que acrescenta um par atrás do eixo (TE e TD). Na bancada e na previsão do estudo abaixo o par fica nas quinas de trás, a ±160°; no robô montado o par fica nas janelas das laterais perto do eixo (x = 33 mm, y = ±74 mm, com a lente na face de fora da lateral), também a ±160°, com o suporte inclinado 20° para fora (o `config.h` do robô tem essa posição). O LE e o LD continuam retos, a ±90°, nas janelas à frente delas. A pendência do chassi é a largura do suporte inclinado, que passa do gabarito (veja a seção Montagem 3D). Os 5 sensores de antes não mudam: FC no centro, que é quem decide o ataque, FE e FD a ±20° na bancada (±17° no robô montado) e LE e LD a ±90°. O par novo fica no fim da tabela, então os 5 sensores de antes mantêm XSHUT, endereço, cor no painel e calibração gravada; com `QTD_TOF 5` o firmware compilado é idêntico ao anterior.
+A constante `QTD_TOF` do `config.h` escolhe entre os 5 sensores originais e a versão de 7, que acrescenta um par atrás do eixo (TE e TD). Na bancada e na previsão do estudo abaixo o par fica nas quinas de trás, a ±160°; no robô montado o par fica atrás das rodas, em suportes angulares (x = -30 mm, y = ±66 mm), também a ±160° (o `config.h` do robô tem essa posição). O LE e o LD continuam retos, a ±90°, na lateral à frente do eixo. A pendência do chassi é a inclinação dos três sensores da frente, que apontam uns 27° para cima (veja a seção Montagem 3D). Os 5 sensores de antes não mudam: FC no centro, que é quem decide o ataque, FE e FD a ±20° na bancada (±17° no robô montado) e LE e LD a ±90°. O par novo fica no fim da tabela, então os 5 sensores de antes mantêm XSHUT, endereço, cor no painel e calibração gravada; com `QTD_TOF 5` o firmware compilado é idêntico ao anterior.
 
 O capítulo 2 do Sumo Robot Blackbook pede número ímpar de sensores, com um no centro para centralizar o oponente, e diz que os sensores precisam vigiar todas as áreas por onde o oponente pode atacar, principalmente os cantos [DEDE, s.d.]. O exemplo de 7 do livro acrescenta duas diagonais na frente, mas o livro não trata de sensores atrás. Com os 5 sensores de hoje, a frente já enxerga bem: o buraco entre FE e LE (de 32,5° a 77,5°) só existe a mais de uns 25 cm, porque os cones se cruzam perto do robô, e o oponente que vem por ali entra em algum cone antes de encostar. A traseira, de 115° a 180°, não tem nenhum sensor. Com o par atrás, o total continua ímpar, o FC continua sozinho no centro e a área sem cobertura passa a ser vigiada.
 
@@ -355,27 +355,27 @@ A carga em cada apoio sai do equilíbrio de momentos com o peso, a aceleração 
 
 ### Resultado
 
-Na bateria de 180 lutas (3 estratégias, adversário preto e branco, 1000, 600 e 319 rpm, 10 largadas sorteadas cada, estratégia do adversário sorteada), com a física de Belo Horizonte e a geometria do STEP LAB3-Modelagem, o Grupo D venceu 64, perdeu 58 e empatou 58, sem nenhuma queda própria (TE e TD a ±160°, olhando para trás; com o par reto, a ±90°, foram 65, 54 e 61).
+Na bateria de 180 lutas (3 estratégias, adversário preto e branco, 1000, 600 e 319 rpm, 10 largadas sorteadas cada, estratégia do adversário sorteada), com a física de Belo Horizonte e a geometria do chassi de dois andares (posições dos sensores do `config.h`, TE e TD a ±160° olhando para trás), o Grupo D venceu 59, perdeu 56 e empatou 65, sem nenhuma queda própria.
 
 | Adversário | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| 1000 rpm | 42 | 17 | 1 |
-| 600 rpm | 11 | 23 | 26 |
-| 319 rpm, igual | 11 | 18 | 31 |
+| 1000 rpm | 41 | 10 | 9 |
+| 600 rpm | 10 | 22 | 28 |
+| 319 rpm, igual | 8 | 24 | 28 |
 
 | Estratégia do Grupo D | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| Rush | 24 | 18 | 18 |
-| Flank | 22 | 20 | 18 |
-| Fan out | 18 | 20 | 22 |
+| Rush | 22 | 17 | 21 |
+| Flank | 19 | 18 | 23 |
+| Fan out | 18 | 21 | 21 |
 
 | Largada do Grupo D | Vitórias | Derrotas | Empates |
 |---|---|---|---|
-| de frente para o adversário | 30 | 1 | 23 |
-| de lado | 16 | 7 | 13 |
-| de costas | 18 | 50 | 22 |
+| de frente para o adversário | 27 | 1 | 26 |
+| de lado | 12 | 14 | 10 |
+| de costas | 20 | 41 | 29 |
 
-O motor de 1000 rpm tem um terço do torque: travado, ele empurra com uns 7,4 N (0,6 kgf.cm em cada roda de 16 mm de raio), abaixo dos 8,5 a 9,6 N que os pneus do Grupo D aguentam com 77% dos 980 g em cima deles (atrito de 1,15 parado e 1,30 escorregando). O empurrão de frente leva o adversário para fora em 2,7 s, em média. O motor de 600 rpm, de linha e à venda, empurra com 13,5 N travado (1,1 kgf.cm), acima do limite de tração do pneu: ele esbarra no mesmo limite do de 319 rpm e só chega mais rápido, então o resultado fica perto do robô igual. Contra os dois, os robôs encostam 0,6 s depois dos 5 s parados e ficam empurrando de frente até o fim dos 90 s. As derrotas vêm da largada de costas, em que o robô gasta o começo da luta girando e recebe o adversário na traseira, que é o ponto fraco (50 das 58 derrotas); entre as estratégias a diferença é pequena (18 derrotas do Rush, 20 do Flank e 20 do Fan out) e a bateria não mostra o motivo. O motor mais quente chegou a 21,5 K acima do ambiente no modelo térmico do firmware, longe do limite de 60 K.
+O motor de 1000 rpm tem um terço do torque: travado, ele empurra com uns 7,4 N (0,6 kgf.cm em cada roda de 16 mm de raio), abaixo dos 8,5 a 9,6 N que os pneus do Grupo D aguentam com 77% dos 980 g em cima deles (atrito de 1,15 parado e 1,30 escorregando). As vitórias contra ele levam 4,5 s, em média. O motor de 600 rpm, de linha e à venda, empurra com 13,5 N travado (1,1 kgf.cm), acima do limite de tração do pneu: ele esbarra no mesmo limite do de 319 rpm e só chega mais rápido, então o resultado fica perto do robô igual. Contra os dois, os robôs encostam 0,6 s depois dos 5 s parados e ficam empurrando de frente até o fim dos 90 s. As derrotas vêm da largada de costas, em que o robô gasta o começo da luta girando e recebe o adversário na traseira, que é o ponto fraco (41 das 56 derrotas); entre as estratégias a diferença é pequena (17 derrotas do Rush, 18 do Flank e 21 do Fan out) e a bateria não mostra o motivo. O motor mais quente chegou a 21,6 K acima do ambiente no modelo térmico do firmware, longe do limite de 60 K.
 
 O atrito do pneu e a restituição do choque são as estimativas com mais incerteza, então a mesma bateria rodou com cada um mudado. A tabela é da rodada anterior à troca do chassi (240 lutas cada, 20 largadas, só 1000 e 319 rpm); com o chassi novo e o atrito 20% menor, as 180 lutas deram 65 vitórias, 53 derrotas e 62 empates (contra o de 1000 rpm, 44 vitórias, 16 derrotas e nenhum empate), e o empurrão de 1000 rpm levou uns 13 s:
 
@@ -452,8 +452,10 @@ O MuJoCo desempata contatos pela ordem e pela posição dos corpos. Na primeira 
 
 | Física | Vitórias | Derrotas | Empates | Quedas próprias | Tempo médio da vitória |
 |---|---|---|---|---|---|
-| à mão | 64 | 58 | 58 | 0 | 3,2 s |
+| à mão | 59 | 56 | 65 | 0 | 3,8 s |
 | MuJoCo | 94 | 86 | 0 | 0 | 1,9 s |
+
+A linha do MuJoCo é da rodada anterior à troca do chassi (a linha da física à mão já é a do chassi de dois andares); a física dos dois ainda usa as medidas de massa e de apoio do STEP anterior, e o MuJoCo precisa rodar de novo com as do chassi novo.
 
 Por adversário, no MuJoCo: 32 vitórias e 28 derrotas contra o de 319 rpm, 27 e 33 contra o de 600 rpm, 35 e 25 contra o de 1000 rpm; por largada: de frente 38 e 16, de lado 21 e 15, de costas 35 e 55; por estratégia: Rush 34 e 26, Flank 33 e 27, Fan out 27 e 33. Não há empate, porque todas as lutas se decidem em uns 2 s, a mais longa em 16 s. A física à mão deixa 58 das 180 lutas empatadas por tempo, quase todas contra os motores de 319 e 600 rpm. Nas duas, o robô do Grupo D nunca saiu do dojô sozinho.
 
@@ -467,50 +469,43 @@ O que isso mostra e o que não mostra:
 
 ## Montagem 3D
 
-A página [Montagem Grupo D](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/montagem.html) mostra o robô montado em 3D, com cada componente no chassi e cada fio do esquema elétrico, e marca a ponta de cada jumper: fêmea nos pinos machos dos módulos, macho nos furos da protoboard. O chassi é o do STEP LAB3-Modelagem do projeto mecânico (base, rampa da frente, laterais, hastes, tampa, suportes, motorredutores, cubos e pneus, uma peça por vez). Os modelos dos componentes são os do relatório (ESP32 DevKit de 30 pinos, TPS63070, chave DIP, ponte H dupla, célula 18650, BMS 3S e TCRT5000), e os sete VL53L0X vão no suporte de PLA *Mounting Bracket for VL53L0X Module* (Cults3D), com o módulo CJVL53L0XV2 no rebaixo dele. Não há placa de expansão: o ESP32 fica numa protoboard de 400 pontos (81 x 55 mm) na tampa da frente, e a chave DIP e o botão de ligar ficam nos furos A e B da tampa de trás. A página vem de três arquivos:
+A página [Montagem Grupo D](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/montagem.html) mostra o robô montado em 3D no chassi de dois andares do editor 3D v11, com cada componente no lugar e cada fio do esquema elétrico, e marca a ponta de cada jumper: fêmea nos pinos machos dos módulos e da extensora, macho nos furos da protoboard. O chassi é o do grupo (base, rampa da frente, laterais, hastes, tampas, suportes dos motores, prateleira, calço em V e suportes de 160°, com os STL em `doc/montagem/modelos/chassi/`), e os componentes são os do editor (ESP32 e extensora, ponte H, BMS, células, TPS63070, chave DIP, chave KCD1, botão, TCRT5000 e os sete VL53L0X em seus suportes). Embaixo ficam a ponte H, os motorredutores, os TCRT5000 e os sensores; na prateleira, a extensora do ESP32 e o ESP32; por cima da tampa de trás, a célula da lógica, o TPS63070, a chave DIP (furo A), o botão de início (furo B) e a chave liga e desliga (furo C); por cima da tampa da frente, as três células da bateria 3S, o BMS e uma protoboard de meia página. A página vem de quatro arquivos:
 
-- o `config.h`, que dá a posição de cada VL53L0X (lente na altura `LENTE_ALTURA_MM`, olhando no ângulo da tabela `TOF`) e de cada TCRT5000 (tabela `BORDA`) e o GPIO de cada fio, então mudar um pino no firmware muda a página;
-- o `doc/montagem/montagem.json`, com a posição e o giro das outras peças, os pinos de cada modelo, a ordem dos pinos do ESP32 na protoboard, o uso dela (I2C, 3V3 e GND), o caminho dos feixes de fios e as diferenças do esquema;
-- o `doc/montagem/pecas.js`, com as malhas compactas que o `exporta_pecas.py` gera a partir dos STL.
+- o `config.h`, que dá o GPIO de cada fio e a tabela de posições `TOF` e `BORDA`, que o gerador confere contra a posição e o ângulo de cada sensor no editor (com 2 mm e 1 grau de tolerância; se discordarem, a geração para e mostra a diferença);
+- o `doc/montagem/montagem.json`, com as peças, os pinos de cada modelo, o uso da protoboard, os passa-fios propostos, o contorno do chassi e as diferenças do esquema;
+- o `doc/montagem/pecas.js` e o `doc/montagem/editor.json`, que o `exporta_pecas.py` gera a partir do HTML do editor (malhas com a cor de cada peça e a matriz de cada peça repetida);
+- o `doc/montagem/rotas_fios.json`, que o `roteia_fios.py` gera: o caminho de cada fio no volume das peças, com folga de 1,5 mm.
 
-A protoboard tem 30 colunas de 10 furos e dois pares de trilhos de 25 furos. O ESP32 ocupa as colunas 16 a 30, com os pinos nas fileiras b (lado de trás) e i (lado da frente), 22,86 mm entre elas. Só um furo da coluna de cada pino fica fora do corpo do DevKit: o a, no lado de trás, e o j, no lado da frente; cada GPIO usado leva um jumper nesse furo. As colunas 1 a 13 ficam livres para os barramentos de SDA (coluna 2) e SCL (coluna 4), e os trilhos do lado de trás levam o 3V3 (trilho interno) e o GND (trilho externo) para os sensores.
-
-As ligações seguem o firmware e o documento de ligação (Lab3-Liga):
+A protoboard de meia página só faz o barramento de I2C (SDA na coluna 9, SCL na 11, cada uma com um jumper curto entre as duas metades). Todo o resto vai nos trios S, V e G da extensora, um trio por GPIO, e a ponte H, o botão e a chave DIP ligam direto nela ou no ESP32. As ligações seguem o firmware e o documento de ligação (Lab3-Liga):
 
 | Ligação | Jumper | Pontas |
 |---|---|---|
-| VIN e GND de cada VL53L0X e de cada TCRT5000 | macho-fêmea | pino do módulo e furo dos trilhos de 3V3 e de GND |
-| XSHUT de cada VL53L0X | macho-fêmea | pino do sensor e furo livre da coluna do GPIO 17, 23, 19, 18, 5, 16 ou 4 |
-| SDA e SCL de cada VL53L0X | macho-fêmea | pino do sensor e coluna 2 (SDA) ou 4 (SCL) da protoboard |
-| SDA e SCL da protoboard até o ESP32 | macho-macho | coluna do barramento e furo livre da coluna do GPIO 21 e do 22 |
-| A0 de cada TCRT5000 | macho-fêmea | pino do módulo e furo livre da coluna do GPIO 34, 35, 32 ou 33 (o D0 fica sem fio) |
-| 3V3 e GND do DevKit | macho-macho | furo livre das colunas do 3V3 e do GND e furo dos trilhos |
-| Chave DIP | fio soldado com ponta macho | quatro pernas do lado A unidas por fio nu e um fio para o trilho de 3V3; cada perna do lado B no furo livre da coluna do GPIO 12, 14, 2 e 15 |
-| GND, IN1, IN2, IN3 e IN4 da ponte H | macho-fêmea | pino da ponte, trilho de GND e furo livre da coluna do GPIO 25, 26, 27 e 13 |
+| XSHUT, VIN e GND de cada VL53L0X | fêmea-fêmea | pino do sensor e trio S, V e G do GPIO 17, 23, 19, 18, 5, 16 ou 4 |
+| A0, VCC e GND de cada TCRT5000 | fêmea-fêmea | pino do módulo e trio S, V e G do GPIO 34, 35, 32 ou 33 (o D0 fica sem fio) |
+| SDA e SCL de cada VL53L0X | macho-fêmea | pino do sensor e coluna 9 (SDA) ou 11 (SCL) da protoboard |
+| SDA e SCL da protoboard até o ESP32 | macho-fêmea | coluna do barramento e pino S do GPIO 21 e do 22 |
+| GND, IN1, IN2, IN3 e IN4 da ponte H | fêmea-fêmea | pino da ponte, pino G do GND e pino S do GPIO 25, 26, 27 e 13 |
+| Chave DIP | fio soldado com ponta fêmea | quatro pernas do lado A unidas por fio nu e um fio para o pino V; cada perna do lado B no pino S do GPIO 12, 14, 2 e 15 |
+| Botão de início | fio soldado | as duas pernas do botão nas do BOOT do DevKit (GPIO 0 e GND) |
 | Motores, bateria 3S, BMS e alimentação da ponte H | fio 22 AWG soldado | bornes da ponte H e terminais soldados |
-| Bateria 18650 da lógica, botão de ligar e TPS63070 | fio soldado | o 3,3 V e o GND do TPS63070 vão com ponta macho nos trilhos da protoboard |
+| Bateria 18650 da lógica, chave KCD1 e TPS63070 | fio soldado | o 3,3 V e o GND do TPS63070 vão com ponta fêmea nos pinos V e G da extensora |
 
-São 52 jumpers macho-fêmea e 6 macho-macho, mais 7 fios soldados com ponta macho (DIP e TPS63070) e 15 fios soldados nos bornes, e a página soma o comprimento de cada caminho para a lista de compra. Os trilhos de 3,3 V alimentam os VL53L0X, os TCRT5000 e a chave DIP, todos de 3,3 V. O start continua no botão BOOT (GPIO 0): o DevKit de 30 pinos não leva o GPIO 0 para a barra, então um botão externo precisa ser soldado em paralelo com o BOOT.
+São 38 jumpers fêmea-fêmea, 16 macho-fêmea e 2 macho-macho, mais 7 fios soldados com ponta fêmea (DIP e TPS63070) e 17 fios soldados nos bornes e terminais, e a página soma o comprimento de cada caminho para a lista de compra. O start continua no botão BOOT (GPIO 0): o DevKit de 30 pinos não leva o GPIO 0 para a barra, então o botão de início é soldado em paralelo com o BOOT.
 
-O esquema do Fritzing (`SUMO_Esquemático` e `SUMO_bb`) difere do firmware em quatro pontos, e a página mostra os quatro: os sensores de borda saem do D0 nos GPIO 36, 39, 34 e 35, mas o firmware lê o A0 nos 34, 35, 32 e 33; a chave DIP vai nos GPIO 15, 14, 33 e 32 com o comum no GND, mas o firmware lê os 12, 14, 2 e 15 com o pull-down interno e o comum no 3V3 (com o comum no GND a chave nunca muda a leitura); o botão S1 vai no GPIO 2, que é a via 3 da chave; e a ponte H aparece como L298N. O ramo dos motores não tem chave liga e desliga no esquema.
+O esquema do Fritzing (`SUMO_Esquemático` e `SUMO_bb`) difere do firmware em cinco pontos, e a página mostra os cinco: os sensores de borda saem do D0 nos GPIO 36, 39, 34 e 35, mas o firmware lê o A0 nos 34, 35, 32 e 33; a chave DIP vai nos GPIO 15, 14, 33 e 32 com o comum no GND, mas o firmware lê os 12, 14, 2 e 15 com o pull-down interno e o comum no 3V3 (com o comum no GND a chave nunca muda a leitura); o botão S1 vai no GPIO 2, que é a via 3 da chave; a ponte H aparece como L298N; e o ESP32 vai na extensora, não numa protoboard. O ramo dos motores não tem chave liga e desliga no esquema.
 
-As posições dos componentes dentro do chassi são provisórias e foram conferidas contra o STEP em blocos de 1 mm. O `doc/montagem/README.md` traz o espaço que sobra e o que falta, com as medidas. As quatro células 18650 (3S mais a da lógica) ficam em bloco de 2 x 2 com 3,8 mm de folga até a face de baixo da tampa; o BMS, o TPS63070, a ponte H, o botão de ligar e a chave DIP cabem. A protoboard de 81 x 55 mm cabe na tampa da frente (um canto de 6 mm passa da borda inclinada, cerca de 1,4% da área); uma segunda não tem lugar, porque a tampa de trás tem só 42 mm de comprimento. Quatro pontos pedem mudança no chassi ou na posição dos sensores:
+O `doc/montagem/README.md` traz o espaço que sobra e o que falta no chassi, com as medidas. Quatro pontos pedem decisão do projeto mecânico: os três VL53L0X da frente apontam uns 27° para cima (a borda de baixo do cone passa a 49 mm de altura a 100 mm de distância), os conectores dos pinos de trás da extensora batem na cunha de apoio da tampa da frente, os fios entre os andares precisam de passa-fios (a página propõe um na tampa da frente), e a largura de 151 mm deixa só 1 mm de folga até o gabarito de 152 mm.
 
-- os TCRT5000 da frente precisam de um rasgo de 10 x 15 x 6 mm na parede da rampa, porque o PCB passa por ela, e os VL53L0X FE, FD e FC precisam de janela na rampa;
-- os TCRT5000 de trás ficam atrás do motor, com a ponta para fora do chassi (a posição que o projetista do chassi indicou), e saem 32,6 mm atrás da base: o comprimento vira 181,6 mm contra os 152 mm do quadrado da classe de 1 kg (a largura fica em 149 mm);
-- o TE e o TD ficam a ±160°, com a lente na face de fora da lateral (y = ±74 mm): o suporte de 32 mm girado 20° sai uns 14 mm da lateral de cada lado e a largura vai de 149 para uns 177 mm, contra 152 mm do gabarito da largada; as saídas são um suporte só do módulo, em cunha, ou uma janela inclinada com o módulo mais para dentro. Com a lente recuada para y = 72 mm, a borda de trás da janela corta o terço de dentro do cone (de 167,5° a 172,5°), e a partir de y = 73,1 mm o cone fica livre. O suporte do TE deixou de se sobrepor ao do LE, que era a pendência da versão reta;
-- o módulo do LE encosta 91 mm³ no TCRT5000 BFE: afastar o BFE 3 mm para a frente.
-
-Com os STL do chassi remodelado:
+Com um editor 3D novo:
 
 ```
-python ferramentas/step_para_stl.py LAB3-Modelagem.step PASTA_DO_CHASSI        # um STL por peça do STEP
-python ferramentas/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES      # refaz o doc/montagem/pecas.js
-# ajuste pos e rot das peças no doc/montagem/montagem.json
-python ferramentas/gera_montagem.py --interferencias                           # refaz a página e a lista de interferências
+python ferramentas/exporta_pecas.py robo_3d_editor.html       # refaz o doc/montagem/pecas.js e o editor.json
+python ferramentas/gera_montagem.py                            # confere o config.h contra o editor e refaz a página
+python ferramentas/roteia_fios.py                              # refaz o caminho dos fios
+python ferramentas/gera_montagem.py --interferencias           # refaz a lista de interferências
 ```
 
-O `step_para_stl.py` precisa de `pip install cadquery-ocp`; o `exporta_pecas.py` e a conferência de interferências precisam de `pip install trimesh fast-simplification networkx scipy`; o resto do `gera_montagem.py` usa só o Python, com as contas em float do próprio Python, então a página sai igual em qualquer computador.
+O `exporta_pecas.py`, o `roteia_fios.py` e a conferência de interferências precisam de `pip install trimesh fast-simplification networkx scipy scikit-image`; o resto do `gera_montagem.py` usa só o Python, com as contas em float do próprio Python, então a página sai igual em qualquer computador.
 
 ## Instalação
 
@@ -875,7 +870,7 @@ LAB_III_Grupo_D_UFMG_2026_2/
     img/                    imagens deste README
     pdf/                    gabarito_bancada.pdf, guia_montagem_sensores.pdf e guia_montagem_sensores_7.pdf
     combate/                modelo da página do combate (combate_src.html), malhas do STL, textos e bateria.json
-    montagem/               modelo da página da montagem, montagem.json, pecas.js, interferencias.json e README.md
+    montagem/               modelo da página da montagem, montagem.json, pecas.js, editor.json, rotas_fios.json, interferencias.json, os STL do chassi e README.md
       modelos/              suporte do VL53L0X (STL e .scad) e módulo CJVL53L0XV2
   ferramentas/              scripts em Python que geram os arquivos versionados
     gera_painel.py          painel/painel_src.html e painel/vendor/ -> painel/painel_sumo.html
@@ -886,7 +881,8 @@ LAB_III_Grupo_D_UFMG_2026_2/
     gera_bancada.py         config.h -> doc/pdf/gabarito_bancada.pdf
     gera_guia.py            config.h -> doc/pdf/guia_montagem_sensores(_7).pdf
     step_para_stl.py        STEP do projeto mecânico -> um STL por peça
-    exporta_pecas.py        STL do chassi e dos componentes -> doc/montagem/pecas.js
+    exporta_pecas.py        HTML do editor 3D -> doc/montagem/pecas.js e editor.json
+    roteia_fios.py          peças e ligações -> doc/montagem/rotas_fios.json (caminho de cada fio)
     exporta_malhas.py       STL do robô -> doc/combate/malhas.js
     gera_modulo_cj.py       módulo CJVL53L0XV2 -> doc/montagem/modelos/cj_vl53l0x.stl
   teste/

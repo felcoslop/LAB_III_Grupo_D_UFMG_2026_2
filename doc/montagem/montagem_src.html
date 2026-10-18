@@ -105,7 +105,7 @@ ol.passos code, .mono code { font-family: var(--f-mono); font-size: 0.82rem; bac
   <header class="topo">
     <h3>UFMG · ELE635 · Grupo D · robô de sumô de 1 kg</h3>
     <h1>Montagem do robô com os jumpers</h1>
-    <p class="local">Cada componente encaixado no chassi e cada fio do esquema elétrico, com a ponta de cada jumper: <b>fêmea</b> nos pinos machos dos módulos, <b>macho</b> nos furos da protoboard de 81 x 55 mm onde o ESP32 está encaixado; a chave DIP e o botão de ligar ficam nos furos da tampa de trás. Os sete VL53L0X vão no suporte de PLA <i>Mounting Bracket for VL53L0X Module</i>. Os sensores ficam nas posições do <span class="mono">config.h</span> e os GPIOs de cada fio também saem dele, então a página acompanha o firmware.</p>
+    <p class="local">O chassi de dois andares do editor 3D v11, peça por peça, e cada fio do esquema elétrico com a ponta de cada jumper: <b>fêmea</b> nos pinos machos dos módulos e da extensora, <b>macho</b> nos furos da protoboard de meia página, que só faz o barramento de SDA e SCL dos sete VL53L0X. Embaixo ficam a ponte H, os motores, os sensores e a prateleira com a extensora e o ESP32; por cima da tampa ficam a bateria 3S, o BMS, a célula da lógica, o regulador, a chave DIP, o botão de início e a chave liga e desliga. As posições e os ângulos dos sensores vêm do editor e batem com o <span class="mono">config.h</span> (o gerador confere), e os GPIOs de cada fio saem dele, então a página acompanha o firmware. Os caminhos dos fios são calculados no modelo 3D, com folga de 1,5 mm.</p>
     <p class="aviso" id="provisorio"></p>
   </header>
 
@@ -152,10 +152,16 @@ ol.passos code, .mono code { font-family: var(--f-mono); font-size: 0.82rem; bac
     </section>
     <section class="secao">
       <h2>Interferências</h2>
-      <p class="local">Peças que ocupam o mesmo lugar (sobreposição de mais de 3 mm, em voxels de 1,5 mm). Encostar uma na outra não conta.</p>
+      <p class="local">Peças que ocupam o mesmo lugar (sobreposição de mais de 2 mm, em voxels de 1 mm). Encostar uma na outra não conta.</p>
       <div class="rola"><table id="tabInter"></table></div>
     </section>
   </div>
+
+  <section class="secao">
+    <h2>Conectores dos jumpers contra o chassi</h2>
+    <p class="local">A caixa de 2,6 mm do conector, da ponta do pino até onde o fio sai (8 mm de fêmea, 9 mm de macho), contra as outras peças. Só entram os que ocupam mais de 30 mm³.</p>
+    <div class="rola"><table id="tabConect"></table></div>
+  </section>
 
   <section class="secao">
     <h2>Diferenças entre o Fritzing e o firmware</h2>
@@ -164,12 +170,11 @@ ol.passos code, .mono code { font-family: var(--f-mono); font-size: 0.82rem; bac
   </section>
 
   <section class="secao">
-    <h2>Quando os STL finais chegarem</h2>
+    <h2>Quando o editor 3D mudar</h2>
     <ol class="passos">
-      <li>Coloque os STL do chassi numa pasta e os dos componentes em outra (os nomes ficam no <code>doc/montagem/montagem.json</code>, bloco <code>modelos</code>).</li>
-      <li>Rode <code>python ferramentas/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES</code>, que refaz o <code>doc/montagem/pecas.js</code>.</li>
-      <li>Ajuste <code>pos</code> e <code>rot</code> de cada peça no bloco <code>pecas</code> do mesmo arquivo; os sensores saem sozinhos do <code>config.h</code>.</li>
-      <li>Rode <code>python ferramentas/gera_montagem.py</code> e confira a tabela de interferências até ela ficar vazia.</li>
+      <li>Salve o HTML do editor 3D (<code>robo_3d_editor_v11.html</code> ou o próximo) e rode <code>python ferramentas/exporta_pecas.py ARQUIVO.html</code>, que refaz o <code>doc/montagem/pecas.js</code> e as matrizes das peças repetidas em <code>doc/montagem/editor.json</code>.</li>
+      <li>Rode <code>python ferramentas/gera_montagem.py</code>. Se a posição ou o ângulo de um sensor no editor não bater com a tabela <code>TOF</code> ou <code>BORDA</code> do <code>config.h</code>, o gerador para e mostra a diferença: ajuste o <code>config.h</code> (ou o editor) até os dois dizerem a mesma coisa.</li>
+      <li>Rode <code>python ferramentas/roteia_fios.py</code> para refazer o caminho de cada fio, e depois <code>python ferramentas/gera_montagem.py --interferencias</code> para refazer a tabela de interferências.</li>
     </ol>
   </section>
 </div>
@@ -186,7 +191,7 @@ const PECAS = window.PECAS;
 let precisa = true;
 const pede = () => { precisa = true; };
 const $ = (id) => document.getElementById(id);
-const TIPO = {FF: "fêmea-fêmea", MF: "macho-fêmea", MM: "macho-macho", SM: "soldado + macho", S: "soldado ou borne"};
+const TIPO = {FF: "fêmea-fêmea", MF: "macho-fêmea", MM: "macho-macho", SF: "soldado + fêmea", SM: "soldado + macho", S: "soldado ou borne"};
 const PONTA = {femea: 14, macho: 9, solda: 2, borne: 6};
 $("provisorio").textContent = D.provisorio;
 
@@ -195,16 +200,17 @@ const PEC = Object.fromEntries(D.pecas.map((p) => [p.id, p]));
 function curto(id) {
   const p = PEC[id];
   if (!p) return id;
-  if (p.modelo === "vl53l0x") return "VL53L0X " + id;
+  if (p.modelo.startsWith("vl53")) return "VL53L0X " + id;
   if (p.modelo === "tcrt5000") return "TCRT5000 " + id;
-  return p.nome.replace(/\s*\(.*$/, "");
+  return p.nome.replace(/\s*\(.*$/, "").replace(/:.*$/, "");
 }
 function nomePonto(ref) {
   const [id, pino] = ref.split(":");
-  if (id === "proto") {
-    if (pino[0] === "P" || pino[0] === "M") return `Protoboard · trilho de ${pino[0] === "P" ? "3V3" : "GND"}, furo ${pino.slice(1)}`;
-    const g = D.furo_gpio[pino];
-    return `Protoboard · furo ${pino}` + (g ? ` (coluna do ${g})` : "");
+  if (id === "proto") return `Protoboard · furo ${pino}` + (pino[1] === String(D.proto.SDA) ? " (coluna do SDA)" : pino.slice(1) === String(D.proto.SCL) ? " (coluna do SCL)" : "");
+  if (id === "ext") {
+    const g = pino.replace(/^[SVG]/, "");
+    const letra = {S: "S (sinal)", V: "V (3,3 V)", G: "G (GND)"}[pino[0]];
+    return `Extensora · ${letra} do ${g === "3V3" ? "3V3" : g.startsWith("GND") ? "GND" : g === "VIN" ? "VIN" : "GPIO " + g}`;
   }
   return `${curto(id)} · ${pino}`;
 }
@@ -249,6 +255,12 @@ function geometria(nome) {
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   g.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
+  if (d.c) {
+    const c8 = new Uint8Array(buf(d.c)), cor = new Float32Array(c8.length);
+    const lin = (v) => Math.pow(v / 255, 2.2);
+    for (let i = 0; i < c8.length; i++) cor[i] = lin(c8[i]);
+    g.setAttribute("color", new THREE.BufferAttribute(cor, 3));
+  }
   g.setIndex(new THREE.BufferAttribute(idx, 1));
   g.computeBoundingSphere();
   return (GEO[nome] = g);
@@ -295,7 +307,10 @@ for (const p of D.pecas) {
   let obj;
   const proc = D.modelos[p.modelo];
   if (proc) obj = procedural(proc, p.cor, p.opacidade);
-  else obj = new THREE.Mesh(geometria(p.modelo), material(p.cor, p.opacidade));
+  else {
+    const geo = geometria(p.modelo);
+    obj = new THREE.Mesh(geo, material(p.cor, p.opacidade, geo.getAttribute("color") ? {vertexColors: true, color: 0xffffff} : {}));
+  }
   obj.matrixAutoUpdate = false;
   obj.matrix.fromArray(p.m);
   obj.visible = p.visivel !== false;
@@ -303,7 +318,7 @@ for (const p of D.pecas) {
   if (p.opacidade < 1) obj.renderOrder = 2;
   cena.add(obj);
   objetos[p.id] = obj;
-  const gr = p.id === "corpo" ? "corpo" : p.grupo;
+  const gr = p.grupo;
   (grupoPeca[gr] = grupoPeca[gr] || []).push(obj);
 }
 
@@ -323,7 +338,7 @@ function ponta(tipo, p, d) {
   const P = new THREE.Vector3(...p), Dv = new THREE.Vector3(...d).normalize();
   const q = new THREE.Quaternion().setFromUnitVectors(Z, Dv);
   const poe = (geo, mat, dist) => { const m = new THREE.Mesh(geo, mat); m.position.copy(P).addScaledVector(Dv, dist); m.quaternion.copy(q); g.add(m); };
-  if (tipo === "femea") poe(GEO_FEMEA, MAT_CAPA, PONTA.femea / 2);
+  if (tipo === "femea") poe(GEO_FEMEA, MAT_CAPA, 1.0);
   else if (tipo === "macho") { poe(GEO_MACHO, MAT_CAPA, PONTA.macho / 2); poe(GEO_PINO, MAT_PINO, -3); }
   else if (tipo === "solda") poe(GEO_SOLDA, MAT_SOLDA, 0);
   else poe(GEO_COBRE, MAT_COBRE, PONTA.borne / 2);
@@ -334,7 +349,7 @@ const grupoFio = {};
 D.fios.forEach((f, i) => {
   const pts = f.pts.map((p) => new THREE.Vector3(...p));
   const curva = new THREE.CatmullRomCurve3(pts, false, "centripetal");
-  const raio = f.tipo === "S" || f.tipo === "SM" ? 0.85 : 0.65;
+  const raio = f.tipo === "S" || f.tipo === "SM" || f.tipo === "SF" ? 0.85 : 0.65;
   const mat = material(f.cor, 1, {roughness: 0.42, emissive: 0x000000});
   const tubo = new THREE.Mesh(new THREE.TubeGeometry(curva, Math.max(24, pts.length * 3), raio, 7, false), mat);
   tubo.userData = {fio: i};
@@ -361,33 +376,29 @@ function rotulo(texto, pos, escala = 1, cor = "#f2f4f0", fundo = "rgba(12,14,16,
 }
 function ondeNaPeca(id, local) { return new THREE.Vector3(...local).applyMatrix4(objetos[id].matrix).toArray(); }
 // GPIO de cada furo de sinal usado, nomes dos barramentos
-for (const r of D.rotulos) rotulo(r.txt, r.pos, 0.8, r.cor);
-for (const p of D.pecas) if (p.modelo === "vl53l0x" || p.modelo === "tcrt5000") {
-  const loc = p.modelo === "vl53l0x" ? [0, 9, 0] : [-15.5, 0, 20];
-  rotulo(p.id, ondeNaPeca(p.id, loc), 1.0, "#ffffff", p.modelo === "vl53l0x" ? "rgba(32,105,52,0.9)" : "rgba(28,84,150,0.9)");
-}
-rotulo("BOOT = START (GPIO 0)", ondeNaPeca("esp", [21.7, -7.7, 22]), 0.8, "#ffe9a8");
-rotulo("DIP 1 2 3 4", ondeNaPeca("dip", [0, 0, 18]), 0.8, "#cfe0ff");
+for (const r of D.rotulos) rotulo(r.txt, r.pos, r.escala || 0.8, r.cor, r.fundo);
 
 // ------------------------------------------------------------------ painel lateral
 const cont = {};
 D.fios.forEach((f) => (cont[f.tipo] = (cont[f.tipo] || 0) + 1));
-$("contagem").innerHTML = ["FF", "MF", "MM", "SM", "S"].filter((t) => cont[t])
+$("contagem").innerHTML = ["FF", "MF", "MM", "SF", "SM", "S"].filter((t) => cont[t])
   .map((t) => `<span class="chip">${cont[t]} ${TIPO[t]}</span>`).join("");
 
 const SVG = {
   FF: '<svg viewBox="0 0 96 22"><rect x="2" y="7" width="22" height="8" rx="1" fill="#17181a"/><path d="M24 11 H72" stroke="#2e9e44" stroke-width="3"/><rect x="72" y="7" width="22" height="8" rx="1" fill="#17181a"/></svg>',
   MF: '<svg viewBox="0 0 96 22"><rect x="2" y="7" width="22" height="8" rx="1" fill="#17181a"/><path d="M24 11 H74" stroke="#d81b9a" stroke-width="3"/><rect x="74" y="7" width="14" height="8" rx="1" fill="#17181a"/><rect x="88" y="10" width="8" height="2" fill="#d7b45a"/></svg>',
   MM: '<svg viewBox="0 0 96 22"><rect x="0" y="10" width="8" height="2" fill="#d7b45a"/><rect x="8" y="7" width="14" height="8" rx="1" fill="#17181a"/><path d="M22 11 H74" stroke="#a8a8a8" stroke-width="3"/><rect x="74" y="7" width="14" height="8" rx="1" fill="#17181a"/><rect x="88" y="10" width="8" height="2" fill="#d7b45a"/></svg>',
+  SF: '<svg viewBox="0 0 96 22"><circle cx="7" cy="11" r="4" fill="#c8ccd0"/><path d="M11 11 H72" stroke="#d7372f" stroke-width="3.6"/><rect x="72" y="7" width="22" height="8" rx="1" fill="#17181a"/></svg>',
   SM: '<svg viewBox="0 0 96 22"><circle cx="7" cy="11" r="4" fill="#c8ccd0"/><path d="M11 11 H74" stroke="#d7372f" stroke-width="3.6"/><rect x="74" y="7" width="14" height="8" rx="1" fill="#17181a"/><rect x="88" y="10" width="8" height="2" fill="#d7b45a"/></svg>',
   S: '<svg viewBox="0 0 96 22"><circle cx="7" cy="11" r="4" fill="#c8ccd0"/><path d="M11 11 H82" stroke="#c62828" stroke-width="3.6"/><rect x="82" y="9.5" width="12" height="3" fill="#c07a3c"/></svg>',
 };
 const TXT = {
-  FF: "<b>fêmea-fêmea</b>: entre dois pinos machos.",
-  MF: "<b>macho-fêmea</b>: a fêmea no pino do sensor, o macho no furo da protoboard.",
+  FF: "<b>fêmea-fêmea</b>: entre dois pinos machos (sensor e extensora, ponte H e extensora).",
+  MF: "<b>macho-fêmea</b>: a fêmea no pino do sensor ou da extensora, o macho no furo da protoboard.",
   MM: "<b>macho-macho</b>: entre dois furos da protoboard.",
-  SM: "<b>soldado + macho</b>: fio soldado (regulador, chave DIP) com a ponta macho no furo da protoboard.",
-  S: "<b>soldado ou borne</b>: bateria, BMS, motores e alimentação da ponte H.",
+  SF: "<b>soldado + fêmea</b>: jumper fêmea cortado ao meio e soldado (chave DIP, regulador) com a fêmea no pino da extensora.",
+  SM: "<b>soldado + macho</b>: fio soldado com a ponta macho no furo da protoboard.",
+  S: "<b>soldado ou borne</b>: bateria, BMS, motores, botão de início e alimentação da ponte H.",
 };
 $("legenda").innerHTML = Object.keys(SVG).filter((t) => cont[t]).map((t) => `<div class="item">${SVG[t]}<span>${TXT[t]}</span></div>`).join("");
 
@@ -403,13 +414,14 @@ function marcas(alvo, grupos, rotulosG, padrao, ao) {
     lab.querySelector("input").addEventListener("change", (e) => ao(g, e.target.checked));
   }
 }
-const corGrupo = {"I2C": "#d81b9a", "Sensores de oponente": "#2e9e44", "Sensores de borda": "#1fbcc4", "Chave DIP": "#2f6fd6",
+const corGrupo = {"I2C": "#d81b9a", "Sensores de oponente": "#2e9e44", "Sensores de borda": "#1fbcc4", "Chave DIP": "#2f6fd6", "Botão de início": "#7a5230",
   "Ponte H": "#8e44ad", "Motores": "#2f9a3e", "Bateria 3S": "#c62828", "Lógica": "#d7372f"};
 marcas("marcasFios", grupoFio, Object.keys(grupoFio).map((g) => [g, grupoFio[g].length, corGrupo[g]]), () => true,
   (g, v) => { grupoFio[g].forEach((o) => (o.visible = v)); pede(); });
-const NOMES_P = {chassi: ["Chassi e motores", "#3b414b"], corpo: ["Corpo do chassi", "#565e6b"], potencia: ["Bateria 3S, BMS e ponte H", "#b3261e"],
-  logica: ["Bateria da lógica e regulador", "#7b2a8f"], controle: ["ESP32, protoboard e chave DIP", "#1f4e8c"], sensores: ["Sensores", "#2b7a3a"]};
-const ordemP = ["sensores", "controle", "potencia", "logica", "chassi", "corpo"];
+const NOMES_P = {chassi: ["Chassi, motores e rodas", "#3b414b"], tampas: ["Tampas", "#565e6b"], potencia: ["Bateria 3S, BMS e ponte H", "#b3261e"],
+  logica: ["Bateria da lógica e regulador", "#7b2a8f"], controle: ["Extensora, ESP32, protoboard, DIP e botão", "#1f4e8c"], sensores: ["Sensores e suportes", "#2b7a3a"],
+  passafios: ["Passa-fios propostos", "#f08c00"]};
+const ordemP = ["sensores", "controle", "potencia", "logica", "passafios", "chassi", "tampas"];
 marcas("marcasPecas", grupoPeca, ordemP.filter((g) => grupoPeca[g]).map((g) => [NOMES_P[g][0], grupoPeca[g].length, NOMES_P[g][1]]),
   () => true, (nome, v) => {
     const g = ordemP.find((k) => NOMES_P[k][0] === nome);
@@ -443,14 +455,18 @@ tab.addEventListener("keydown", (e) => { if (e.key === "Enter") { const tr = e.t
 
 $("tabCompras").innerHTML = "<thead><tr><th>Jumper</th><th>Tamanho</th><th>Quantidade</th></tr></thead><tbody>" +
   D.compras.map((c) => `<tr><td class="tipo">${TIPO[c.tipo]}</td><td class="num">${c.cm ? c.cm + " cm" : "curto (até 4 cm)"}</td><td class="num">${c.n}</td></tr>`).join("") +
-  `<tr><td colspan="3" class="vazio">Fios soldados: 22 AWG vermelho e preto para a bateria, os motores e a ponte H; fita de níquel entre as células.</td></tr></tbody>`;
+  `<tr><td colspan="3" class="vazio">Os de solda saem de jumpers cortados ao meio. Fios 22 AWG vermelho e preto para a bateria, os motores e a ponte H; fita de níquel entre as células.</td></tr></tbody>`;
 
 const inter = D.interferencias;
 $("tabInter").innerHTML = inter === null ? '<tbody><tr><td class="vazio">Conferência não calculada nesta versão da página.</td></tr></tbody>'
   : inter.length === 0 ? '<tbody><tr><td class="ok">Nenhuma interferência.</td></tr></tbody>'
   : "<thead><tr><th>Peça</th><th>Peça</th><th>Volume</th></tr></thead><tbody>" +
-    inter.map((p) => `<tr><td>${p.a}</td><td>${p.b}${p.encaixe ? ' <span class="vazio">(encaixe na janela)</span>' : ""}</td>` +
+    inter.map((p) => `<tr><td>${p.a}</td><td>${p.b}${p.encaixe ? ' <span class="vazio">(encaixe)</span>' : ""}</td>` +
       `<td class="num ${p.encaixe ? "" : "mal"}">${p.mm3.toLocaleString("pt-BR")} mm³</td></tr>`).join("") + "</tbody>";
+
+$("tabConect").innerHTML = D.conectores.length === 0 ? '<tbody><tr><td class="ok">Todos os conectores cabem.</td></tr></tbody>'
+  : "<thead><tr><th>Conector</th><th>Fio</th><th>Volume</th></tr></thead><tbody>" +
+    D.conectores.map((c) => `<tr><td>${nomePonto(c.ponto)}</td><td class="mono">${c.fio}</td><td class="num mal">${c.mm3.toLocaleString("pt-BR")} mm³</td></tr>`).join("") + "</tbody>";
 
 $("tabDif").innerHTML = "<thead><tr><th>Item</th><th>Fritzing</th><th>Firmware e Lab3-Liga</th><th>Por quê</th></tr></thead><tbody>" +
   D.diferencas.map((d) => `<tr><td><b>${d.item}</b></td><td>${d.fritzing}</td><td>${d.firmware}</td><td>${d.porque}</td></tr>`).join("") + "</tbody>";
@@ -519,13 +535,15 @@ renderer.domElement.addEventListener("pointerup", (ev) => {
 
 // ------------------------------------------------------------------ câmeras
 const CAMS = [
-  ["Perspectiva", [250, 215, 185], [45, 0, 32]],
-  ["De cima", [45.01, 0, 430], [45, 0, 30]],
-  ["Frente", [330, -20, 70], [45, 0, 30]],
-  ["Lado esquerdo", [50, 330, 70], [45, 0, 30]],
-  ["Trás", [-260, -40, 120], [20, 0, 45]],
-  ["Protoboard e ESP32", [18, -120, 190], [43, 0, 60]],
-  ["Tampa de trás", [-150, -90, 150], [-5, 0, 48]],
+  ["Perspectiva", [250, 215, 185], [40, 0, 38]],
+  ["De cima", [40.01, 0, 440], [40, 0, 30]],
+  ["Frente", [340, -20, 80], [40, 0, 35]],
+  ["Lado esquerdo", [40, 330, 90], [40, 0, 35]],
+  ["Trás", [-260, -40, 120], [10, 0, 45]],
+  ["Andar do meio", [-70, 170, 120], [44, 0, 38]],
+  ["Extensora e ESP32", [10, -150, 170], [44, 0, 45]],
+  ["Tampa de trás", [-150, -90, 150], [-5, 0, 50]],
+  ["Baterias", [120, 120, 190], [40, 40, 70]],
 ];
 const botoes = [];
 for (const [nome, pos, alvo] of CAMS) {

@@ -1,69 +1,98 @@
-# Montagem 3D: modelos, posições e espaço no chassi
+# Montagem 3D: modelos, posições, fios e espaço no chassi
 
 Esta pasta guarda os dados da página `site/montagem.html` (robô montado em 3D, com cada jumper),
 que o `ferramentas/gera_montagem.py` gera. O `README.md` da raiz explica a página; aqui ficam o
-fluxo de arquivos e a conferência de espaço no chassi do projeto mecânico (STEP LAB3-Modelagem,
-outubro de 2026).
+fluxo de arquivos e a conferência de espaço no chassi de dois andares do editor 3D v11 (STL do
+grupo, outubro de 2026).
 
 ## Arquivos
 
 | Arquivo | Para que serve |
 |---|---|
-| `ferramentas/step_para_stl.py` | separa o STEP do projeto mecânico em um STL por peça (precisa de `pip install cadquery-ocp`) |
-| `ferramentas/exporta_pecas.py` | junta os STL do chassi e dos componentes em malhas compactas (`pecas.js`, nesta pasta) |
-| `montagem.json` | posição e giro de cada peça, pinos de cada modelo, ordem dos pinos do ESP32 na protoboard, uso da protoboard (I2C, 3V3 e GND) e caminho dos feixes de fios |
+| `ferramentas/exporta_pecas.py` | lê o HTML do editor 3D e grava as malhas compactas (`pecas.js`, com a cor de cada vértice) e a matriz de cada peça repetida (`editor.json`, achada por ajuste de corpo rígido entre as cópias) |
+| `montagem.json` | modelos (de quais peças do editor vem cada malha), peças, pinos de cada modelo, uso da protoboard (só o barramento de I2C), passa-fios propostos, contorno do chassi e diferenças do esquema |
+| `editor.json` | matrizes das peças repetidas (sete VL53L0X, quatro TCRT5000, células); gerado, não editar |
+| `ferramentas/roteia_fios.py` | acha o caminho de cada fio por dentro do chassi (voxels de 1,5 mm, custo mínimo, folga de 1,5 mm) e grava `rotas_fios.json`, com a lista de conectores de jumper que batem no chassi |
+| `rotas_fios.json` | pontos de passagem de cada fio; gerado, não editar |
 | `montagem_src.html` | modelo da página, com as marcações que o gerador troca pelas peças e pelos dados |
-| `ferramentas/gera_montagem.py` | monta a página, a lista de jumpers e a lista de interferências (`interferencias.json`, nesta pasta) |
+| `ferramentas/gera_montagem.py` | monta a página, a lista de jumpers e a lista de interferências (`interferencias.json`, nesta pasta); para se o editor e o `config.h` discordarem na posição ou no ângulo de um sensor |
+| `modelos/chassi/` | os STL do chassi do grupo, uma peça por arquivo (base, rampa, laterais, hastes, tampa, suportes dos motores, prateleira, calço em V e suportes de 160°) |
 | `modelos/` | suporte do VL53L0X (`vl53l0x-bracket.stl`, do Cults3D, e o `.scad` de origem) e o módulo CJVL53L0XV2 no rebaixo dele (`cj_vl53l0x.stl`, do `ferramentas/gera_modulo_cj.py`) |
 
 Referencial do robô: origem no meio do eixo das rodas, no chão, x para a frente, y para a esquerda
-e z para cima, em mm. O STEP tem a frente em -x, o eixo das rodas em x = 51 mm e o chão 3 mm abaixo
-do z = 0 do desenho; o `exporta_pecas.py` converte para o referencial do robô (`x = 51 - x`,
-`y = -y`, `z = z + 3`).
+e z para cima, em mm. O editor tem a frente em -x, o eixo das rodas em x = 51 mm e o chão 3 mm
+abaixo do z = 0 do desenho; o `exporta_pecas.py` converte para o referencial do robô
+(`x = 51 - x`, `y = -y`, `z = z + 3`, giro de 180 graus em z, sem espelhar).
 
 Para trocar o chassi:
 
 ```
-python ferramentas/step_para_stl.py LAB3-Modelagem.step PASTA_DO_CHASSI
-python ferramentas/exporta_pecas.py PASTA_DO_CHASSI PASTA_DOS_COMPONENTES
+python ferramentas/exporta_pecas.py robo_3d_editor.html
+python ferramentas/gera_montagem.py          # confere o config.h contra o editor
+python ferramentas/roteia_fios.py
 python ferramentas/gera_montagem.py --interferencias
 ```
 
+## Os dois andares
+
+| Andar | O que fica nele |
+|---|---|
+| Base (z de 3 a 45 mm) | ponte H HW-956 (x de 30 a 71 mm), os dois motorredutores com as rodas, os quatro TCRT5000, os sete VL53L0X em seus suportes; entre os dois motores sobra só uma passagem de 5 mm (y de -2 a 3 mm), o único caminho dos fios entre a metade de trás e a da frente |
+| Prateleira (placa em z de 31,2 a 32,8 mm, x de 17 a 71 mm, y de -37 a 38 mm, abas até y = ±51 mm) | extensora do ESP32 (z até 47,4 mm) e o ESP32 DevKit (z até 51,1 mm); dos lados da placa a prateleira é vazada, então os fios sobem da base pelas laterais |
+| Tampa de trás (z de 46 a 47 mm, x de -26 a 15 mm) | furos A (chave DIP, x de 2 a 10 mm), B (botão de início, x de -8 a -2 mm) e C (chave KCD1, x de -22 a -12 mm); por cima, a célula 18650 da lógica (y de 6 a 75 mm) e o regulador TPS63070 |
+| Tampa da frente (z de 53 a 55 mm, x de 16 a 77 mm) | as três células 18650 da bateria 3S (z de 55 a 74 mm), o BMS por cima (z até 78 mm) e a protoboard de meia página (83,6 x 56 mm, y de -64 a -8 mm) |
+
+A protoboard de meia página só faz o barramento de I2C: SDA na coluna 9 e SCL na 11, cada uma
+com um jumper curto entre as duas metades (e com f), e sobram oito furos por barramento (sete
+sensores e o fio até a extensora). Todo o resto vai nos trios S, V e G da extensora, um trio por
+GPIO: cada VL53L0X leva XSHUT, VIN e GND no trio do seu GPIO de XSHUT, e cada TCRT5000 leva A0,
+VCC e GND no trio do seu GPIO (o D0 fica sem fio).
+
 ## Suporte dos sete VL53L0X
 
-Os sete sensores de oponente usam o suporte *Mounting Bracket for VL53L0X Module* do Cults3D: uma
-placa de PLA de 32 x 20 x 3,5 mm com o rebaixo do módulo e dois furos de fixação. A lente fica na
-altura `LENTE_ALTURA_MM` do `config.h`, e a posição e o ângulo de cada suporte saem da tabela `TOF`.
-O suporte tem licença própria do autor; o STL não foi alterado, só movido e girado na página.
+Os sete sensores de oponente usam o suporte do grupo (módulo CJVL53L0XV2 no rebaixo do suporte de
+PLA): FE, FC e FD na face inclinada da frente (o FC em calço em V), LE e LD retos na lateral à
+frente do eixo, TE e TD em suportes angulares de 160° atrás da roda. As posições e os ângulos saem
+do editor e batem com a tabela `TOF` do `config.h` (o gerador confere, com 2 mm e 1 grau de
+tolerância):
 
-## Espaço no chassi
+| Sensor | x (mm) | y (mm) | Ângulo | Altura da lente |
+|---|---|---|---|---|
+| LE, LD | 46 | ±70 | ±90° | 24,0 mm |
+| FE, FD | 77 | ±32 a ±34 | ±17° | 23,9 mm |
+| FC | 83 | 0 | 0° | 23,0 mm |
+| TE, TD | -30 | ±66 | ±160° | 29,1 e 30,1 mm |
 
-Medidas tiradas dos blocos de 1 mm do STEP (precisão de 0,5 mm) e das malhas dos componentes.
+## Espaço no chassi e pendências
 
-| Item | Medida | Folga ou problema |
-|---|---|---|
-| Corpo do chassi | x de -31 a 118 mm e y de -74,5 a 74,5 mm: 149 x 149 mm | cabe no gabarito de 15,2 x 15,2 cm da classe Lego/Vex de 1 kg, com 3 mm de sobra |
-| Quatro células 18650 (3S mais a da lógica) | bloco de 2 x 2 em x de 27,8 a 65 mm, z de 12 a 49,2 mm | 3,8 mm até a face de baixo da tampa (z = 53 mm) |
-| BMS 3S | x de 61,9 a 82,1 mm, deitado a z = 12 mm | cabe à frente do bloco das células |
-| TPS63070 | em x = 44 mm, y = -50 mm, z = 12 mm | cabe ao lado do bloco, na caixa da direita |
-| Ponte H HW-956 | na tampa de trás (z = 46,9 mm), em y = 45 mm, com a barra de sinais para trás | cabe |
-| Chave DIP de 4 vias (11,8 x 10,4 mm) | no furo A da tampa de trás (x de -23 a -11 mm, y de -6 a 6 mm: 12 x 12 mm) | cabe, com 0,2 mm de folga em x e 1,6 mm em y: apertado, colar a chave com cola quente |
-| Botão de ligar (mini gangorra de 15 x 10 mm, recorte de 13 x 9 mm) | no furo B da tampa de trás (x de -9,5 a -0,5 mm, y de -6,6 a 6,6 mm: 9,1 x 13,1 mm) | cabe: o furo é do tamanho desse recorte |
-| Furo C da tampa de trás | x de 2 a 12 mm, y de -5,9 a 5,9 mm | livre: a página usa como passa-fios dos sensores de borda de trás e dos motores |
-| Protoboard de 400 pontos (81 x 55 mm) com o ESP32 DevKit em cima | na tampa da frente (z = 55 mm), com os 81 mm em y e os 55 mm em x, de x = 16 a 71 mm | cabe: a tampa é plana de x = 16 a 77 mm no meio e se estreita para a ponta, então só um canto de 6 mm da protoboard passa da borda inclinada (cerca de 1,4% da área). O DevKit chega a z = 71 mm |
-| Segunda protoboard de 81 x 55 mm | não tem lugar | a tampa de trás tem só 42 mm de comprimento (x de -26 a 15 mm) e a da frente já está ocupada; o que a segunda faria (barramentos de I2C, 3V3 e GND) cabe nas colunas 1 a 13 e nos trilhos da primeira |
-| TCRT5000 da frente (BFE e BFD) | corpo de 38 mm, com o par infravermelho a 4 mm do chão e o PCB a 14 mm | o PCB atravessa a parede da rampa: **precisa de um rasgo** de 10 x 15 x 6 mm (x de 72 a 81 mm, y de ±55 a ±69 mm, z de 14 a 19 mm) em cada lado |
-| TCRT5000 de trás (BTE e BTD) | atrás do motor, com os pinos para a frente e a ponta para fora | sai 32,6 mm atrás da base (x = -63,6 mm): o comprimento total vira 181,6 mm, **acima do gabarito de 15,2 cm** da classe |
-| VL53L0X FE, FD e FC | módulos na face inclinada da rampa | precisam de janela na rampa: FE (x de 79 a 84 mm, y de 25 a 43 mm, z de 21 a 29 mm), FD (x de 75 a 79 mm, y de -42 a -39 mm, z de 25 a 29 mm) e FC (x de 85 a 92 mm, y de -7 a 0 mm, z de 26 a 29 mm) |
-| VL53L0X LE e LD | janela entre os montantes da lateral, com o suporte colado por dentro | cabem; o módulo do LE encosta 91 mm³ no BFE (o LD não encosta no BFD): afastar o BFE 3 mm para a frente |
-| VL53L0X TE e TD (a ±160°, olhando para trás) | janela da lateral de x = 22,4 a 42,4 mm (centro a 32,4 mm), com a lente em y = ±74 mm (face de fora da lateral) e o suporte inclinado 20° para fora | **Pendências**: (1) o suporte de 32 mm girado sai até y = ±88,7 mm, uns 14 mm da lateral, e a largura total passa de 149 para uns 177 mm, contra 152 mm do gabarito; (2) o módulo do TE encosta 71 mm³ na lateral (o recorte precisa ser maior que a janela de 20 x 13 mm); (3) com a lente recuada para y = 72 mm, o terço de dentro do cone (167,5° a 172,5°) bate na borda de trás da janela a 10,7 mm, e de y = 73,1 mm em diante o cone fica livre. O suporte do TE deixou de se sobrepor ao do LE, que era a pendência da versão reta (945 mm³) |
+Medidas tiradas das malhas do editor (voxels de 1 mm na lista de interferências da página) e da
+conferência dos conectores dos jumpers. Os itens 1 a 4 mudam o comportamento do robô e precisam de
+decisão do projeto mecânico.
 
-O gabarito da classe de 1 kg (15,2 x 15,2 cm na largada) fica em 149 mm de largura com o corpo do chassi; os suportes inclinados do TE e do TD saem da lateral e passam do gabarito, a menos que o suporte vire só do módulo (cunha de PLA, com o módulo a até uns 81 mm do centro) ou que a CoRA 2026 meça a largura só na largada e aceite sensor saliente depois. No comprimento o gabarito passa por causa dos TCRT5000 de trás, que saem do chassi, pelo mesmo motivo. Saídas para o suporte do TE e do TD: suporte só do módulo, cortado ou impresso em cunha, com a lente rente à lateral; janela inclinada com o módulo mais para dentro; ou ficar a 135° (o suporte de 32 mm sai uns 12 mm, o cone cobre de 122,5° a 147,5° e a janela reta de 20 mm deixa o cone livre com a lente em y = 72 mm).
+| # | Item | Medida | O que fazer |
+|---|---|---|---|
+| 1 | Inclinação dos VL53L0X da frente (FE, FC e FD) | os módulos ficam na rampa e apontam 27 a 28° para cima, e o firmware supõe feixe horizontal. A borda de baixo do cone (14,5° acima da horizontal) passa a 49 mm de altura a 100 mm de distância e a 101 mm a 300 mm | calço ou janela que deixe o módulo na horizontal, ou aceitar o alcance menor contra robôs baixos |
+| 2 | Conectores dos pinos de trás da extensora (GPIO 23, 22, 1, 3, 21, 19, 18, 5, 17, 16, 4, 2, 15, 3V3 e GND) | o conector fêmea reto sai 8 mm acima da agulha (z = 44,6 mm); a cunha de apoio da tampa da frente (x de 17 a 25 mm, z de 48 a 53 mm) deixa 3,4 mm: os conectores S, V e G batem nela (61, 91 e 152 mm³) | rebaixo na cunha, tampa mais alta, ou conectores em ângulo reto. No modelo os pinos S, V e G de cada trio ficam a 1,7 mm um do outro, no módulo real são 2,54 mm: conferir |
+| 3 | Passagem dos fios | as duas tampas não têm furo além dos três das chaves, e a prateleira deixa as laterais livres. Os fios que vão do andar de cima (células, BMS, regulador, protoboard) para o de baixo passam pelo furo PF1 proposto (x de 17 a 25 mm, y de -5 a 3 mm, tampa da frente) ou dão a volta pela traseira aberta do chassi (x = -29 mm) | abrir o PF1 e um passa-fios na traseira; os fios pela traseira ficam expostos |
+| 4 | Largura | 151 mm com os suportes de 160° (y = ±75,5 mm), contra 152 mm do gabarito da largada | só 1 mm de folga: não aumentar os suportes |
+| 5 | TCRT5000 de trás (BTE e BTD) | face a x = -26,5 mm e y = ±69,4 mm, atrás da roda, com os pinos para dentro. A distância de parada na borda (38,3 mm) cabe na margem de 51,5 mm (25 mm da faixa mais 26,5 mm até o eixo), que o `static_assert` da cinemática confere | nenhuma, mas a folga é de 13 mm: mexer na velocidade ou no freio exige conferir de novo |
+| 6 | TCRT5000 da frente (BFE e BFD) | face a x = 95,5 mm e y = ±62 mm, com a placa para dentro do chassi; o módulo encosta na base e na rampa (encaixe nos furos) | rasgo na rampa para o PCB, se a placa não passar |
+| 7 | Chave KCD1 (furo C) e botão de início (furo B) | os dois corpos se sobrepõem 80 mm³ (flange da KCD1 contra o botão de 12 x 12 mm) | afastar o botão uns 2 mm ou diminuir a flange |
+| 8 | Células da bateria 3S | os polos + das três células ficam do mesmo lado: as fitas de níquel entre elas atravessam 69 mm de célula, a menos que a célula 2 seja girada | girar a célula 2 no editor |
+| 9 | Altura das lentes do TE e do TD | 29 e 30 mm, contra 23 a 24 mm das outras | só informativo (o `LENTE_ALTURA_MM` do `config.h` é a altura das lentes da frente e das laterais) |
+| 10 | Modelos da extensora e do ESP32 | o editor usa uma placa de 44 pinos (22 fileiras de 2,23 mm); o DevKit de 30 pinos tem 15 pinos por lado, então os trios dos GPIOs foram postos nas 15 últimas fileiras, do lado do USB | trocar pelos modelos reais e rodar o `exporta_pecas.py` |
+
+Posições dos pinos medidas nas malhas: a ordem dos pinos do VL53L0X (VIN, GND, SCL, SDA, GPIO1,
+XSHUT) vem da foto da placa e supõe a malha sem espelho; os pinos da chave DIP, do botão e da
+KCD1 foram achados pela forma das malhas (pernas embaixo da peça) e valem a posição, não a
+numeração das pernas; o botão BOOT do DevKit tem posição aproximada (as duas pernas do botão de
+início vão soldadas nas pernas do BOOT, e a ordem não importa).
 
 ## Posições dos componentes
 
-Todas as posições de componentes dentro do chassi são provisórias e conferidas contra o STEP em
-blocos de 1 mm, sem colisão. As posições dos sensores vêm do `config.h`. A lista de interferências
-no fim da página (voxels de 1,5 mm, sobreposição de mais de 3 mm) mostra o que ainda colide; os
-pares do suporte com o módulo, do suporte com a parede e dos pinos do ESP32 na protoboard
-são encaixes, e aparecem marcados.
+As posições dos componentes são as do editor 3D; as dos sensores também estão no `config.h`, e o
+gerador para se as duas fontes discordarem. A lista de interferências no fim da página (voxels de
+1 mm, sobreposição de mais de 2 mm) mostra o que colide; os pares do módulo com o suporte, do
+suporte com a parede da rampa e dos pinos do ESP32 na extensora são encaixes e aparecem marcados.
+Os caminhos dos fios são calculados no volume das peças e não substituem a conferência da
+montagem física: o fio passa por onde o modelo tem espaço livre de 3 mm.

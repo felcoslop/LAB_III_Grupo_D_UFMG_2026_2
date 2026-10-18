@@ -116,7 +116,7 @@ def sensor(P, s, cone, rot_off=32, lateral_fora=False, rot=None):
     txt(rx, ry - 5.6 * mm, f'x={s["x"]} y={s["y"]}', 6.3, "M", colors.HexColor("#444444"), "c")
 
 # ============================ PÁGINA 1: GABARITO 1:1 DO ROBÔ ============================
-# Geometria do robô montado (chassi do STEP), lida do config.h: origem no meio do eixo das rodas,
+# Geometria do robô montado (chassi de dois andares), lida do config.h: origem no meio do eixo das rodas,
 # corpo de CORPO_TRAS_MM atrás até CORPO_FRENTE_MM à frente, e o limite de 152 x 152 mm da classe
 # centrado no corpo.
 F_R, T_R = num("CORPO_FRENTE_MM", BLOCO_ROBO), num("CORPO_TRAS_MM", BLOCO_ROBO)
@@ -135,7 +135,7 @@ c.setStrokeColor(CINZA); c.setLineWidth(0.8); c.setDash(3, 2)
 x0, y0 = P(xm + ROBO / 2, ym + ROBO / 2)
 c.rect(x0, y0 - ROBO * mm, ROBO * mm, ROBO * mm, stroke=1, fill=0); c.setDash()
 txt(cx, P(xm - ROBO / 2, 0)[1] - 5 * mm,
-    f"tracejado: limite da classe de 1 kg (152 × 152 mm) · contorno cheio: corpo do chassi do STEP ({br(F_R + T_R)} × {br(E_R + D_R)} mm)",
+    f"tracejado: limite da classe de 1 kg (152 × 152 mm) · contorno cheio: corpo do chassi de dois andares ({br(F_R + T_R)} × {br(E_R + D_R)} mm)",
     8, color=CINZA, anchor="c")
 c.setStrokeColor(colors.black); c.setLineWidth(1.2)
 x0, y0 = P(F_R, E_R)
@@ -422,7 +422,7 @@ if QTD == 7:
     diagrama(40 * mm, yd, t5, "5 sensores (hoje)", "atrás, de 115° a 180°, não enxerga nada")
     diagrama(105 * mm, yd, frente, "7, par na frente (±45°)", "alternativa descartada")
     diagrama(170 * mm, yd, ESTUDO, "7, par atrás (±160°)", "escolhida no estudo")
-    txt(W / 2, yd + 542 / 18 * mm + 4 * mm, "Estudo de 08/10 (robô de 152 mm, antes do chassi do STEP): cones até o alcance útil, escala 1:18, círculo cinza a 54,2 cm", 7.5, anchor="c")
+    txt(W / 2, yd + 542 / 18 * mm + 4 * mm, "Estudo de 08/10 (robô de 152 mm, antes do chassi de dois andares): cones até o alcance útil, escala 1:18, círculo cinza a 54,2 cm", 7.5, anchor="c")
     y = yd - 542 / 18 * mm - 15 * mm
     texto = [
         ("SB", "Por que o par novo vai atrás"),
@@ -450,8 +450,8 @@ if QTD == 7:
     for l in ["Base: 500 ataques em linha reta a 0,4 a 1,2 m/s com o robô parado, 300 buscas seguindo o rumo do firmware e 240 sequências",
               "de rastreio com o oponente andando. O par na frente melhora um pouco a mira nas diagonais, mas não muda o que passa sem ser visto.",
               "Ainda sobra o buraco entre FE e LE (32° a 78°) a mais de 25 cm e uma faixa estreita bem atrás a mais de 30 cm.",
-              "No chassi do STEP, as janelas da lateral só deixam o par reto, a ±90° (posição atual do config.h): a faixa de trás volta",
-              "a ficar sem cobertura, e o rastreador cobre esse lado pela última posição vista. Na bancada, o par continua a ±160°."]:
+              "No chassi de dois andares, o par de trás fica em suportes angulares atrás das rodas, também a ±160° (posição atual do",
+              "config.h), então a cobertura de trás do estudo vale para o robô montado, desde que o suporte fique na altura prevista."]:
         txt(14 * mm, y - 1 * mm, l, 7.3); y -= 3.9 * mm
     txt(14 * mm, y - 6 * mm, "Referência", 8.6, "SB")
     txt(14 * mm, y - 10.5 * mm, "DEDE, Fırat Faris. Sumo Robot Blackbook: robot sumo strategies, tactics to win! Istambul: JSumo, [s.d.]. E-book.", 7.6)
