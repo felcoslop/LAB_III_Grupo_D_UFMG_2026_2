@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controle dos motores</title>
+<style>
+:root {
+  --bg: #0e0f11; --painel: #17191c; --linha: #2b2e33; --fg: #ececec; --suave: #9aa0a6;
+  --a: #ff4c00; --ok: #3ecf6e; --ruim: #ff5d5d; --tecla: #23262b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, "Segoe UI", Roboto, sans-serif;
+  padding: 16px max(16px, env(safe-area-inset-left)); }
+main { max-width: 880px; margin: 0 auto; display: grid; gap: 14px; }
+h1 { font-size: 1.4rem; margin: 0; letter-spacing: .01em; }
+h2 { font-size: .78rem; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .09em; color: var(--suave); font-weight: 600; }
+.cartao { background: var(--painel); border: 1px solid var(--linha); border-radius: 10px; padding: 14px; min-width: 0; }
+.topo { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.pill { font: 600 .8rem ui-monospace, Consolas, monospace; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--linha); color: var(--suave); }
+.pill.on { color: var(--ok); border-color: var(--ok); }
+button { font: inherit; cursor: pointer; color: var(--fg); background: var(--tecla); border: 1px solid var(--linha); border-radius: 8px; padding: 8px 14px; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--a); outline-offset: 2px; }
+button.pri { background: var(--a); border-color: var(--a); color: #111; font-weight: 700; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 700px) { .grade { grid-template-columns: minmax(0, 1fr); } }
+.setas { display: grid; grid-template-columns: repeat(3, 84px); grid-auto-rows: 84px; gap: 8px; justify-content: center; user-select: none; touch-action: none; }
+.seta { display: grid; place-items: center; font-size: 1.7rem; border-radius: 12px; background: var(--tecla); border: 1px solid var(--linha); }
+.seta small { display: block; font-size: .65rem; color: var(--suave); text-align: center; }
+.seta.ativa { background: var(--a); border-color: var(--a); color: #111; }
+.seta.ativa small { color: #111; }
+.parar { grid-column: 2; background: #3a1d1d; border-color: var(--ruim); color: var(--ruim); font-weight: 700; font-size: 1rem; }
+label { display: grid; gap: 4px; margin-bottom: 12px; }
+label .l { display: flex; justify-content: space-between; color: var(--suave); font-size: .88rem; }
+label .l b { color: var(--fg); font-family: ui-monospace, Consolas, monospace; }
+input[type=range] { width: 100%; accent-color: var(--a); }
+.modo { display: flex; gap: 8px; margin-bottom: 12px; }
+.modo button[aria-pressed=true] { border-color: var(--a); color: var(--a); }
+.chk { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: var(--suave); font-size: .9rem; }
+#log { height: 190px; overflow: auto; background: #0a0b0c; border: 1px solid var(--linha); border-radius: 8px; padding: 8px 10px;
+  font: .8rem/1.4 ui-monospace, Consolas, monospace; white-space: pre-wrap; margin: 0; }
+.e { color: var(--ruim); } .u { color: var(--a); } .r { color: var(--suave); }
+.dica { color: var(--suave); font-size: .86rem; }
+.dica kbd { background: var(--tecla); border: 1px solid var(--linha); border-radius: 4px; padding: 0 5px; font: .8rem ui-monospace, Consolas, monospace; }
+</style>
+</head>
+<body>
+<main>
+  <div class="topo">
+    <h1>Controle dos motores</h1>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="pill" id="status">desconectado</span>
+      <button class="pri" id="bConn">Conectar USB</button>
+      <button id="bDisc" disabled>Desconectar</button>
+    </div>
+  </div>
+
+  <div class="cartao dica" id="aviso">
+    Chrome ou Edge no computador, com o ESP32 na USB e o firmware com <b>USAR_MOTORES 1</b>. Os motores precisam da bateria 3S ligada na ponte H.
+    O robô só anda enquanto você segura a tecla ou o botão: cada pacote dura 0,25 s e, ao soltar, o controle manda <b>stop</b>. Prenda o robô antes de testar.
+  </div>
+
+  <div class="grade">
+    <section class="cartao">
+      <h2>Direção (segure)</h2>
+      <div class="setas" id="setas">
+        <div class="seta" data-k="fe"><span>↖<small>frente + esq.</small></span></div>
+        <div class="seta" data-k="f"><span>↑<small>W · frente</small></span></div>
+        <div class="seta" data-k="fd"><span>↗<small>frente + dir.</small></span></div>
+        <div class="seta" data-k="e"><span>←<small>A · gira esq.</small></span></div>
+        <button class="seta parar" id="bParar">PARAR<br><small>espaço</small></button>
+        <div class="seta" data-k="d"><span>→<small>D · gira dir.</small></span></div>
+        <div class="seta" data-k="te"><span>↙<small>ré + esq.</small></span></div>
+        <div class="seta" data-k="t"><span>↓<small>S · ré</small></span></div>
+        <div class="seta" data-k="td"><span>↘<small>ré + dir.</small></span></div>
+      </div>
+      <p class="dica" style="margin:12px 0 0">Teclado: <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> ou as setas (duas juntas fazem a diagonal), <kbd>espaço</kbd> para.</p>
+    </section>
+
+    <section class="cartao">
+      <h2>Modo</h2>
+      <div class="modo">
+        <button id="mCin" aria-pressed="true">Cinemática (mov)</button>
+        <button id="mPwm" aria-pressed="false">PWM direto (pwm)</button>
+      </div>
+      <div id="paramCin">
+        <label><span class="l">Velocidade para frente <b id="vV">150 mm/s</b></span><input type="range" id="rV" min="50" max="450" step="10" value="150"></label>
+        <label><span class="l">Giro no lugar <b id="vW">120 °/s</b></span><input type="range" id="rW" min="30" max="360" step="10" value="120"></label>
+      </div>
+      <div id="paramPwm" hidden>
+        <label><span class="l">PWM por roda <b id="vP">35 %</b></span><input type="range" id="rP" min="10" max="100" step="5" value="35"></label>
+      </div>
+      <label class="chk"><input type="checkbox" id="cInv"> Inverter o sentido do giro (se esquerda e direita saírem trocadas)</label>
+      <label class="chk"><input type="checkbox" id="cEco" checked> Mostrar o que o ESP32 responde</label>
+      <p class="dica" style="margin:0">Cinemática usa o mesmo caminho da máquina de estados (<b>mov V W</b>): velocidade e giro viram PWM das duas rodas com a bitola e o <b>INVERTE_ESQ</b> / <b>INVERTE_DIR</b> do <b>config.h</b>. O PWM direto (<b>pwm E D</b>) ignora a cinemática e serve para conferir roda por roda.</p>
+    </section>
+  </div>
+
+  <section class="cartao">
+    <h2>Conversa com o ESP32</h2>
+    <pre id="log"></pre>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <input id="cmd" placeholder="comando manual, por exemplo: help" style="flex:1;min-width:0;background:#0a0b0c;color:var(--fg);border:1px solid var(--linha);border-radius:8px;padding:8px 10px;font:inherit" autocomplete="off">
+      <button id="bEnv">Enviar</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let port = null, writer = null, reader = null, pronto = false, modo = "cin";
+const teclas = new Set();            // direções seguradas: f, t, e, d
+let timer = null, andando = false;
+
+function log(txt, cls = "r") {
+  const el = $("log"), span = document.createElement("span");
+  span.className = cls; span.textContent = txt + "\n"; el.append(span);
+  while (el.childNodes.length > 400) el.firstChild.remove();
+  el.scrollTop = el.scrollHeight;
+}
+async function enviar(txt, silencioso = false) {
+  if (!writer || !pronto) return;
+  if (!silencioso) log("> " + txt, "u");
+  try { await writer.write(txt + "\n"); } catch (e) { log("erro ao enviar: " + e.message, "e"); }
+}
+
+async function conectar() {
+  if (!("serial" in navigator)) { log("Este navegador não tem Web Serial. Use Chrome ou Edge no computador.", "e"); return; }
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({baudRate: 115200});
+    const enc = new TextEncoderStream(); enc.readable.pipeTo(port.writable); writer = enc.writable.getWriter();
+    $("status").textContent = "conectado"; $("status").className = "pill on";
+    $("bConn").disabled = true; $("bDisc").disabled = false;
+    log("Porta aberta. O ESP32 reinicia ao conectar; os comandos liberam em 2 s.", "u");
+    setTimeout(() => { pronto = true; log("Pronto. Pode mover.", "u"); enviar("stop", true); }, 2000);
+    ler();
+  } catch (e) { log("Erro ao conectar: " + e.message, "e"); }
+}
+async function ler() {
+  const dec = new TextDecoderStream(); const fim = port.readable.pipeTo(dec.writable).catch(() => {});
+  reader = dec.readable.getReader(); let buf = "";
+  try {
+    while (true) {
+      const {value, done} = await reader.read(); if (done) break;
+      buf += value; let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const l = buf.slice(0, i).replace(/\r$/, ""); buf = buf.slice(i + 1);
+        if (l.startsWith("!")) log(l, "e"); else if ($("cEco").checked && l.startsWith("#")) log(l);
+      }
+    }
+  } catch (e) { log("Leitura interrompida: " + e.message, "e"); }
+  finally { reader.releaseLock(); await fim; }
+}
+async function desconectar() {
+  await parar();
+  pronto = false;
+  try { await reader?.cancel(); } catch (e) {}
+  try { await writer?.close(); } catch (e) {}
+  try { await port?.close(); } catch (e) {}
+  port = writer = reader = null;
+  $("status").textContent = "desconectado"; $("status").className = "pill";
+  $("bConn").disabled = false; $("bDisc").disabled = true;
+}
+
+// ---------------------------------------------------------------- movimento
+function comando() {
+  const f = teclas.has("f") ? 1 : teclas.has("t") ? -1 : 0;
+  let g = (teclas.has("e") ? 1 : 0) - (teclas.has("d") ? 1 : 0);   // positivo = esquerda (anti-horário visto de cima)
+  if ($("cInv").checked) g = -g;
+  if (!f && !g) return null;
+  if (modo === "cin") {
+    const v = f * +$("rV").value, w = g * +$("rW").value;
+    // diagonal: avanço mais lento e giro mais suave, para fazer curva
+    return f && g ? `mov ${Math.round(v)} ${Math.round(w * 0.6)} 250` : `mov ${Math.round(v)} ${Math.round(w)} 250`;
+  }
+  const p = +$("rP").value;
+  let e = f * p, d = f * p;
+  if (g) {
+    if (f) { e = f * p * (g > 0 ? 0.35 : 1); d = f * p * (g > 0 ? 1 : 0.35); }   // curva
+    else { e = -g * p; d = g * p; }                                                  // giro no lugar
+  }
+  return `pwm ${Math.round(e)} ${Math.round(d)} 250`;
+}
+function marca() {
+  const m = {f: teclas.has("f"), t: teclas.has("t"), e: teclas.has("e"), d: teclas.has("d")};
+  const ativo = {f: m.f && !m.e && !m.d, t: m.t && !m.e && !m.d, e: m.e && !m.f && !m.t, d: m.d && !m.f && !m.t,
+    fe: m.f && m.e, fd: m.f && m.d, te: m.t && m.e, td: m.t && m.d};
+  document.querySelectorAll(".seta[data-k]").forEach((el) => el.classList.toggle("ativa", !!ativo[el.dataset.k]));
+}
+async function passo() {
+  const c = comando();
+  if (c) { andando = true; await enviar(c, true); }
+}
+function atualiza() {
+  marca();
+  if (comando()) {
+    if (!timer) { passo(); timer = setInterval(passo, 120); }
+  } else if (timer) {
+    clearInterval(timer); timer = null;
+    if (andando) { andando = false; enviar("stop"); }
+  }
+}
+async function parar() {
+  teclas.clear(); marca();
+  if (timer) { clearInterval(timer); timer = null; }
+  andando = false;
+  await enviar("stop");
+}
+
+// ---------------------------------------------------------------- entradas
+const MAPA = {w: "f", arrowup: "f", s: "t", arrowdown: "t", a: "e", arrowleft: "e", d: "d", arrowright: "d"};
+addEventListener("keydown", (ev) => {
+  if (ev.target === $("cmd")) return;
+  const k = ev.key.toLowerCase();
+  if (k === " ") { ev.preventDefault(); parar(); return; }
+  const d = MAPA[k]; if (!d) return;
+  ev.preventDefault();
+  if (!ev.repeat) { teclas.add(d); atualiza(); }
+});
+addEventListener("keyup", (ev) => { const d = MAPA[ev.key.toLowerCase()]; if (d) { teclas.delete(d); atualiza(); } });
+addEventListener("blur", parar);
+document.addEventListener("visibilitychange", () => { if (document.hidden) parar(); });
+
+const DIRS = {f: ["f"], t: ["t"], e: ["e"], d: ["d"], fe: ["f", "e"], fd: ["f", "d"], te: ["t", "e"], td: ["t", "d"]};
+document.querySelectorAll(".seta[data-k]").forEach((el) => {
+  const ds = DIRS[el.dataset.k];
+  el.addEventListener("pointerdown", (ev) => { el.setPointerCapture(ev.pointerId); ds.forEach((x) => teclas.add(x)); atualiza(); });
+  const solta = () => { ds.forEach((x) => teclas.delete(x)); atualiza(); };
+  el.addEventListener("pointerup", solta); el.addEventListener("pointercancel", solta);
+});
+
+$("bParar").addEventListener("click", parar);
+$("bConn").addEventListener("click", conectar);
+$("bDisc").addEventListener("click", desconectar);
+$("bEnv").addEventListener("click", () => { const v = $("cmd").value.trim(); if (v) { enviar(v); $("cmd").value = ""; } });
+$("cmd").addEventListener("keydown", (ev) => { if (ev.key === "Enter") $("bEnv").click(); });
+function escolheModo(m) {
+  modo = m; parar();
+  $("mCin").setAttribute("aria-pressed", m === "cin"); $("mPwm").setAttribute("aria-pressed", m === "pwm");
+  $("paramCin").hidden = m !== "cin"; $("paramPwm").hidden = m !== "pwm";
+}
+$("mCin").addEventListener("click", () => escolheModo("cin"));
+$("mPwm").addEventListener("click", () => escolheModo("pwm"));
+$("rV").addEventListener("input", () => $("vV").textContent = $("rV").value + " mm/s");
+$("rW").addEventListener("input", () => $("vW").textContent = $("rW").value + " °/s");
+$("rP").addEventListener("input", () => $("vP").textContent = $("rP").value + " %");
+if (!("serial" in navigator)) { $("aviso").innerHTML += "<br><b class='e'>Este navegador não tem Web Serial: abra no Chrome ou no Edge do computador.</b>"; }
+if (navigator.serial) navigator.serial.addEventListener("disconnect", () => { log("Cabo USB desconectado.", "e"); parar(); });
+</script>
+</body>
+</html>
