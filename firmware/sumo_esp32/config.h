@@ -349,6 +349,12 @@ static const CfgBorda BORDA[] = {
 #define VEL_BUSCA_MMS     240    // avanço curto da BUSCA, cerca de metade da velocidade máxima
 #define GIRO_BUSCA_DPS    200    // giro da BUSCA, cerca de metade do giro máximo
 #define K_MIRA            6.0f   // mira: graus/s de giro para cada grau de erro (erro cai a 37% em ~0,17 s)
+// Ataque: o mesmo ganho, só que menor. Com o oponente centrado, o giro de correção tira avanço
+// das rodas (a cinemática dá prioridade ao giro), e o ataque chega mais devagar: a bateria de 1000
+// lutas de frente, só com o Rush, deu 704 vitórias com 6, 715 com 3 e com 2, 719 com 1 e 721 com 0
+// (derrotas de 1 a 5 em todas), e com 2 melhorou de 8 a 26 lutas e piorou de 3 a 7 em cada condição
+// de robustez (rumo desalinhado em 8 e 15 graus, atrito 0,8 e 1,2). Ver README, "Otimização do ataque".
+#define K_ATAQUE          2.0f   // ataque: graus/s de giro para cada grau de erro do oponente (a mira usa K_MIRA)
 #define ANG_MIRA_CURVA    40     // até esse ângulo a mira é uma curva; acima, giro no eixo
 #define GIRO_MIRA_MAX_DPS 370    // giro máximo na mira, 90% do giro máximo do robô
 #define GIRO_BORDA_DPS    370    // giro de recuperação depois da borda

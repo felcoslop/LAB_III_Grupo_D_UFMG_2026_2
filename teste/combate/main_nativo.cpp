@@ -16,6 +16,8 @@
 //   -x N        manobra do empurrão travado do Grupo D (antitrava.h; padrão a do config.h)
 //   -X N        manobra do adversário (padrão 0, só detecta)
 //   -t S        segundos de luta depois dos 5 s parados (padrão 90)
+//   -n GRAUS    desvio do rumo na largada, o quanto o operador desalinha o robô (padrão 1,7 graus)
+//   -q MIN,MAX  distância das três pessoas (dois operadores e o juiz) à borda do dojô, em metros (padrão 0.9,1.3)
 //   -F FISICA   simples (padrão, contas à mão do fisica.cpp) ou mujoco (precisa de MUJOCO=1 no compila.sh)
 //   -r ARQ      grava o rastro da luta em JSON (um quadro a cada 20 ms)
 //   -v          mostra o Log dos dois firmwares
@@ -58,6 +60,8 @@ int main(int argc, char** argv) {
     else if (a == "-x") c.manobraA = atoi(prox());
     else if (a == "-X") c.manobraB = atoi(prox());
     else if (a == "-t") c.tRound = atof(prox());
+    else if (a == "-n") c.ruidoRumo = atof(prox()) * M_PI / 180.0;
+    else if (a == "-q") { double lo = 0.9, hi = 1.3; if (sscanf(prox(), "%lf,%lf", &lo, &hi) == 2) { c.pessoasMin = lo; c.pessoasMax = hi; } }
     else if (a == "-F") c.mujoco = !strcmp(prox(), "mujoco");
     else if (a == "-r") rastro = prox();
     else if (a == "-v") verboso = true;

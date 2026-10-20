@@ -25,6 +25,9 @@ struct Config {
   int      manobraA = -1;      // manobra do empurrão travado do Grupo D (-1: a do config.h)
   int      manobraB = 0;       // a do adversário (0: só detecta, como o firmware sem a manobra)
   bool     pessoas  = true;    // operadores e juiz em volta do dojô
+  double   pessoasMin = 0.9;   // distância das pessoas à borda do dojô (m), sorteada entre o mínimo e o máximo
+  double   pessoasMax = 1.3;
+  double   ruidoRumo  = 0.03;  // desvio (rad) do rumo na largada: o operador não alinha perfeito
   double   massa    = 0.98;
   bool     mujoco   = false;   // física do MuJoCo no lugar da física à mão (compilar com MUJOCO=1)
 };
