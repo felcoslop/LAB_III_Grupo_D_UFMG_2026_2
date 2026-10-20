@@ -5,6 +5,12 @@ que o `ferramentas/gera_montagem.py` gera. O `README.md` da raiz explica a pági
 fluxo de arquivos e a conferência de espaço no chassi de dois andares do editor 3D v11 (STL do
 grupo, outubro de 2026).
 
+O STEP final do projeto mecânico (`LAB3-Modelagem_2.step`) está dividido em um STL por objeto em
+`cad/stl/` (veja `cad/README.md`). Esta pasta ainda usa o chassi do editor v11, com o suporte de
+VL53L0X de terceiros e os suportes angulares de 160°. O CAD final tem suportes próprios (`SS_*`) e
+posições diferentes para o TE e o TD e para os TCRT5000, listadas em `cad/README.md`; a conferência de
+espaço e as pendências abaixo valem para o editor v11 até essa troca.
+
 ## Arquivos
 
 | Arquivo | Para que serve |

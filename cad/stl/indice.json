@@ -1,0 +1,527 @@
+[
+ {
+  "ordem": 1,
+  "nome": "Base",
+  "arquivo": "Base.stl",
+  "tipo": "peça",
+  "min": [
+   -67.0,
+   -74.5,
+   -0.0
+  ],
+  "max": [
+   82.0,
+   74.5,
+   24.5
+  ],
+  "triangulos": 5378,
+  "malha_fechada": false,
+  "volume_cm3": 98.084,
+  "tamanho_kb": 263,
+  "desvio_caixa_mm": 0.0
+ },
+ {
+  "ordem": 2,
+  "nome": "Frente1",
+  "arquivo": "Frente1.stl",
+  "tipo": "peça",
+  "min": [
+   -49.38,
+   -0.0,
+   5.98
+  ],
+  "max": [
+   -0.76,
+   74.5,
+   50.0
+  ],
+  "triangulos": 48,
+  "malha_fechada": true,
+  "volume_cm3": 6.783,
+  "tamanho_kb": 2,
+  "desvio_caixa_mm": 0.005
+ },
+ {
+  "ordem": 3,
+  "nome": "Frente2",
+  "arquivo": "Frente2.stl",
+  "tipo": "peça",
+  "min": [
+   -49.38,
+   -74.5,
+   5.98
+  ],
+  "max": [
+   -0.76,
+   0.0,
+   50.0
+  ],
+  "triangulos": 48,
+  "malha_fechada": true,
+  "volume_cm3": 6.79,
+  "tamanho_kb": 2,
+  "desvio_caixa_mm": 0.005
+ },
+ {
+  "ordem": 4,
+  "nome": "Lateral_R",
+  "arquivo": "Lateral_R.stl",
+  "tipo": "peça",
+  "min": [
+   -23.53,
+   72.5,
+   9.0
+  ],
+  "max": [
+   76.7,
+   74.5,
+   43.9
+  ],
+  "triangulos": 124,
+  "malha_fechada": true,
+  "volume_cm3": 2.488,
+  "tamanho_kb": 6,
+  "desvio_caixa_mm": 0.002
+ },
+ {
+  "ordem": 5,
+  "nome": "Lateral_L",
+  "arquivo": "Lateral_L.stl",
+  "tipo": "peça",
+  "min": [
+   -23.25,
+   -74.5,
+   8.93
+  ],
+  "max": [
+   76.7,
+   -72.5,
+   43.9
+  ],
+  "triangulos": 120,
+  "malha_fechada": true,
+  "volume_cm3": 2.477,
+  "tamanho_kb": 6,
+  "desvio_caixa_mm": 0.005
+ },
+ {
+  "ordem": 6,
+  "nome": "Roda_Motor_D",
+  "arquivo": "Roda_Motor_D.stl",
+  "tipo": "montagem",
+  "min": [
+   32.5,
+   2.12,
+   -3.0
+  ],
+  "max": [
+   69.5,
+   73.5,
+   38.5
+  ],
+  "triangulos": 21846,
+  "malha_fechada": false,
+  "volume_cm3": 28.294,
+  "tamanho_kb": 1067,
+  "desvio_caixa_mm": 0.024
+ },
+ {
+  "ordem": 7,
+  "nome": "Roda_Motor_L",
+  "arquivo": "Roda_Motor_L.stl",
+  "tipo": "montagem",
+  "min": [
+   32.5,
+   -74.5,
+   -3.0
+  ],
+  "max": [
+   69.5,
+   -3.12,
+   38.5
+  ],
+  "triangulos": 21838,
+  "malha_fechada": false,
+  "volume_cm3": 28.294,
+  "tamanho_kb": 1066,
+  "desvio_caixa_mm": 0.024
+ },
+ {
+  "ordem": 8,
+  "nome": "Haste_L",
+  "arquivo": "Haste_L.stl",
+  "tipo": "peça",
+  "min": [
+   28.74,
+   -72.5,
+   8.78
+  ],
+  "max": [
+   76.7,
+   -38.5,
+   42.7
+  ],
+  "triangulos": 374,
+  "malha_fechada": true,
+  "volume_cm3": 6.306,
+  "tamanho_kb": 18,
+  "desvio_caixa_mm": 0.004
+ },
+ {
+  "ordem": 9,
+  "nome": "Haste_R",
+  "arquivo": "Haste_R.stl",
+  "tipo": "peça",
+  "min": [
+   28.74,
+   38.5,
+   8.78
+  ],
+  "max": [
+   76.7,
+   72.5,
+   42.7
+  ],
+  "triangulos": 374,
+  "malha_fechada": true,
+  "volume_cm3": 6.306,
+  "tamanho_kb": 18,
+  "desvio_caixa_mm": 0.004
+ },
+ {
+  "ordem": 10,
+  "nome": "Topo",
+  "arquivo": "Topo.stl",
+  "tipo": "peça",
+  "min": [
+   -25.77,
+   -74.5,
+   42.7
+  ],
+  "max": [
+   76.7,
+   74.5,
+   52.0
+  ],
+  "triangulos": 560,
+  "malha_fechada": true,
+  "volume_cm3": 28.111,
+  "tamanho_kb": 27,
+  "desvio_caixa_mm": 0.004
+ },
+ {
+  "ordem": 11,
+  "nome": "Suporte_R",
+  "arquivo": "Suporte_R.stl",
+  "tipo": "peça",
+  "min": [
+   24.5,
+   9.0,
+   9.0
+  ],
+  "max": [
+   77.5,
+   30.0,
+   40.7
+  ],
+  "triangulos": 780,
+  "malha_fechada": true,
+  "volume_cm3": 13.76,
+  "tamanho_kb": 38,
+  "desvio_caixa_mm": 0.003
+ },
+ {
+  "ordem": 12,
+  "nome": "Suporte_L",
+  "arquivo": "Suporte_L.stl",
+  "tipo": "peça",
+  "min": [
+   24.5,
+   -31.0,
+   9.0
+  ],
+  "max": [
+   77.5,
+   -10.0,
+   40.7
+  ],
+  "triangulos": 780,
+  "malha_fechada": true,
+  "volume_cm3": 13.76,
+  "tamanho_kb": 38,
+  "desvio_caixa_mm": 0.003
+ },
+ {
+  "ordem": 13,
+  "nome": "Linha_L",
+  "arquivo": "Linha_L.stl",
+  "tipo": "peça",
+  "min": [
+   67.5,
+   -74.5,
+   -0.0
+  ],
+  "max": [
+   82.0,
+   -36.4,
+   15.41
+  ],
+  "triangulos": 6986,
+  "malha_fechada": true,
+  "volume_cm3": 0.978,
+  "tamanho_kb": 341,
+  "desvio_caixa_mm": 0.005
+ },
+ {
+  "ordem": 14,
+  "nome": "Linha_R",
+  "arquivo": "Linha_R.stl",
+  "tipo": "peça",
+  "min": [
+   67.5,
+   36.39,
+   -0.0
+  ],
+  "max": [
+   82.0,
+   74.49,
+   15.41
+  ],
+  "triangulos": 6986,
+  "malha_fechada": true,
+  "volume_cm3": 0.978,
+  "tamanho_kb": 341,
+  "desvio_caixa_mm": 0.005
+ },
+ {
+  "ordem": 15,
+  "nome": "Linha_LF",
+  "arquivo": "Linha_LF.stl",
+  "tipo": "peça",
+  "min": [
+   -23.85,
+   -68.85,
+   -0.0
+  ],
+  "max": [
+   14.25,
+   -54.35,
+   15.41
+  ],
+  "triangulos": 6986,
+  "malha_fechada": true,
+  "volume_cm3": 0.978,
+  "tamanho_kb": 341,
+  "desvio_caixa_mm": 0.005
+ },
+ {
+  "ordem": 16,
+  "nome": "Linha_RF",
+  "arquivo": "Linha_RF.stl",
+  "tipo": "peça",
+  "min": [
+   -23.85,
+   54.45,
+   -0.0
+  ],
+  "max": [
+   14.25,
+   68.95,
+   15.41
+  ],
+  "triangulos": 6986,
+  "malha_fechada": true,
+  "volume_cm3": 0.978,
+  "tamanho_kb": 341,
+  "desvio_caixa_mm": 0.005
+ },
+ {
+  "ordem": 17,
+  "nome": "SS_R",
+  "arquivo": "SS_R.stl",
+  "tipo": "peça",
+  "min": [
+   -16.4,
+   69.0,
+   8.0
+  ],
+  "max": [
+   9.6,
+   72.5,
+   24.5
+  ],
+  "triangulos": 1556,
+  "malha_fechada": true,
+  "volume_cm3": 0.557,
+  "tamanho_kb": 76,
+  "desvio_caixa_mm": 0.001
+ },
+ {
+  "ordem": 18,
+  "nome": "SS_FR",
+  "arquivo": "SS_FR.stl",
+  "tipo": "peça",
+  "min": [
+   -30.97,
+   20.05,
+   8.0
+  ],
+  "max": [
+   -19.97,
+   45.25,
+   24.5
+  ],
+  "triangulos": 1556,
+  "malha_fechada": true,
+  "volume_cm3": 0.557,
+  "tamanho_kb": 76,
+  "desvio_caixa_mm": 0.004
+ },
+ {
+  "ordem": 19,
+  "nome": "SS_TR",
+  "arquivo": "SS_TR.stl",
+  "tipo": "peça",
+  "min": [
+   73.91,
+   2.3,
+   6.0
+  ],
+  "max": [
+   81.64,
+   15.71,
+   38.0
+  ],
+  "triangulos": 1556,
+  "malha_fechada": true,
+  "volume_cm3": 0.9,
+  "tamanho_kb": 76,
+  "desvio_caixa_mm": 0.003
+ },
+ {
+  "ordem": 20,
+  "nome": "SS_TL",
+  "arquivo": "SS_TL.stl",
+  "tipo": "peça",
+  "min": [
+   73.91,
+   -16.71,
+   6.0
+  ],
+  "max": [
+   81.64,
+   -3.3,
+   38.0
+  ],
+  "triangulos": 1556,
+  "malha_fechada": true,
+  "volume_cm3": 0.9,
+  "tamanho_kb": 76,
+  "desvio_caixa_mm": 0.003
+ },
+ {
+  "ordem": 21,
+  "nome": "SS_L",
+  "arquivo": "SS_L.stl",
+  "tipo": "peça",
+  "min": [
+   -16.4,
+   -72.5,
+   8.0
+  ],
+  "max": [
+   9.6,
+   -69.0,
+   24.5
+  ],
+  "triangulos": 1556,
+  "malha_fechada": true,
+  "volume_cm3": 0.557,
+  "tamanho_kb": 76,
+  "desvio_caixa_mm": 0.001
+ },
+ {
+  "ordem": 22,
+  "nome": "SS_FL",
+  "arquivo": "SS_FL.stl",
+  "tipo": "peça",
+  "min": [
+   -30.92,
+   -45.18,
+   8.0
+  ],
+  "max": [
+   -19.91,
+   -19.98,
+   24.5
+  ],
+  "triangulos": 1556,
+  "malha_fechada": true,
+  "volume_cm3": 0.557,
+  "tamanho_kb": 76,
+  "desvio_caixa_mm": 0.002
+ },
+ {
+  "ordem": 23,
+  "nome": "SS_FM",
+  "arquivo": "SS_FM.stl",
+  "tipo": "peça",
+  "min": [
+   -34.5,
+   -13.0,
+   8.0
+  ],
+  "max": [
+   -31.0,
+   13.0,
+   24.5
+  ],
+  "triangulos": 1556,
+  "malha_fechada": true,
+  "volume_cm3": 0.557,
+  "tamanho_kb": 76,
+  "desvio_caixa_mm": 0.001
+ },
+ {
+  "ordem": 24,
+  "nome": "expansion board esp 32 shield CAD211",
+  "arquivo": "expansion_board_esp_32_shield_CAD211.stl",
+  "tipo": "montagem",
+  "min": [
+   -25.65,
+   -38.77,
+   22.25
+  ],
+  "max": [
+   27.75,
+   32.93,
+   37.06
+  ],
+  "triangulos": 60074,
+  "malha_fechada": false,
+  "volume_cm3": 9.183,
+  "tamanho_kb": 2933,
+  "desvio_caixa_mm": 0.004
+ },
+ {
+  "ordem": 25,
+  "nome": "esp32_wroom_32D_kitV1",
+  "arquivo": "esp32_wroom_32D_kitV1.stl",
+  "tipo": "montagem",
+  "min": [
+   -13.3,
+   -38.1,
+   28.36
+  ],
+  "max": [
+   15.3,
+   15.23,
+   42.05
+  ],
+  "triangulos": 51918,
+  "malha_fechada": false,
+  "volume_cm3": 2.894,
+  "tamanho_kb": 2535,
+  "desvio_caixa_mm": 0.005
+ }
+]

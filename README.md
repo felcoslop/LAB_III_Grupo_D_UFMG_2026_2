@@ -37,7 +37,9 @@ Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **
 
 O projeto faz parte da disciplina ELE635 Laboratório de Sistemas III, do curso de Engenharia de Sistemas da UFMG, no semestre 2026/2, com o Prof. Gustavo Medeiros Freitas. A disciplina cobre o ciclo completo de um projeto de engenharia, da concepção até a competição, e o robô segue a classe de 1000 g (Lego/Vex Sumô) das regras de sumô da RoboCore [ROBOCORE, s.d.a]: massa de até 1000 g, base de 15,2 x 15,2 cm, dojô (no código, dohyo) preto de 77 cm de diâmetro com borda branca de 2,5 cm, controle totalmente autônomo e início obrigatório 5 s depois do comando.
 
-A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma protoboard que faz o papel de chassi provisório, e o ESP32 fica ligado ao computador pela USB, que alimenta a placa e leva a telemetria. Nessa fase os motores ficam desligados no firmware (`USAR_MOTORES 0`), mas a máquina de estados roda normalmente e o painel mostra o comando que iria para cada roda.
+A versão atual é o robô montado no chassi de dois andares, sem protoboard: a extensora do ESP32 recebe os sete VL53L0X, os quatro TCRT5000, a ponte H, o botão de início e a chave DIP, a bateria 3S alimenta os motores e uma célula 18650 sozinha alimenta a lógica, com uma chave liga e desliga. A página [Montagem Grupo D](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/montagem.html) mostra cada componente e cada fio, e o CAD final do projeto mecânico está dividido em um STL por peça na pasta [`cad/`](cad/README.md).
+
+O `config.h` vem com a configuração da bancada de teste (`GEOMETRIA_BANCADA 1`, `QTD_TOF 5` e `USAR_MOTORES 0`). Nela os sensores ficam presos em uma protoboard que faz o papel de chassi provisório, o ESP32 fica ligado ao computador pela USB, que alimenta a placa e leva a telemetria, e os motores ficam desligados no firmware, mas a máquina de estados roda normalmente e o painel mostra o comando que iria para cada roda. Para o robô montado, o `config.h` precisa de `GEOMETRIA_BANCADA 0`, `QTD_TOF 7` e `USAR_MOTORES 1`; o CI compila o firmware com 5 e com 7 sensores, com e sem motores.
 
 ## Funcionalidades
 
@@ -57,19 +59,31 @@ A versão atual roda em uma bancada de teste. Os sensores ficam presos em uma pr
 - Simulador de lutas (software in the loop): o firmware compilado no computador luta contra seis tipos de oponente, com pessoas paradas em volta do dojô, e o CI roda uma bateria de lutas em todo pull request.
 - Combate em 3D com o mesmo firmware nos dois robôs, na física de Belo Horizonte (gravidade e ar do lugar, pneu de silicone na madeira pintada, choque com restituição), e montagem 3D com cada jumper do esquema, as duas em páginas versionadas no repositório.
 - Terminal de comandos pela USB ou pelo painel para teste, calibração e diagnóstico.
+- Página de controle dos motores pelo teclado (`site/controle_motores.html`), para o teste do robô parado pela USB, sem os sensores ligados.
 
 ## Hardware
 
 | Componente | Qtd. | Uso no projeto |
 |---|---|---|
-| ESP32 DevKit V1 (30 pinos) em protoboard de 400 pontos (81 x 55 mm) | 1 | microcontrolador de dois núcleos, com ADC (o rádio fica desligado) |
-| VL53L0X (placas CJVL53L0XV2 / GY-530) | 5 ou 7 | distância até o oponente: LE, FE, FC, FD e LD, mais TE e TD na versão de 7 |
+| ESP32 DevKit V1 (ESP32-WROOM-32D, 30 pinos) | 1 | microcontrolador de dois núcleos, com ADC (o rádio fica desligado) |
+| Extensora (expansion board) do ESP32 de 30 pinos | 1 | recebe o ESP32 e dá um trio S, V e G por GPIO, no lugar da protoboard |
+| VL53L0X (placas CJVL53L0XV2 / GY-530) | 7 | distância até o oponente: LE, FE, FC, FD, LD, TE e TD (o firmware também compila com 5, sem TE e TD) |
 | TCRT5000 com comparador LM393 | 4 | linha branca da borda, lida pela saída analógica A0 |
 | Motor JGB37-520, 12 V, 319 rpm (redução de 18,8:1) | 2 | tração, com pneu StickyMAX S20 de 32 mm [ROBOCORE, s.d.b] |
-| Bateria 3S de Li-ion (18650) com BMS | 1 | alimentação dos motores; o ESP32 tem bateria e conversor próprios |
+| Células 18650 (LG 3200) | 3 | bateria 3S, que alimenta os motores pela ponte H |
+| BMS 3S de 20 A | 1 | proteção e carga da bateria 3S |
+| Célula 18650 sozinha, da lógica | 1 | alimenta o ESP32 e os sensores, pelo regulador TPS63070 |
+| Regulador TPS63070 (saída de 3,3 V) | 1 | 3,3 V da lógica, ligado nos pinos V e G da extensora |
+| Chave liga e desliga KCD1 | 1 | liga e desliga a célula da lógica (furo C da tampa de trás) |
 | Módulo HW-956 de ponte H dupla de 10 A (3 a 18 V, entradas IN1 a IN4) | 1 | ponte H de MOSFET dos dois motores, com PWM de até 2 kHz (desativada na bancada) |
-| Botão | 1 | start, ligado entre o GPIO 0 e o GND, em paralelo com o botão BOOT da placa |
-| Chave DIP de 4 vias | 1 | ligada nos GPIOs 12, 14, 2 e 15: estratégia (DIP 1 a 3) e perfil do oponente escuro (DIP 4) |
+| Botão de início de 12 x 12 mm | 1 | start, ligado entre o GPIO 0 e o GND, em paralelo com o botão BOOT da placa (furo B da tampa de trás) |
+| Chave DIP de 4 vias | 1 | ligada nos GPIOs 12, 14, 2 e 15: estratégia (DIP 1 a 3) e perfil do oponente escuro (DIP 4) (furo A da tampa de trás) |
+| Jumper fêmea-fêmea | 38 | sensores, ponte H e emendas do I2C (lista completa na página Montagem 3D) |
+| Fio soldado com ponta fêmea, com termorretrátil nas emendas | 23 | duas emendas do SDA e do SCL, chave DIP e TPS63070 |
+| Fio 22 AWG | 17 | motores, bateria 3S, BMS e alimentação da ponte H, soldados nos bornes e terminais |
+| Peças impressas em PLA | 17 | Base, Frente1 e Frente2, Laterais, Hastes, Topo, suportes dos motores e sete suportes de sensor SS_* ([`cad/`](cad/README.md)) |
+
+Os interruptores são três: a chave DIP (estratégia e perfil), a chave liga e desliga KCD1 (só a lógica) e o botão de início. O ramo dos motores não tem chave própria.
 
 | Função | GPIO | Observação |
 |---|---|---|
@@ -111,7 +125,7 @@ No robô montado (`GEOMETRIA_BANCADA 0`), a origem fica no meio do eixo das roda
 | TE (7 sensores) | 16 | 0x35 | -30 | 66 | 160° |
 | TD (7 sensores) | 4 | 0x36 | -30 | -66 | -160° |
 
-Os PDFs da pasta `doc/pdf/` trazem os gabaritos em escala 1:1 da bancada e do robô, o mapa de ligação na protoboard e uma lista de conferência antes de energizar. O `guia_montagem_sensores_7.pdf` faz o mesmo para a versão de 7 sensores e traz também a pinagem completa do ESP32.
+Os PDFs da pasta `doc/pdf/` são da bancada com protoboard: trazem os gabaritos em escala 1:1 da bancada e do robô, o mapa de ligação na protoboard e uma lista de conferência antes de energizar. O `guia_montagem_sensores_7.pdf` faz o mesmo para a versão de 7 sensores e traz também a pinagem completa do ESP32. Para o robô montado, sem protoboard, o guia de ligação é a página Montagem 3D (seção Montagem 3D, abaixo) e a lista de jumpers e fios dela.
 
 ### Posição dos sensores: 5 ou 7
 
@@ -502,7 +516,7 @@ O MuJoCo desempata contatos pela ordem e pela posição dos corpos. Na primeira 
 | à mão | 59 | 56 | 65 | 0 | 3,8 s |
 | MuJoCo | 94 | 86 | 0 | 0 | 1,9 s |
 
-A linha do MuJoCo é da rodada anterior à troca do chassi (a linha da física à mão já é a do chassi de dois andares); a física dos dois ainda usa as medidas de massa e de apoio do STEP anterior, e o MuJoCo precisa rodar de novo com as do chassi novo.
+A linha do MuJoCo é da rodada anterior à troca do chassi (a linha da física à mão já é a do chassi de dois andares); a física dos dois ainda usa as medidas de massa e de apoio do STEP anterior (o STEP final, dividido em `cad/`, ainda não entrou), e o MuJoCo precisa rodar de novo com as do chassi novo.
 
 Por adversário, no MuJoCo: 32 vitórias e 28 derrotas contra o de 319 rpm, 27 e 33 contra o de 600 rpm, 35 e 25 contra o de 1000 rpm; por largada: de frente 38 e 16, de lado 21 e 15, de costas 35 e 55; por estratégia: Rush 34 e 26, Flank 33 e 27, Fan out 27 e 33. Não há empate, porque todas as lutas se decidem em uns 2 s, a mais longa em 16 s. A física à mão deixa 58 das 180 lutas empatadas por tempo, quase todas contra os motores de 319 e 600 rpm. Nas duas, o robô do Grupo D nunca saiu do dojô sozinho.
 
@@ -540,6 +554,8 @@ Não há protoboard. O SDA e o SCL dos sete VL53L0X se juntam em duas emendas so
 São 38 jumpers fêmea-fêmea e 23 fios soldados com ponta fêmea (16 das duas emendas do I2C, 7 da DIP e do TPS63070), mais 17 fios soldados nos bornes e terminais, e a página soma o comprimento de cada caminho para a lista de compra. O start continua no botão BOOT (GPIO 0): o DevKit de 30 pinos não leva o GPIO 0 para a barra, então o botão de início é soldado em paralelo com o BOOT.
 
 O esquema do Fritzing (`SUMO_Esquemático` e `SUMO_bb`) difere do firmware em cinco pontos, e a página mostra os cinco: os sensores de borda saem do D0 nos GPIO 36, 39, 34 e 35, mas o firmware lê o A0 nos 34, 35, 32 e 33; a chave DIP vai nos GPIO 15, 14, 33 e 32 com o comum no GND, mas o firmware lê os 12, 14, 2 e 15 com o pull-down interno e o comum no 3V3 (com o comum no GND a chave nunca muda a leitura); o botão S1 vai no GPIO 2, que é a via 3 da chave; a ponte H aparece como L298N; e o ESP32 vai na extensora, não numa protoboard. O ramo dos motores não tem chave liga e desliga no esquema.
+
+O STEP final do projeto mecânico (`LAB3-Modelagem_2.step`) está dividido em um STL por objeto da árvore do CAD em [`cad/`](cad/README.md), feito pelo `ferramentas/step_por_objeto.py`: as 17 peças para impressão, com os sete suportes de sensor SS_*, e os componentes de referência (rodas com motor, quatro módulos TCRT5000, extensora e ESP32). Ele ainda não alimenta o `config.h` nem esta página, que seguem o chassi do editor 3D v11. Medido nos STL, o CAD final põe o TE e o TD juntos no centro da traseira (y de cerca de ±10 mm, e não ±66 mm), os dois TCRT5000 da frente a 71,4 mm do eixo (e não 96 mm) e as placas dos sete suportes na vertical, e o conjunto tem 149 mm de largura (151 mm no editor v11). A tabela completa está em `cad/README.md`.
 
 O `doc/montagem/README.md` traz o espaço que sobra e o que falta no chassi, com as medidas. Quatro pontos pedem decisão do projeto mecânico: os três VL53L0X da frente apontam uns 27° para cima (a borda de baixo do cone passa a 49 mm de altura a 100 mm de distância), os conectores dos pinos de trás da extensora batem na cunha de apoio da tampa da frente, os fios entre os andares precisam de passa-fios (a página propõe um na tampa da frente), e a largura de 151 mm deixa só 1 mm de folga até o gabarito de 152 mm.
 
@@ -914,6 +930,10 @@ LAB_III_Grupo_D_UFMG_2026_2/
     lutas.html              lutas simuladas com o firmware (os rastros saem no workflow pages.yml)
     combate.html            combate 3D com o firmware nos dois robôs (gerado, versionado, conferido no CI)
     montagem.html           montagem 3D com os jumpers (gerado, versionado, conferido no CI)
+    controle_motores.html   controle dos motores pelo teclado (Web Serial), para o teste do robô parado
+  cad/                      CAD final do projeto mecânico
+    README.md               objetos, referencial, correspondência com o firmware e diferenças para o config.h
+    stl/                    um STL por objeto da árvore do CAD (STEP LAB3-Modelagem_2) e o indice.json
   doc/
     img/                    imagens deste README
     pdf/                    gabarito_bancada.pdf, guia_montagem_sensores.pdf e guia_montagem_sensores_7.pdf
@@ -928,7 +948,8 @@ LAB_III_Grupo_D_UFMG_2026_2/
     alcance_plateia.py      distância da plateia ao dojô para nenhum ToF a ler (lê o config.h)
     gera_bancada.py         config.h -> doc/pdf/gabarito_bancada.pdf
     gera_guia.py            config.h -> doc/pdf/guia_montagem_sensores(_7).pdf
-    step_para_stl.py        STEP do projeto mecânico -> um STL por peça
+    step_para_stl.py        STEP do projeto mecânico -> um STL por peça (a montagem aberta até os parafusos)
+    step_por_objeto.py      STEP final -> um STL por objeto da árvore do CAD (cad/stl/)
     exporta_pecas.py        HTML do editor 3D -> doc/montagem/pecas.js e editor.json
     roteia_fios.py          peças e ligações -> doc/montagem/rotas_fios.json (caminho de cada fio)
     exporta_malhas.py       STL do robô -> doc/combate/malhas.js
