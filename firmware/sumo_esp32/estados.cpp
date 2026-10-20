@@ -505,9 +505,9 @@ void estados_passo() {
 #if MODO_DEFENSIVO
       cinematica_para();                             // no modo defensivo a lâmina fica parada no chão
 #else
-      // empurrão na velocidade máxima, com a mesma correção de giro da mira para o oponente
-      // não escorregar para fora do centro (até CENTRO_DEG o giro pedido é pequeno)
-      cinematica_comanda(VEL_MAX_MMS, P.op.visto ? K_MIRA * P.op.angulo : 0);
+      // empurrão na velocidade máxima, com uma correção de giro pequena (K_ATAQUE, menor que a da
+      // mira) para o oponente não escorregar para fora do centro: até CENTRO_DEG o giro pedido é pequeno
+      cinematica_comanda(VEL_MAX_MMS, P.op.visto ? K_ATAQUE * P.op.angulo : 0);
 #endif
       break;
 

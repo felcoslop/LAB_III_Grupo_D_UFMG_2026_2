@@ -225,6 +225,8 @@ Os valores marcados com "medir" no `config.h` ficam certos só com o robô monta
 
 As três estratégias da proposta do Grupo D [GRUPO D, 2026a] ficam nas vias 1 a 3 da chave DIP, e a via 4 escolhe o perfil do oponente. O firmware lê a chave com um filtro de 30 ms contra trepidação e trava a escolha no start: mexer na chave durante a luta não muda nada. Sem nenhuma via de estratégia ligada vale o Rush, e com mais de uma ligada vale a de menor número (o comando `lista` avisa o conflito). Os comandos `estrategia` e `perfil` passam por cima da chave para testes na bancada.
 
+Na simulação de combate com os motores de 319 rpm, a escolha para a competição é o Rush (nenhuma via ligada), com o robô sempre colocado de frente para a metade do oponente: de frente, o Rush fez 119 vitórias, 0 derrotas e 42 empates em 161 lutas, o Fan out 52 vitórias e 0 derrotas em 114, e o Flank 39 vitórias e 28 derrotas em 125 (seção "Otimização do ataque com os motores de 319 rpm").
+
 | DIP 1 | DIP 2 | DIP 3 | Estratégia | Busca sem pista | Chegada no oponente |
 |---|---|---|---|---|---|
 | ligada | desligada | desligada | Rush | giro no eixo para o lado do rumo, com avanços curtos | mira em curva e ataque com o torque todo |
@@ -398,6 +400,7 @@ No computador:
 bash teste/combate/compila.sh
 python teste/combate/bateria.py teste/combate/combate --sementes 30 --csv combate.csv   # --motores 1000,600,319 por padrão
 teste/combate/combate -s 7 -a rush -c preto -m 1000 -v      # uma luta, com o Log dos dois firmwares
+python teste/combate/varre.py NOME --def K_ATAQUE=2.0f --base COPIA --n 1000 --tempo 20 --estrategias rush   # varredura (ver Otimização do ataque)
 pip install ziglang==0.14.0
 ZIG="python -m ziglang" bash teste/combate/compila.sh wasm  # módulo da página
 python teste/combate/bateria.py teste/combate/combate --sementes 10 --json doc/combate/bateria.json
@@ -407,6 +410,48 @@ python ferramentas/gera_combate.py --wasm teste/combate/combate.wasm  # refaz si
 A página do combate fica no repositório (`site/combate.html`), como o painel: depois de mudar o firmware, o simulador ou a página, rode as três últimas linhas e faça o commit da página e do `doc/combate/bateria.json`. O CI compila o WebAssembly de novo e falha se a página versionada for diferente da gerada. O `--fragmento` gera a mesma página sem o `<head>`, para publicar como artefato.
 
 A física à mão deixa de fora a rampa entrando fundo embaixo do outro robô (o ponto de apoio não anda), o tombamento, a deformação do pneu, a poeira no dojô e o feixe do VL53L0X batendo no chão. O atrito real do pneu e o centro de massa medido na balança (robô apoiado numa régua, até equilibrar) deixam o resultado mais perto da luta de verdade. A seção seguinte traz a segunda física, que resolve em 3D o encaixe da rampa e o tombamento, mas continua dependendo dos mesmos números estimados.
+
+### Otimização do ataque com os motores de 319 rpm
+
+Com os motores mantidos, o que o firmware ainda pode mudar é a estratégia, a colocação do robô na largada e o ganho de alguns parâmetros. O `teste/combate/varre.py` compara uma variante do firmware (o Grupo D) com o firmware atual congelado numa cópia (`FW_B` no `compila.sh`, que compila o adversário do diretório da cópia), nas mesmas lutas sorteadas: cada luta sorteia a estratégia do Grupo D, a cor e o motor do adversário (319, 600 e 1000 rpm), a estratégia e o rumo de largada dele. As lutas da varredura duram 20 s, porque nas 210 vitórias da bateria de referência todas saíram em até 5,7 s depois da contagem (mediana de 1,4 s) e o que passa disso é um impasse de empurrão; as comparações finais usam 90 s. O resultado de cada variante vem com o placar pareado (lutas em que melhorou e em que piorou), porque a diferença entre ajustes é de 1% a 2% e o erro padrão de 1000 lutas é de 1,5%.
+
+```
+python teste/combate/varre.py NOME --def K_ATAQUE=2.0f --base COPIA_DO_FIRMWARE --n 1000 --tempo 20 --estrategias rush --largada frente --contra REFERENCIA
+```
+
+**A colocação decide mais que qualquer parâmetro.** O regulamento deixa livre o rumo do robô atrás da linha Shikiri. Com 400 lutas sorteadas de 90 s, o Rush largando de frente para o adversário fez 119 vitórias, 0 derrotas e 42 empates (161 lutas); com o rumo sorteado entre frente, lados e costas, 74, 38 e 49. O Flank de frente perdeu 28 de 125 lutas e o Fan out ganhou 52 de 114 sem perder, então a escolha é o Rush (chave DIP toda desligada) e o robô vai sempre de frente. Largando de lado, a esquerda rende bem menos que a direita (Rush, 300 lutas de 20 s: 87 vitórias e 95 derrotas contra 138 e 36): os ToF laterais só leem até 80 mm, o robô só encontra o oponente girando, e o sentido que a busca escolhe favorece a largada virada para a direita: o primeiro contato sai em 0,86 s (mediana) contra 0,61 s. Dar alcance inteiro aos laterais e ao par de trás subiria o saldo de +21% para +51% nas largadas livres, mas com pessoas a 5 a 40 cm da borda o ganho some (362 vitórias com o limite atual, 335 com 600 mm e 342 com 300 mm), então `TOF_ALCANCE_LATERAL_MM` e `TOF_ALCANCE_TRAS_MM` ficam como estão. Colocar o robô torto não custa: com o desvio do rumo sorteado em torno de 8° ou de 15° (no lugar de 1,7°), o Rush de frente fez 555 e 532 vitórias em 800 lutas, contra 704 em 1000 no padrão.
+
+**Parâmetros.** Rush de frente, 1000 lutas de 20 s, referência com 704 vitórias, 1 derrota e 295 empates:
+
+| Variante | Vitórias | Derrotas | Pareado (melhorou / piorou) |
+|---|---|---|---|
+| velocidade de ataque em 85% da máxima | 688 | 1 | 5 / 21 |
+| velocidade de ataque em 70% da máxima | 628 | 1 | 9 / 85 |
+| `K_MIRA` 4 / 9 | 697 / 681 | 5 / 1 | 16 / 24 e 7 / 30 |
+| `CENTRO_DEG` 4 / 12 | 704 / 703 | 1 / 1 | 2 / 2 e 1 / 2 |
+| `ANG_MIRA_CURVA` 25 / 60 | 704 / 704 | 1 / 1 | sem diferença |
+| `GIRO_MIRA_MAX_DPS` 300 / 415 | 705 / 704 | 1 / 1 | 1 / 0 e 0 / 0 |
+| `APROX_RAPIDA_MMS` 200 / 450 | 704 / 704 | 1 / 1 | sem diferença |
+| `ACEL_MAX_MMS2` 4000 / 9000 | 709 / 709 | 1 / 1 | 11 / 6 e 7 / 2 |
+| mira do ataque deslocada de +8° / -8° do centro do oponente (K_ATAQUE 3) | 713 / 708 | 2 / 1 | 13 / 4 e 10 / 6 |
+| **ganho de giro só no ataque (`K_ATAQUE`)** 10 / 4 / 3 / 2 / 1,5 / 1 / 0 (com `K_MIRA` 6 na mira) | 684 / 708 / 715 / 715 / 712 / 719 / 721 | 1 / 1 / 1 / 1 / 5 / 2 / 3 | 3 / 23, 6 / 2, 14 / 3, 14 / 3, 13 / 7, 18 / 3 e 22 / 5 |
+
+A velocidade máxima de ataque é a melhor (85% dela tira 16 vitórias e 70% tira 76: quem chega primeiro bate antes de o oponente virar). A aceleração maior piora as outras largadas (800 lutas com o rumo livre: 177 derrotas contra 163 com `ACEL_MAX_MMS2` 9000 e `K_ATAQUE` 2), então fica em 6000. A mira não muda com ângulos e limites, porque de frente o oponente quase sempre já está no cone do sensor central. O único ajuste que ganha de forma consistente é o giro de correção menor no ataque: com o oponente centrado, o giro pedido tira avanço das rodas (a cinemática dá prioridade ao giro), e com `K_MIRA` 6 o ataque a 10° de erro sai uns 14% abaixo da velocidade máxima. O `K_ATAQUE` ficou em 2 (a mira continua com `K_MIRA` 6; com 0 o robô não corrige nada e perdeu 3 lutas).
+
+Condições de robustez, Rush de frente, referência contra `K_ATAQUE` 2:
+
+| Condição | Lutas | Referência (V / D) | `K_ATAQUE` 2 (V / D) | Pareado |
+|---|---|---|---|---|
+| padrão | 1000 | 704 / 1 | 715 / 1 | 14 / 3 |
+| rumo desalinhado, desvio de 8° | 800 | 555 / 7 | 558 / 7 | 8 / 5 |
+| rumo desalinhado, desvio de 15° | 800 | 532 / 12 | 543 / 12 | 14 / 3 |
+| atrito 20% menor (pó) | 800 | 519 / 2 | 528 / 5 | 16 / 7 |
+| atrito 20% maior | 800 | 572 / 1 | 593 / 1 | 26 / 5 |
+| 90 s, sementes novas | 600 | 418 / 0 | 424 / 1 | 7 / 1 |
+
+O ganho é de 1% a 2%, no limite do que a simulação resolve, e as vitórias ficam uns 6% mais rápidas (contra o de 1000 rpm, 2,65 s para 2,49 s na bateria de 180 lutas), o que ajuda no critério de menor tempo nas partidas vencidas. O placar da bateria padrão de 180 lutas não mudou (59 vitórias, 56 derrotas e 65 empates), porque ela sorteia só 10 cenários e nenhum deles trocou de resultado.
+
+**O que não sai por ajuste.** Dos 295 empates de 1000 lutas, 283 são contra os motores de 319 e 600 rpm: é o impasse com o oponente de força igual. Com os dois robôs largando de frente um para o outro, os 24 casos da bateria de 180 lutas contra esses motores terminam empatados, com os robôs quase parados, porque os dois empurram com a tração toda e a força líquida é zero. As cinco manobras de saída do empurrão travado, o desvio da mira e a velocidade de ataque não quebram esse impasse (seção Travamento). O regulamento da CoRA desempata o round parado ou orbitando por 5 s com um round extra e, se todos os rounds empatarem, dá a vitória ao robô de menor peso aferido na balança: cada grama a menos conta, e o Grupo D está em 980 g. Os adversários da simulação rodam o mesmo firmware, e os da competição vão se comportar de outro jeito; os números valem como comparação entre variantes, e o dojô de verdade é quem confirma.
 
 ### Física do MuJoCo
 
@@ -820,6 +865,7 @@ Os ajustes principais ficam no `config.h`:
 | `ACEL_MAX_MMS2` e `FREIO_MIN_MMS2` | 6000 e 4400 | limite de aceleração das manobras e pior frenagem na borda |
 | `VEL_BUSCA_MMS` e `GIRO_BUSCA_DPS` | 240 e 200 | avanço curto e giro da busca |
 | `K_MIRA`, `ANG_MIRA_CURVA` e `GIRO_MIRA_MAX_DPS` | 6, 40 e 370 | ganho da mira, ângulo até onde a mira é curva e giro máximo da mira |
+| `K_ATAQUE` | 2 | ganho de giro no ataque, menor que o da mira para o robô não perder avanço (ver "Otimização do ataque") |
 | `GIRO_BORDA_DPS`, `ANG_GIRO_BORDA` e `T_GIRO_BORDA_MAX_MS` | 370, 135 e 900 | giro de recuperação na borda (135° só sem localização) e limite de segurança |
 | `T_CONTAGEM_MS` | 5000 | contagem obrigatória antes da luta |
 | `T_BUSCA_GIRO_MS` e `T_BUSCA_AVANCO_MS` | 1500 e 250 | tempo girando na busca e tempo do avanço curto |
@@ -910,6 +956,7 @@ LAB_III_Grupo_D_UFMG_2026_2/
       main_nativo.cpp       linha de comando (resultado em CSV e rastro em JSON)
       wasm_api.cpp          funções exportadas para a página 3D
       bateria.py            bateria de lutas em paralelo, com tabela e falha no CI
+      varre.py              varredura de parâmetros: variante do firmware contra o firmware atual congelado, lutas sorteadas e placar pareado
       fisica_mujoco.cpp     segunda física (MuJoCo): malhas do STEP, pneus, motores e saída do dojô (só com MUJOCO=1)
       empurrao.cpp          empurrão frente a frente, sem firmware, nas duas físicas
       compara_fisicas.py    tabela do empurrão nas duas físicas, com limites no CI

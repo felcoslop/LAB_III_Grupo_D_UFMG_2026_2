@@ -76,7 +76,7 @@ static void posiciona(Robo& rb, int lado, int jeito) {
       case 2: th = -M_PI / 2; break;
       default: th = lado > 0 ? 0 : M_PI;
     }
-    th += M->normal(0.03);                    // o operador não alinha perfeito
+    th += M->normal(C.ruidoRumo);                    // o operador não alinha perfeito
     double ex = lado * M->uniforme(0.05, 0.30), ey = M->uniforme(-0.15, 0.15);
     rb.th = th;
     rb.x = ex + std::cos(th) * rb.p.xCg;
@@ -131,7 +131,7 @@ void inicia(const Config& c) {
     // dois operadores e o juiz, fora da área do dojô depois do start
     double a0 = M->uniforme(-M_PI, M_PI);
     for (int k = 0; k < 3; k++) {
-      double a = a0 + k * 2.1 + M->uniforme(-0.3, 0.3), rr = R_DOJO + M->uniforme(0.9, 1.3);
+      double a = a0 + k * 2.1 + M->uniforme(-0.3, 0.3), rr = R_DOJO + M->uniforme(c.pessoasMin, c.pessoasMax);
       M->pessoas.push_back({rr * std::cos(a), rr * std::sin(a), 0.11, M->uniforme(0.25, 0.5)});
     }
   }
