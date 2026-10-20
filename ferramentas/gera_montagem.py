@@ -2,7 +2,7 @@
 """Monta a página da montagem 3D (site/montagem.html) a partir do editor 3D do chassi, do config.h e do montagem.json.
 
 O editor 3D (exporta_pecas.py) dá as malhas (pecas.js) e a matriz de cada peça repetida (editor.json);
-o montagem.json dá os pinos de cada modelo, o uso da protoboard (só o barramento de I2C) e os
+o montagem.json dá os pinos de cada modelo, as emendas do barramento de I2C e os
 passa-fios propostos; o config.h dá o GPIO de cada ligação e a tabela de posições dos sensores, que
 precisa bater com a posição e o ângulo de cada sensor no editor (a conferência para a geração se
 a diferença passar de 2 mm ou 1 grau). Daqui sai, para a página: a matriz de cada peça, cada fio com
@@ -170,47 +170,20 @@ SAIDA = {"femea": 8.0, "macho": 9.0, "solda": 2.0, "borne": 6.0}
 COMP_CONECTOR = {"femea": 14.0, "macho": 15.0, "solda": 2.0, "borne": 6.0}
 
 
-def furo_xy(nome, uso):
-    """Posição (x, y) de um furo no referencial da protoboard (z = face de cima).
-
-    Furos da área central: letra da fileira (a a j) e número da coluna, por exemplo "b16". Cada coluna
-    tem uma metade de cinco furos ligados (a a e) e outra (f a j), separadas por um canal de 7,62 mm.
-    Furos dos trilhos: "P" (3V3) ou "M" (GND) e o número do furo, de 1 a 25, em grupos de cinco."""
-    ncol = uso["colunas"]
-    if nome[0] in "PM":
-        n = int(nome[1:])
-        x = -33.02 + (n - 1) * PASSO + ((n - 1) // 5) * 1.27
-        return x, (19.05 if nome[0] == "P" else 21.59)
-    i = LINHAS.index(nome[0])
-    col = int(nome[1:])
-    y = 13.97 - PASSO * i if i < 5 else -3.81 - PASSO * (i - 5)
-    return (col - (ncol + 1) / 2) * PASSO, y
-
-
 class Pinos:
     def __init__(self, cfg, pecas, M):
         self.cfg, self.M = cfg, M
         self.modelo = {p["id"]: p["modelo"] for p in pecas}
-        self.uso = cfg["protoboard_uso"]
-        self.altura = cfg["modelos"]["protoboard"]["dim"][2]
 
     def ponto(self, ref):
         """'peça:pino' -> (posição, direção do conector, tipo do ponto, direção do primeiro trecho do fio, trecho)."""
         pid, nome = ref.split(":", 1)
         W = self.M[pid]
         mod = self.modelo[pid]
-        if mod == "protoboard":
-            x, y = furo_xy(nome, self.uso)
-            d = gira(W, [0, 0, 1])
-            return aplica(W, [x, y, self.altura]), d, "furo", d, ALCA
         p = self.cfg["pinos"][mod][nome]
         d = gira(W, p["d"])
         h = gira(W, p["h"]) if "h" in p else d
         return aplica(W, p["p"]), d, p["tipo"], h, p.get("alca", ALCA)
-
-    def xy_robo(self, furo):
-        """Posição no referencial do robô do furo 'a20' (ou 'P7') da protoboard."""
-        return self.ponto("proto:" + furo)[0]
 
 
 def tipo_do_fio(a, b):
@@ -237,36 +210,25 @@ COR = {"3V3": "#d7372f", "GND": "#1b1b1b", "SDA": "#d81b9a", "SCL": "#ef7d1a", "
 
 def ligacoes(conf, cfg):
     L = []
-    u = cfg["protoboard_uso"]
 
     def liga(de, para, rede, grupo, cor=None, obs=""):
         L.append({"de": de, "para": para, "tipo": None, "rede": rede, "grupo": grupo,
                   "cor": cor or COR.get(rede.split()[0], "#888"), "obs": obs})
 
-    # barramento de I2C na protoboard: uma ponte curta liga as duas metades de cada coluna (e com f); sobram
-    # a a d e g a j para os sete sensores e para o fio até a extensora
-    livres = {}
-
-    def furo(col):
-        fila = livres.setdefault(col, [f"{l}{col}" for l in "abcdghij"])
-        return fila.pop(0)
-
-    for col, rede in ((u["SDA"], "SDA"), (u["SCL"], "SCL")):
-        liga(f"proto:e{col}", f"proto:f{col}", f"{rede} (ponte entre as metades)", "I2C", COR["PONTE"],
-             "jumper curto por cima do canal do meio")
-
-    # sensores de oponente: três fios no trio S, V e G do GPIO do XSHUT na extensora, mais SDA e SCL na protoboard
+    # sensores de oponente: três fios no trio S, V e G do GPIO do XSHUT na extensora; o SDA e o SCL dos sete
+    # sensores se juntam em duas emendas soldadas (termorretrátil) atrás da fileira de trás da extensora, e
+    # um jumper curto leva cada emenda ao pino S do GPIO 21 ou 22
     for s in conf["tof"]:
         n, g = s["nome"], s["xshut"]
         liga(f"{n}:XSHUT", f"ext:S{g}", f"XSHUT {n}", "Sensores de oponente", COR["XSHUT"], f"GPIO {g}: pino S do trio")
         liga(f"{n}:VIN", f"ext:V{g}", "3V3", "Sensores de oponente", COR["3V3"], f"GPIO {g}: pino V do trio (3,3 V)")
         liga(f"{n}:GND", f"ext:G{g}", "GND", "Sensores de oponente", COR["GND"], f"GPIO {g}: pino G do trio")
-        liga(f"{n}:SDA", f"proto:{furo(u['SDA'])}", "SDA", "I2C", None, "coluna do SDA na protoboard")
-        liga(f"{n}:SCL", f"proto:{furo(u['SCL'])}", "SCL", "I2C", None, "coluna do SCL na protoboard")
-    liga(f"proto:{furo(u['SDA'])}", f"ext:S{conf['sda']}", "SDA", "I2C", None,
-         f"GPIO {conf['sda']}: pino S do trio, pela tampa da frente")
-    liga(f"proto:{furo(u['SCL'])}", f"ext:S{conf['scl']}", "SCL", "I2C", None,
-         f"GPIO {conf['scl']}: pino S do trio, pela tampa da frente")
+        liga(f"{n}:SDA", "emenda_sda:P", "SDA", "I2C", None, "jumper cortado ao meio: fêmea no pino do sensor, ponta soldada na emenda do SDA")
+        liga(f"{n}:SCL", "emenda_scl:P", "SCL", "I2C", None, "jumper cortado ao meio: fêmea no pino do sensor, ponta soldada na emenda do SCL")
+    liga("emenda_sda:E", f"ext:S{conf['sda']}", "SDA", "I2C", None,
+         f"jumper curto da emenda ao GPIO {conf['sda']} (pino S do trio)")
+    liga("emenda_scl:E", f"ext:S{conf['scl']}", "SCL", "I2C", None,
+         f"jumper curto da emenda ao GPIO {conf['scl']} (pino S do trio)")
 
     # sensores de borda: VCC, GND e A0 no trio do GPIO; o D0 fica sem fio
     for b in conf["borda"]:
@@ -435,7 +397,7 @@ def pe_boot(cfg):
 
 
 def rotulos_gpio(L, P, cfg, M):
-    """Rótulos da cena: sensores, GPIO de cada trio da extensora usado, colunas de SDA e SCL da protoboard e peças da tampa."""
+    """Rótulos da cena: sensores, GPIO de cada trio da extensora usado, emendas do SDA e do SCL e peças da tampa."""
     pe = cfg["pinos"]["extensora"]
     usados = sorted({r.split(":", 1)[1][1:] for f in L for r in (f["de"], f["para"]) if r.startswith("ext:")})
     out = []
@@ -456,10 +418,9 @@ def rotulos_gpio(L, P, cfg, M):
         x, y, z = pe["S" + g]["p"]
         txt = ("GPIO " + g) if g.isdigit() else g.rstrip("f")
         out.append({"txt": txt, "pos": arred([x + (-6.5 if x < 40 else 7.0), y, 46.0], 2), "cor": "#cfe0ff"})
-    u = cfg["protoboard_uso"]
-    for nome, col in (("SDA", u["SDA"]), ("SCL", u["SCL"])):
-        p = P.xy_robo(f"a{col}")
-        out.append({"txt": nome, "pos": arred([p[0], p[1] + 5.0, p[2] + 3.0], 2), "cor": "#ffe9a8"})
+    for nome in ("SDA", "SCL"):
+        q = aplica(M["emenda_" + nome.lower()], [0, 0, 4])
+        out.append({"txt": "emenda " + nome, "pos": arred([q[0], q[1], q[2] + 4.0], 2), "cor": "#ffe9a8"})
     return out
 
 
@@ -520,7 +481,7 @@ def main():
                    "m": [round(p["m"][i][j] + 0.0, 4) + 0.0 for j in range(4) for i in range(4)]} for p in pecas],
         "fios": [{k: f[k] for k in ("de", "para", "tipo", "rede", "grupo", "cor", "obs", "ponta_de", "ponta_para",
                                     "pa", "da", "pb", "db", "pts", "mm", "rotado")} for f in L],
-        "proto": cfg["protoboard_uso"], "rotulos": rotulos_gpio(L, P, cfg, M),
+        "rotulos": rotulos_gpio(L, P, cfg, M),
         "compras": lista, "interferencias": inter, "conectores": cfg["_conectores"], "diferencas": cfg["esquematico"]["diferencas"],
         "pinos_firmware": {"tof": conf["tof"], "borda": conf["borda"], "in": conf["in"], "dip": conf["dip"],
                            "sda": conf["sda"], "scl": conf["scl"], "start": conf["start"]},

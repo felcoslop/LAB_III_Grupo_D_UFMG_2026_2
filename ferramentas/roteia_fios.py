@@ -139,8 +139,6 @@ def main():
     for f in L:
         e = G.extremos(f, P)
         chave = G.chave_do_fio(f)
-        if f["de"].startswith("proto:") and f["para"].startswith("proto:"):
-            continue                                          # ponte curta entre as metades de uma coluna
         ia, ib = idx(e["a1"]), idx(e["b1"])
         c = np.inf
         # em torno das pontas o fio sai de dentro do conector: abre uma bola, onde andar custa mais; se a ponta

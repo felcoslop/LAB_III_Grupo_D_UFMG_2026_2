@@ -1,6 +1,6 @@
 {
  "sobre": "Montagem 3D do robô do Grupo D no chassi de dois andares (editor 3D v11): modelos, posição de cada peça e ligações. As posições dos sensores (ToF e borda) e os GPIOs das ligações saem do config.h, e o gerador confere que a posição e o ângulo de cada sensor no editor batem com a tabela do config.h; o resto sai daqui e do editor.json (matrizes das peças idênticas, geradas por ferramentas/exporta_pecas.py). Referencial do robô em mm: origem no meio do eixo das rodas, no chão, x para a frente, y para a esquerda e z para cima. rot é [rx, ry, rz] em graus, aplicados na ordem z, y, x; R, quando existe, é a matriz 3 x 3 da peça. Depois de mudar este arquivo: python ferramentas/gera_montagem.py. Depois de trocar o editor 3D: python ferramentas/exporta_pecas.py robo_3d_editor.html e depois o gera_montagem.py.",
- "provisorio": "Chassi do editor 3D v11 (STL do grupo, 10/2026): a base com a ponte H, os motores e os TCRT5000; a prateleira com a extensora e o ESP32; e, por cima da tampa, a bateria 3S com o BMS, a célula da lógica com o TPS63070, a protoboard de meia página, a chave DIP, o botão de início e a chave liga e desliga. Os modelos 3D da extensora e do ESP32 são os do editor (placa de 44 pinos): o DevKit de 30 pinos tem 15 pinos por lado, então os trios S, V e G foram colocados nas 15 últimas fileiras, do lado do USB. Os passa-fios laranja (PF1, PF2, PS-E e PS-D) não existem no chassi e são uma proposta: o projetista precisa abri-los. Os caminhos dos fios são indicativos; o que falta decidir está em doc/montagem/README (seção Espaço no chassi).",
+ "provisorio": "Chassi do editor 3D v11 (STL do grupo, 10/2026): a base com a ponte H, os motores e os TCRT5000; a prateleira com a extensora e o ESP32; e, por cima da tampa, a bateria 3S com o BMS, a célula da lógica com o TPS63070, as duas emendas do barramento de I2C, a chave DIP, o botão de início e a chave liga e desliga. Os modelos 3D da extensora e do ESP32 são os do editor (placa de 44 pinos): o DevKit de 30 pinos tem 15 pinos por lado, então os trios S, V e G foram colocados nas 15 últimas fileiras, do lado do USB. Os passa-fios laranja (PF1, PF2, PS-E e PS-D) não existem no chassi e são uma proposta: o projetista precisa abri-los. Os caminhos dos fios são indicativos; o que falta decidir está em doc/montagem/README (seção Espaço no chassi).",
  "modelos": {
   "base": {
    "editor": [
@@ -196,16 +196,6 @@
    "tol": 3,
    "faces": 2500
   },
-  "protoboard": {
-   "procedural": "protoboard",
-   "dim": [
-    83.6,
-    56,
-    10.3
-   ],
-   "colunas": 30,
-   "trilhos": true
-  },
   "pf": {
    "procedural": "caixa",
    "dim": [
@@ -217,6 +207,14 @@
     0,
     0,
     0
+   ]
+  },
+  "emenda": {
+   "procedural": "caixa",
+   "dim": [
+    6,
+    4,
+    4
    ]
   }
  },
@@ -540,15 +538,27 @@
    "cor": "#d81e19"
   },
   {
-   "id": "proto",
-   "modelo": "protoboard",
-   "nome": "Protoboard de meia página (83,6 x 56 mm): barramento de SDA e SCL",
+   "id": "emenda_sda",
+   "modelo": "emenda",
+   "nome": "Emenda soldada do SDA (sete VL53L0X e GPIO 21)",
    "grupo": "controle",
-   "cor": "#f4f4f2",
+   "cor": "#e8a317",
    "pos": [
-    33.7,
-    -36,
-    55.0
+    17.5,
+    6.4,
+    39.5
+   ]
+  },
+  {
+   "id": "emenda_scl",
+   "modelo": "emenda",
+   "nome": "Emenda soldada do SCL (sete VL53L0X e GPIO 22)",
+   "grupo": "controle",
+   "cor": "#e8a317",
+   "pos": [
+    17.5,
+    -0.3,
+    39.5
    ]
   },
   {
@@ -2992,15 +3002,46 @@
     ],
     "tipo": "solda"
    }
+  },
+  "emenda": {
+   "_nota": "emenda soldada com termorretrátil (6 x 4 x 4 mm): do lado de trás chegam os sete fios dos VL53L0X, do lado da frente sai o jumper curto até o pino S da extensora",
+   "P": {
+    "p": [
+     -3,
+     0,
+     2
+    ],
+    "d": [
+     -1,
+     0,
+     0
+    ],
+    "h": [
+     -1,
+     0,
+     0
+    ],
+    "tipo": "solda"
+   },
+   "E": {
+    "p": [
+     3,
+     0,
+     2
+    ],
+    "d": [
+     1,
+     0,
+     0
+    ],
+    "h": [
+     1,
+     0,
+     0
+    ],
+    "tipo": "solda"
+   }
   }
- },
- "protoboard_uso": {
-  "_nota": "Protoboard de meia página (400 pontos): 30 colunas de 10 furos (a a e e f a j, cada metade ligada) e dois pares de trilhos de 25 furos. Só leva o barramento de I2C: SDA na coluna 9 e SCL na 11, cada uma com um jumper curto ligando as duas metades (e com f); os trilhos de 3V3 e de GND ficam livres. A extensora do ESP32 não está na protoboard.",
-  "SDA": 9,
-  "SCL": 11,
-  "trilho_3v3": "P",
-  "trilho_gnd": "M",
-  "colunas": 30
  },
  "encaixes_esperados": {
   "_nota": "Pares que se tocam de propósito (módulo no suporte, suporte contra a parede, pinos do ESP32 na extensora, chaves e botão nos furos da tampa, peças presas na prateleira). Aparecem na lista como encaixe, não como interferência. Peças do chassi entre si não entram na conferência.",
@@ -3043,10 +3084,6 @@
    ],
    [
     "celula",
-    "topo"
-   ],
-   [
-    "protoboard",
     "topo"
    ],
    [
@@ -3111,7 +3148,7 @@
     "item": "Ligação ao ESP32",
     "fritzing": "jumpers do ESP32 na protoboard",
     "firmware": "-",
-    "porque": "o DevKit vai na extensora (trios S, V e G de cada GPIO), na prateleira; a protoboard de meia página só faz o barramento de SDA e SCL dos sete VL53L0X"
+    "porque": "o DevKit vai na extensora (trios S, V e G de cada GPIO), na prateleira; não há protoboard: o SDA e o SCL dos sete VL53L0X se juntam em duas emendas soldadas, cada uma com um jumper curto até o pino S do GPIO 21 ou 22"
    }
   ]
  }

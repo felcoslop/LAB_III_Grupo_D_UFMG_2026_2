@@ -10,7 +10,7 @@ grupo, outubro de 2026).
 | Arquivo | Para que serve |
 |---|---|
 | `ferramentas/exporta_pecas.py` | lê o HTML do editor 3D e grava as malhas compactas (`pecas.js`, com a cor de cada vértice) e a matriz de cada peça repetida (`editor.json`, achada por ajuste de corpo rígido entre as cópias) |
-| `montagem.json` | modelos (de quais peças do editor vem cada malha), peças, pinos de cada modelo, uso da protoboard (só o barramento de I2C), passa-fios propostos, contorno do chassi e diferenças do esquema |
+| `montagem.json` | modelos (de quais peças do editor vem cada malha), peças, pinos de cada modelo, as duas emendas do barramento de I2C, passa-fios propostos, contorno do chassi e diferenças do esquema |
 | `editor.json` | matrizes das peças repetidas (sete VL53L0X, quatro TCRT5000, células); gerado, não editar |
 | `ferramentas/roteia_fios.py` | acha o caminho de cada fio por dentro do chassi (voxels de 1,5 mm, custo mínimo, folga de 1,5 mm) e grava `rotas_fios.json`, com a lista de conectores de jumper que batem no chassi |
 | `rotas_fios.json` | pontos de passagem de cada fio; gerado, não editar |
@@ -40,11 +40,12 @@ python ferramentas/gera_montagem.py --interferencias
 | Base (z de 3 a 45 mm) | ponte H HW-956 (x de 30 a 71 mm), os dois motorredutores com as rodas, os quatro TCRT5000, os sete VL53L0X em seus suportes; entre os dois motores sobra só uma passagem de 5 mm (y de -2 a 3 mm), o único caminho dos fios entre a metade de trás e a da frente |
 | Prateleira (placa em z de 31,2 a 32,8 mm, x de 17 a 71 mm, y de -37 a 38 mm, abas até y = ±51 mm) | extensora do ESP32 (z até 47,4 mm) e o ESP32 DevKit (z até 51,1 mm); dos lados da placa a prateleira é vazada, então os fios sobem da base pelas laterais |
 | Tampa de trás (z de 46 a 47 mm, x de -26 a 15 mm) | furos A (chave DIP, x de 2 a 10 mm), B (botão de início, x de -8 a -2 mm) e C (chave KCD1, x de -22 a -12 mm); por cima, a célula 18650 da lógica (y de 6 a 75 mm) e o regulador TPS63070 |
-| Tampa da frente (z de 53 a 55 mm, x de 16 a 77 mm) | as três células 18650 da bateria 3S (z de 55 a 74 mm), o BMS por cima (z até 78 mm) e a protoboard de meia página (83,6 x 56 mm, y de -64 a -8 mm) |
+| Tampa da frente (z de 53 a 55 mm, x de 16 a 77 mm) | as três células 18650 da bateria 3S (z de 55 a 74 mm), o BMS por cima (z até 78 mm) (sem protoboard) |
 
-A protoboard de meia página só faz o barramento de I2C: SDA na coluna 9 e SCL na 11, cada uma
-com um jumper curto entre as duas metades (e com f), e sobram oito furos por barramento (sete
-sensores e o fio até a extensora). Todo o resto vai nos trios S, V e G da extensora, um trio por
+Não há protoboard. O SDA e o SCL dos sete VL53L0X se juntam em duas emendas soldadas com
+termorretrátil (6 x 4 x 4 mm, em x = 17,5 mm, z de 39,5 a 43,5 mm), no vão atrás da fileira de
+trás da extensora, cada uma com oito pontas: sete fios de sensor (jumper cortado ao meio, com a
+fêmea no pino do sensor) e um jumper curto até o pino S do GPIO 21 ou 22. Todo o resto vai nos trios S, V e G da extensora, um trio por
 GPIO: cada VL53L0X leva XSHUT, VIN e GND no trio do seu GPIO de XSHUT, e cada TCRT5000 leva A0,
 VCC e GND no trio do seu GPIO (o D0 fica sem fio).
 
@@ -73,7 +74,7 @@ decisão do projeto mecânico.
 |---|---|---|---|
 | 1 | Inclinação dos VL53L0X da frente (FE, FC e FD) | os módulos ficam na rampa e apontam 27 a 28° para cima, e o firmware supõe feixe horizontal. A borda de baixo do cone (14,5° acima da horizontal) passa a 49 mm de altura a 100 mm de distância e a 101 mm a 300 mm | calço ou janela que deixe o módulo na horizontal, ou aceitar o alcance menor contra robôs baixos |
 | 2 | Conectores dos pinos de trás da extensora (GPIO 23, 22, 1, 3, 21, 19, 18, 5, 17, 16, 4, 2, 15, 3V3 e GND) | o conector fêmea reto sai 8 mm acima da agulha (z = 44,6 mm); a cunha de apoio da tampa da frente (x de 17 a 25 mm, z de 48 a 53 mm) deixa 3,4 mm: os conectores S, V e G batem nela (61, 91 e 152 mm³) | rebaixo na cunha, tampa mais alta, ou conectores em ângulo reto. No modelo os pinos S, V e G de cada trio ficam a 1,7 mm um do outro, no módulo real são 2,54 mm: conferir |
-| 3 | Passagem dos fios | as duas tampas não têm furo além dos três das chaves, e a prateleira deixa as laterais livres. Os fios que vão do andar de cima (células, BMS, regulador, protoboard) para o de baixo passam pelo furo PF1 proposto (x de 17 a 25 mm, y de -5 a 3 mm, tampa da frente) ou dão a volta pela traseira aberta do chassi (x = -29 mm) | abrir o PF1 e um passa-fios na traseira; os fios pela traseira ficam expostos |
+| 3 | Passagem dos fios | as duas tampas não têm furo além dos três das chaves, e a prateleira deixa as laterais livres. Os fios que vão do andar de cima (células, BMS, regulador) para o de baixo passam pelo furo PF1 proposto (x de 17 a 25 mm, y de -5 a 3 mm, tampa da frente) ou dão a volta pela traseira aberta do chassi (x = -29 mm) | abrir o PF1 e um passa-fios na traseira; os fios pela traseira ficam expostos |
 | 4 | Largura | 151 mm com os suportes de 160° (y = ±75,5 mm), contra 152 mm do gabarito da largada | só 1 mm de folga: não aumentar os suportes |
 | 5 | TCRT5000 de trás (BTE e BTD) | face a x = -26,5 mm e y = ±69,4 mm, atrás da roda, com os pinos para dentro. A distância de parada na borda (38,3 mm) cabe na margem de 51,5 mm (25 mm da faixa mais 26,5 mm até o eixo), que o `static_assert` da cinemática confere | nenhuma, mas a folga é de 13 mm: mexer na velocidade ou no freio exige conferir de novo |
 | 6 | TCRT5000 da frente (BFE e BFD) | face a x = 95,5 mm e y = ±62 mm, com a placa para dentro do chassi; o módulo encosta na base e na rampa (encaixe nos furos) | rasgo na rampa para o PCB, se a placa não passar |

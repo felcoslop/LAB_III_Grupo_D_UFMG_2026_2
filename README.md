@@ -469,28 +469,28 @@ O que isso mostra e o que não mostra:
 
 ## Montagem 3D
 
-A página [Montagem Grupo D](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/montagem.html) mostra o robô montado em 3D no chassi de dois andares do editor 3D v11, com cada componente no lugar e cada fio do esquema elétrico, e marca a ponta de cada jumper: fêmea nos pinos machos dos módulos e da extensora, macho nos furos da protoboard. O chassi é o do grupo (base, rampa da frente, laterais, hastes, tampas, suportes dos motores, prateleira, calço em V e suportes de 160°, com os STL em `doc/montagem/modelos/chassi/`), e os componentes são os do editor (ESP32 e extensora, ponte H, BMS, células, TPS63070, chave DIP, chave KCD1, botão, TCRT5000 e os sete VL53L0X em seus suportes). Embaixo ficam a ponte H, os motorredutores, os TCRT5000 e os sensores; na prateleira, a extensora do ESP32 e o ESP32; por cima da tampa de trás, a célula da lógica, o TPS63070, a chave DIP (furo A), o botão de início (furo B) e a chave liga e desliga (furo C); por cima da tampa da frente, as três células da bateria 3S, o BMS e uma protoboard de meia página. A página vem de quatro arquivos:
+A página [Montagem Grupo D](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/montagem.html) mostra o robô montado em 3D no chassi de dois andares do editor 3D v11, com cada componente no lugar e cada fio do esquema elétrico, e marca a ponta de cada jumper: fêmea nos pinos machos dos módulos e da extensora, soldado nas duas emendas do barramento de I2C. O chassi é o do grupo (base, rampa da frente, laterais, hastes, tampas, suportes dos motores, prateleira, calço em V e suportes de 160°, com os STL em `doc/montagem/modelos/chassi/`), e os componentes são os do editor (ESP32 e extensora, ponte H, BMS, células, TPS63070, chave DIP, chave KCD1, botão, TCRT5000 e os sete VL53L0X em seus suportes). Embaixo ficam a ponte H, os motorredutores, os TCRT5000 e os sensores; na prateleira, a extensora do ESP32 e o ESP32; por cima da tampa de trás, a célula da lógica, o TPS63070, a chave DIP (furo A), o botão de início (furo B) e a chave liga e desliga (furo C); por cima da tampa da frente, as três células da bateria 3S, e o BMS. Não há protoboard. A página vem de quatro arquivos:
 
 - o `config.h`, que dá o GPIO de cada fio e a tabela de posições `TOF` e `BORDA`, que o gerador confere contra a posição e o ângulo de cada sensor no editor (com 2 mm e 1 grau de tolerância; se discordarem, a geração para e mostra a diferença);
-- o `doc/montagem/montagem.json`, com as peças, os pinos de cada modelo, o uso da protoboard, os passa-fios propostos, o contorno do chassi e as diferenças do esquema;
+- o `doc/montagem/montagem.json`, com as peças, os pinos de cada modelo, as duas emendas do I2C, os passa-fios propostos, o contorno do chassi e as diferenças do esquema;
 - o `doc/montagem/pecas.js` e o `doc/montagem/editor.json`, que o `exporta_pecas.py` gera a partir do HTML do editor (malhas com a cor de cada peça e a matriz de cada peça repetida);
 - o `doc/montagem/rotas_fios.json`, que o `roteia_fios.py` gera: o caminho de cada fio no volume das peças, com folga de 1,5 mm.
 
-A protoboard de meia página só faz o barramento de I2C (SDA na coluna 9, SCL na 11, cada uma com um jumper curto entre as duas metades). Todo o resto vai nos trios S, V e G da extensora, um trio por GPIO, e a ponte H, o botão e a chave DIP ligam direto nela ou no ESP32. As ligações seguem o firmware e o documento de ligação (Lab3-Liga):
+Não há protoboard. O SDA e o SCL dos sete VL53L0X se juntam em duas emendas soldadas, com termorretrátil, no vão atrás da fileira de trás da extensora, e um jumper curto leva cada emenda ao pino S do GPIO 21 ou 22. Todo o resto vai nos trios S, V e G da extensora, um trio por GPIO, e a ponte H, o botão e a chave DIP ligam direto nela ou no ESP32. As ligações seguem o firmware e o documento de ligação (Lab3-Liga):
 
 | Ligação | Jumper | Pontas |
 |---|---|---|
 | XSHUT, VIN e GND de cada VL53L0X | fêmea-fêmea | pino do sensor e trio S, V e G do GPIO 17, 23, 19, 18, 5, 16 ou 4 |
 | A0, VCC e GND de cada TCRT5000 | fêmea-fêmea | pino do módulo e trio S, V e G do GPIO 34, 35, 32 ou 33 (o D0 fica sem fio) |
-| SDA e SCL de cada VL53L0X | macho-fêmea | pino do sensor e coluna 9 (SDA) ou 11 (SCL) da protoboard |
-| SDA e SCL da protoboard até o ESP32 | macho-fêmea | coluna do barramento e pino S do GPIO 21 e do 22 |
+| SDA e SCL de cada VL53L0X | jumper cortado ao meio, soldado | fêmea no pino do sensor e ponta soldada na emenda do SDA ou do SCL |
+| Emenda do SDA e do SCL até o ESP32 | jumper curto, soldado | ponta soldada na emenda e fêmea no pino S do GPIO 21 ou 22 |
 | GND, IN1, IN2, IN3 e IN4 da ponte H | fêmea-fêmea | pino da ponte, pino G do GND e pino S do GPIO 25, 26, 27 e 13 |
 | Chave DIP | fio soldado com ponta fêmea | quatro pernas do lado A unidas por fio nu e um fio para o pino V; cada perna do lado B no pino S do GPIO 12, 14, 2 e 15 |
 | Botão de início | fio soldado | as duas pernas do botão nas do BOOT do DevKit (GPIO 0 e GND) |
 | Motores, bateria 3S, BMS e alimentação da ponte H | fio 22 AWG soldado | bornes da ponte H e terminais soldados |
 | Bateria 18650 da lógica, chave KCD1 e TPS63070 | fio soldado | o 3,3 V e o GND do TPS63070 vão com ponta fêmea nos pinos V e G da extensora |
 
-São 38 jumpers fêmea-fêmea, 16 macho-fêmea e 2 macho-macho, mais 7 fios soldados com ponta fêmea (DIP e TPS63070) e 17 fios soldados nos bornes e terminais, e a página soma o comprimento de cada caminho para a lista de compra. O start continua no botão BOOT (GPIO 0): o DevKit de 30 pinos não leva o GPIO 0 para a barra, então o botão de início é soldado em paralelo com o BOOT.
+São 38 jumpers fêmea-fêmea e 23 fios soldados com ponta fêmea (16 das duas emendas do I2C, 7 da DIP e do TPS63070), mais 17 fios soldados nos bornes e terminais, e a página soma o comprimento de cada caminho para a lista de compra. O start continua no botão BOOT (GPIO 0): o DevKit de 30 pinos não leva o GPIO 0 para a barra, então o botão de início é soldado em paralelo com o BOOT.
 
 O esquema do Fritzing (`SUMO_Esquemático` e `SUMO_bb`) difere do firmware em cinco pontos, e a página mostra os cinco: os sensores de borda saem do D0 nos GPIO 36, 39, 34 e 35, mas o firmware lê o A0 nos 34, 35, 32 e 33; a chave DIP vai nos GPIO 15, 14, 33 e 32 com o comum no GND, mas o firmware lê os 12, 14, 2 e 15 com o pull-down interno e o comum no 3V3 (com o comum no GND a chave nunca muda a leitura); o botão S1 vai no GPIO 2, que é a via 3 da chave; a ponte H aparece como L298N; e o ESP32 vai na extensora, não numa protoboard. O ramo dos motores não tem chave liga e desliga no esquema.
 

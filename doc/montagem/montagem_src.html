@@ -105,7 +105,7 @@ ol.passos code, .mono code { font-family: var(--f-mono); font-size: 0.82rem; bac
   <header class="topo">
     <h3>UFMG · ELE635 · Grupo D · robô de sumô de 1 kg</h3>
     <h1>Montagem do robô com os jumpers</h1>
-    <p class="local">O chassi de dois andares do editor 3D v11, peça por peça, e cada fio do esquema elétrico com a ponta de cada jumper: <b>fêmea</b> nos pinos machos dos módulos e da extensora, <b>macho</b> nos furos da protoboard de meia página, que só faz o barramento de SDA e SCL dos sete VL53L0X. Embaixo ficam a ponte H, os motores, os sensores e a prateleira com a extensora e o ESP32; por cima da tampa ficam a bateria 3S, o BMS, a célula da lógica, o regulador, a chave DIP, o botão de início e a chave liga e desliga. As posições e os ângulos dos sensores vêm do editor e batem com o <span class="mono">config.h</span> (o gerador confere), e os GPIOs de cada fio saem dele, então a página acompanha o firmware. Os caminhos dos fios são calculados no modelo 3D, com folga de 1,5 mm.</p>
+    <p class="local">O chassi de dois andares do editor 3D v11, peça por peça, e cada fio do esquema elétrico com a ponta de cada jumper: <b>fêmea</b> nos pinos machos dos módulos e da extensora, <b>soldado</b> nas duas emendas (com termorretrátil) onde o SDA e o SCL dos sete VL53L0X se juntam antes de ir ao pino da extensora; não há protoboard. Embaixo ficam a ponte H, os motores, os sensores e a prateleira com a extensora e o ESP32; por cima da tampa ficam a bateria 3S, o BMS, a célula da lógica, o regulador, a chave DIP, o botão de início e a chave liga e desliga. As posições e os ângulos dos sensores vêm do editor e batem com o <span class="mono">config.h</span> (o gerador confere), e os GPIOs de cada fio saem dele, então a página acompanha o firmware. Os caminhos dos fios são calculados no modelo 3D, com folga de 1,5 mm.</p>
     <p class="aviso" id="provisorio"></p>
   </header>
 
@@ -206,7 +206,7 @@ function curto(id) {
 }
 function nomePonto(ref) {
   const [id, pino] = ref.split(":");
-  if (id === "proto") return `Protoboard · furo ${pino}` + (pino[1] === String(D.proto.SDA) ? " (coluna do SDA)" : pino.slice(1) === String(D.proto.SCL) ? " (coluna do SCL)" : "");
+  if (id.startsWith("emenda")) return `Emenda soldada do ${id.slice(7).toUpperCase()} · lado ${pino === "P" ? "dos sensores" : "da extensora"}`;
   if (id === "ext") {
     const g = pino.replace(/^[SVG]/, "");
     const letra = {S: "S (sinal)", V: "V (3,3 V)", G: "G (GND)"}[pino[0]];
@@ -272,25 +272,7 @@ function material(cor, op = 1, extra = {}) {
 function procedural(mod, cor, op) {
   const g = new THREE.Group();
   const [a, b, c] = mod.dim;
-  if (mod.procedural === "protoboard") {
-    const corpo = new THREE.Mesh(new THREE.BoxGeometry(a, b, c), material(cor, op));
-    corpo.position.z = c / 2; g.add(corpo);
-    const nc = mod.colunas || 17, trilhos = !!mod.trilhos;
-    const furo = new THREE.InstancedMesh(new THREE.BoxGeometry(1.0, 1.0, 0.3), material(0x3a3a3a), nc * 10 + (trilhos ? 100 : 0));
-    const m = new THREE.Matrix4(); let k = 0;
-    for (let col = 1; col <= nc; col++) for (let i = 0; i < 10; i++) {
-      const y = i < 5 ? 13.97 - 2.54 * i : -3.81 - 2.54 * (i - 5);
-      m.makeTranslation((col - (nc + 1) / 2) * 2.54, y, c + 0.02); furo.setMatrixAt(k++, m);
-    }
-    if (trilhos) for (const y of [21.59, 19.05, -19.05, -21.59]) for (let n = 1; n <= 25; n++) {
-      m.makeTranslation(-33.02 + (n - 1) * 2.54 + Math.floor((n - 1) / 5) * 1.27, y, c + 0.02); furo.setMatrixAt(k++, m);
-    }
-    g.add(furo);
-    if (trilhos) for (const [y, cor] of [[21.59, 0x202020], [19.05, 0xc0281c], [-19.05, 0xc0281c], [-21.59, 0x202020]]) {
-      const l = new THREE.Mesh(new THREE.BoxGeometry(a - 12, 0.5, 0.3), material(cor)); l.position.set(0, y + (y > 0 ? 1.9 : -1.9), c + 0.01); g.add(l);
-    }
-    const canal = new THREE.Mesh(new THREE.BoxGeometry(a - 2, 1.6, 0.4), material(0xbfbfb8)); canal.position.z = c; g.add(canal);
-  } else if (mod.procedural === "chave_gangorra") {
+  if (mod.procedural === "chave_gangorra") {
     const corpo = new THREE.Mesh(new THREE.BoxGeometry(a, b, c), material(cor, op)); corpo.position.z = c / 2; g.add(corpo);
     const tecla = new THREE.Mesh(new THREE.BoxGeometry(a * 0.78, b * 0.62, 3), material(0xc0281c));
     tecla.position.z = c + 1.4; tecla.rotation.y = 0.18; g.add(tecla);
@@ -394,10 +376,10 @@ const SVG = {
 };
 const TXT = {
   FF: "<b>fêmea-fêmea</b>: entre dois pinos machos (sensor e extensora, ponte H e extensora).",
-  MF: "<b>macho-fêmea</b>: a fêmea no pino do sensor ou da extensora, o macho no furo da protoboard.",
-  MM: "<b>macho-macho</b>: entre dois furos da protoboard.",
-  SF: "<b>soldado + fêmea</b>: jumper fêmea cortado ao meio e soldado (chave DIP, regulador) com a fêmea no pino da extensora.",
-  SM: "<b>soldado + macho</b>: fio soldado com a ponta macho no furo da protoboard.",
+  MF: "<b>macho-fêmea</b>: a fêmea no pino do sensor ou da extensora, o macho num furo.",
+  MM: "<b>macho-macho</b>: entre dois furos.",
+  SF: "<b>soldado + fêmea</b>: jumper fêmea cortado ao meio e soldado (emendas do SDA e do SCL, chave DIP, regulador), com a fêmea no pino do sensor ou da extensora.",
+  SM: "<b>soldado + macho</b>: fio soldado com a ponta macho num furo.",
   S: "<b>soldado ou borne</b>: bateria, BMS, motores, botão de início e alimentação da ponte H.",
 };
 $("legenda").innerHTML = Object.keys(SVG).filter((t) => cont[t]).map((t) => `<div class="item">${SVG[t]}<span>${TXT[t]}</span></div>`).join("");
@@ -419,7 +401,7 @@ const corGrupo = {"I2C": "#d81b9a", "Sensores de oponente": "#2e9e44", "Sensores
 marcas("marcasFios", grupoFio, Object.keys(grupoFio).map((g) => [g, grupoFio[g].length, corGrupo[g]]), () => true,
   (g, v) => { grupoFio[g].forEach((o) => (o.visible = v)); pede(); });
 const NOMES_P = {chassi: ["Chassi, motores e rodas", "#3b414b"], tampas: ["Tampas", "#565e6b"], potencia: ["Bateria 3S, BMS e ponte H", "#b3261e"],
-  logica: ["Bateria da lógica e regulador", "#7b2a8f"], controle: ["Extensora, ESP32, protoboard, DIP e botão", "#1f4e8c"], sensores: ["Sensores e suportes", "#2b7a3a"],
+  logica: ["Bateria da lógica e regulador", "#7b2a8f"], controle: ["Extensora, ESP32, emendas, DIP e botão", "#1f4e8c"], sensores: ["Sensores e suportes", "#2b7a3a"],
   passafios: ["Passa-fios propostos", "#f08c00"]};
 const ordemP = ["sensores", "controle", "potencia", "logica", "passafios", "chassi", "tampas"];
 marcas("marcasPecas", grupoPeca, ordemP.filter((g) => grupoPeca[g]).map((g) => [NOMES_P[g][0], grupoPeca[g].length, NOMES_P[g][1]]),
