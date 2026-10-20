@@ -92,47 +92,41 @@ static const CfgToF TOF[] = {
 #define LENTE_ALTURA_MM   23.0f    // centro das lentes, entre 21 e 24 mm acima da base
 #define GEOMETRIA_NOME    "BANCADA"
 #else
-// Robô montado, com as medidas do STEP do projeto mecânico (LAB3-Modelagem, 10/2026). A origem fica
-// no meio do eixo das rodas, que é o centro de giro, no chão, com x para a frente e y para a
-// esquerda: a ponta da rampa fica 118 mm à frente dele, a traseira da base 31 mm atrás, e o corpo
-// tem 149 mm de largura. Cada VL53L0X vai no suporte de PLA de 32 x 20 x 3,5 mm (mounting bracket
-// for VL53L0X module, doc/montagem/modelos), com a placa de frente para a janela e a lente 7,75 mm
-// acima da borda de baixo do suporte:
-//   - FE, FC e FD olham pelas janelas da face inclinada da frente (FE e FD a 17 graus para fora);
-//   - LE e LD olham pela janela da lateral que fica à frente do eixo (janela de 20 x 13 mm com
-//     centro a 54,4 mm do eixo);
-//   - TE e TD ficam na janela da lateral mais perto do eixo (centro a 32,4 mm) e olham para trás, a
-//     160 graus, como no estudo de 7 sensores (par atrás, ±160°): o suporte vai inclinado, com a
-//     lente virada 20 graus para fora da linha de trás, e o cone cobre de 147,5 a 172,5 graus.
-//   PENDENTE NO CHASSI (medido no 3D, doc/montagem/README.md):
-//   1. Detecção: a lente do TE e do TD fica em y = ±74 mm, no plano da face de fora da lateral (que
-//      vai até 74,5): com ela entre 73,1 e 74,5 mm ou mais para fora, o chassi não corta o cone. Com
-//      a lente recuada para y = 72, o terço de dentro do cone (167,5 a 172,5 graus) bate na borda de
-//      trás da janela a 10,7 mm.
-//   2. Largura: o suporte de 32 mm girado 20 graus sai uns 14 mm da lateral de cada lado (largura
-//      total de 177 mm, contra 152 mm do gabarito da largada): precisa de suporte só do módulo, em
-//      cunha, ou de janela inclinada com o módulo mais para dentro.
-//   3. Com o TE inclinado, o suporte dele deixa de se sobrepor ao do LE (na versão reta, a 90 graus,
-//      os dois se sobrepunham 10 mm, 945 mm³); o módulo do TE ainda encosta 71 mm³ na lateral, que
-//      precisa de recorte maior que a janela de 20 x 13 mm.
+// Robô montado, com o chassi de dois andares do editor 3D v11 (STL do grupo, 10/2026; a página
+// site/montagem.html confere esta tabela contra o editor). A origem fica no meio do eixo das rodas,
+// que é o centro de giro, no chão, com x para a frente e y para a esquerda: a ponta da rampa fica
+// 118 mm à frente dele, a traseira da base 34 mm atrás, e o corpo tem 151 mm de largura (os suportes
+// de 160 graus do TE e do TD sobram 1 mm de cada lado da lateral; o gabarito da largada é 152 mm).
+// Cada VL53L0X vai no suporte de PLA do grupo, com a lente virada para fora:
+//   - FE, FC e FD ficam na face inclinada da frente (FE e FD a 17 graus para fora);
+//   - LE e LD ficam na lateral à frente do eixo, retos, a 90 graus;
+//   - TE e TD ficam atrás da roda, em suportes inclinados, e olham para trás a 160 graus, como no
+//     estudo de 7 sensores (par atrás, ±160 graus).
+//   PENDENTE NO CHASSI (doc/montagem/README.md, seção Espaço no chassi):
+//   1. Inclinação: o suporte da face da frente deixa os feixes do FE, FC e FD uns 27 graus para
+//      cima. Esta tabela e o firmware supõem feixe horizontal; com a inclinação, o cone passa por
+//      cima de um oponente baixo a partir de uns 150 mm. Corrigir o suporte (calço ou janela) ou
+//      aceitar o alcance menor.
+//   2. A lente do TE e do TD fica a 29 a 30 mm do chão, 5 mm acima das outras (LENTE_ALTURA_MM é
+//      a altura das lentes da frente e das laterais).
 static const CfgToF TOF[] = {
   //  nome   xshut  endereço   x     y    ang   offset
-  {  "LE",   17,    0x30,     55,    72,   90,    0  },   // janela da lateral esquerda, à frente
-  {  "FE",   23,    0x31,     85,    35,   17,    0  },   // janela esquerda da face da frente
-  {  "FC",   19,    0x32,     95,     0,    0,    0  },   // janela do meio, decide o ataque
-  {  "FD",   18,    0x33,     85,   -35,  -17,    0  },   // janela direita da face da frente
-  {  "LD",    5,    0x34,     55,   -72,  -90,    0  },   // janela da lateral direita, à frente
+  {  "LE",   17,    0x30,     46,    70,   90,    0  },   // lateral esquerda, à frente do eixo
+  {  "FE",   23,    0x31,     77,    32,   17,    0  },   // face da frente, lado esquerdo
+  {  "FC",   19,    0x32,     83,     0,    0,    0  },   // face da frente, meio, decide o ataque
+  {  "FD",   18,    0x33,     77,   -34,  -17,    0  },   // face da frente, lado direito
+  {  "LD",    5,    0x34,     46,   -70,  -90,    0  },   // lateral direita, à frente do eixo
 #if QTD_TOF == 7
-  {  "TE",   16,    0x35,     33,    74,  160,    0  },   // lateral esquerda, perto do eixo, lente na face de fora, para trás
-  {  "TD",    4,    0x36,     33,   -74, -160,    0  },   // lateral direita, perto do eixo, lente na face de fora, para trás
+  {  "TE",   16,    0x35,    -30,    66,  160,    0  },   // atrás da roda esquerda, para trás
+  {  "TD",    4,    0x36,    -30,   -66, -160,    0  },   // atrás da roda direita, para trás
 #endif
 };
 #define CORPO_FRENTE_MM   118.0f   // ponta da rampa
-#define CORPO_TRAS_MM     31.0f    // face de trás da base
-#define CORPO_ESQ_MM      74.5f
-#define CORPO_DIR_MM      74.5f
-#define CORPO_ALTURA_MM   55.0f    // topo da tampa da frente em relação ao chão (a da traseira fica a 47 mm)
-#define LENTE_ALTURA_MM   19.8f    // lente 7,75 mm acima da borda de baixo do suporte, que fica a 12 mm do chão
+#define CORPO_TRAS_MM     34.0f    // face de trás da base
+#define CORPO_ESQ_MM      75.5f
+#define CORPO_DIR_MM      75.5f
+#define CORPO_ALTURA_MM   55.0f    // topo da tampa da frente em relação ao chão (a de trás fica a 47 mm)
+#define LENTE_ALTURA_MM   24.0f    // lentes da frente e das laterais; as do TE e do TD ficam a 29 e 30 mm
 #define GEOMETRIA_NOME    "ROBO"
 #endif
 #define N_TOF  (sizeof(TOF) / sizeof(TOF[0]))   // quantidade de ToF, no máximo 16
@@ -244,19 +238,19 @@ static const CfgBorda BORDA[] = {
 #define BORDA_ALTURA_MM   2.7f     // altura da face do sensor ao chão, só para o painel 3D
 #define BORDA_ATE_RODA_MM 40.0f    // menor distância em x entre um sensor de borda e o centro (rodas)
 #else
-// Furos de 10 x 9 mm na base, perto das laterais (STEP da base): o par da frente fica nos furos a
-// 88 mm do eixo, com a placa do TCRT5000 para dentro do chassi. O par de trás não tem furo: a placa
-// fica atrás dos motores, presa na ponta da base com o sensor para fora, e sai uns 30 mm da
-// traseira (o projetista aceitou). O static_assert da cinemática confere que a distância de parada
-// cabe nos 60 mm até o eixo. POSIÇÃO PREVISTA do par de trás: medir depois de montar.
+// Os quatro TCRT5000 do chassi de dois andares, com a face do par infravermelho a 3 mm do chão e a
+// placa para dentro do chassi: o par da frente fica nos furos da base a 95,5 mm do eixo, bem na
+// frente dos motores e dos sensores laterais; o par de trás fica atrás da roda, a 26,5 mm do eixo
+// e a 69 mm do centro, nas pontas da base. O static_assert da cinemática confere que a distância de
+// parada cabe na margem entre o sensor de trás e o eixo (BORDA_ATE_RODA_MM).
 static const CfgBorda BORDA[] = {
-  {  "BFE",   34,     88,   62,  -1,   true  },
-  {  "BFD",   35,     88,  -62,  +1,   true  },
-  {  "BTE",   32,    -60,   34,  -1,   false },
-  {  "BTD",   33,    -60,  -34,  +1,   false },
+  {  "BFE",   34,     96,   62,  -1,   true  },
+  {  "BFD",   35,     96,  -62,  +1,   true  },
+  {  "BTE",   32,    -27,   69,  -1,   false },
+  {  "BTD",   33,    -27,  -69,  +1,   false },
 };
-#define BORDA_ALTURA_MM   4.0f
-#define BORDA_ATE_RODA_MM 60.0f    // menor distância em x entre um sensor de borda e o eixo das rodas
+#define BORDA_ALTURA_MM   3.0f
+#define BORDA_ATE_RODA_MM 26.5f    // menor distância em x entre um sensor de borda e o eixo das rodas
 #endif
 #define N_BORDA  (sizeof(BORDA) / sizeof(BORDA[0]))
 

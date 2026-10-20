@@ -1,128 +1,50 @@
 [
  {
-  "a": "Rampa da frente (PLA)",
-  "b": "TCRT5000 BFE (A0 no GPIO 34)",
-  "mm3": 466,
+  "a": "Chave liga e desliga da lógica KCD1 (furo C da tampa de trás)",
+  "b": "Botão de início de 12 x 12 mm (furo B da tampa de trás)",
+  "mm3": 80,
   "encaixe": false
  },
  {
-  "a": "Rampa da frente (PLA)",
-  "b": "TCRT5000 BFD (A0 no GPIO 35)",
-  "mm3": 462,
-  "encaixe": false
- },
- {
-  "a": "Rampa da frente (PLA)",
-  "b": "VL53L0X FD (XSHUT no GPIO 18, endereço 0x33)",
-  "mm3": 94,
-  "encaixe": false
- },
- {
-  "a": "VL53L0X LE (XSHUT no GPIO 17, endereço 0x30)",
-  "b": "TCRT5000 BFE (A0 no GPIO 34)",
-  "mm3": 91,
-  "encaixe": false
- },
- {
-  "a": "Rampa da frente (PLA)",
-  "b": "VL53L0X FE (XSHUT no GPIO 23, endereço 0x31)",
-  "mm3": 74,
-  "encaixe": false
- },
- {
-  "a": "Laterais (PLA)",
-  "b": "VL53L0X TE (XSHUT no GPIO 16, endereço 0x35)",
-  "mm3": 71,
-  "encaixe": false
- },
- {
-  "a": "Laterais (PLA)",
-  "b": "VL53L0X TD (XSHUT no GPIO 4, endereço 0x36)",
-  "mm3": 71,
-  "encaixe": false
- },
- {
-  "a": "Rampa da frente (PLA)",
-  "b": "Suporte de PLA do FD (VL53L0X Mounting Bracket)",
-  "mm3": 712,
+  "a": "Rampa da frente: placas D e E (PLA)",
+  "b": "VL53L0X FE (frente esquerdo) com suporte (XSHUT no GPIO 23, endereço 0x31)",
+  "mm3": 756,
   "encaixe": true
  },
  {
-  "a": "Rampa da frente (PLA)",
-  "b": "Suporte de PLA do FE (VL53L0X Mounting Bracket)",
-  "mm3": 702,
+  "a": "Rampa da frente: placas D e E (PLA)",
+  "b": "VL53L0X FD (frente direito) com suporte (XSHUT no GPIO 18, endereço 0x33)",
+  "mm3": 746,
   "encaixe": true
  },
  {
-  "a": "VL53L0X FE (XSHUT no GPIO 23, endereço 0x31)",
-  "b": "Suporte de PLA do FE (VL53L0X Mounting Bracket)",
-  "mm3": 614,
+  "a": "Extensora do ESP32 (trios S, V e G)",
+  "b": "ESP32 DevKit",
+  "mm3": 739,
   "encaixe": true
  },
  {
-  "a": "VL53L0X TD (XSHUT no GPIO 4, endereço 0x36)",
-  "b": "Suporte de PLA do TD (VL53L0X Mounting Bracket)",
-  "mm3": 601,
+  "a": "Calço em V do sensor central (PLA)",
+  "b": "VL53L0X FC (frente central) com suporte (XSHUT no GPIO 19, endereço 0x32)",
+  "mm3": 555,
   "encaixe": true
  },
  {
-  "a": "VL53L0X FD (XSHUT no GPIO 18, endereço 0x33)",
-  "b": "Suporte de PLA do FD (VL53L0X Mounting Bracket)",
-  "mm3": 597,
+  "a": "Suportes angulares de 160° do TE e do TD (PLA)",
+  "b": "VL53L0X TD (de trás direito (160°)) com suporte (XSHUT no GPIO 4, endereço 0x36)",
+  "mm3": 244,
   "encaixe": true
  },
  {
-  "a": "VL53L0X FC (XSHUT no GPIO 19, endereço 0x32)",
-  "b": "Suporte de PLA do FC (VL53L0X Mounting Bracket)",
-  "mm3": 584,
+  "a": "Suportes angulares de 160° do TE e do TD (PLA)",
+  "b": "VL53L0X TE (de trás esquerdo (160°)) com suporte (XSHUT no GPIO 16, endereço 0x35)",
+  "mm3": 239,
   "encaixe": true
  },
  {
-  "a": "VL53L0X TE (XSHUT no GPIO 16, endereço 0x35)",
-  "b": "Suporte de PLA do TE (VL53L0X Mounting Bracket)",
-  "mm3": 580,
-  "encaixe": true
- },
- {
-  "a": "VL53L0X LE (XSHUT no GPIO 17, endereço 0x30)",
-  "b": "Suporte de PLA do LE (VL53L0X Mounting Bracket)",
-  "mm3": 540,
-  "encaixe": true
- },
- {
-  "a": "VL53L0X LD (XSHUT no GPIO 5, endereço 0x34)",
-  "b": "Suporte de PLA do LD (VL53L0X Mounting Bracket)",
-  "mm3": 540,
-  "encaixe": true
- },
- {
-  "a": "Rampa da frente (PLA)",
-  "b": "Suporte de PLA do FC (VL53L0X Mounting Bracket)",
-  "mm3": 466,
-  "encaixe": true
- },
- {
-  "a": "Rampa da frente (PLA)",
-  "b": "Suporte de PLA do LE (VL53L0X Mounting Bracket)",
-  "mm3": 233,
-  "encaixe": true
- },
- {
-  "a": "Rampa da frente (PLA)",
-  "b": "Suporte de PLA do LD (VL53L0X Mounting Bracket)",
-  "mm3": 230,
-  "encaixe": true
- },
- {
-  "a": "Laterais (PLA)",
-  "b": "Suporte de PLA do TE (VL53L0X Mounting Bracket)",
-  "mm3": 209,
-  "encaixe": true
- },
- {
-  "a": "Laterais (PLA)",
-  "b": "Suporte de PLA do TD (VL53L0X Mounting Bracket)",
-  "mm3": 209,
+  "a": "Rampa da frente: placas D e E (PLA)",
+  "b": "VL53L0X FC (frente central) com suporte (XSHUT no GPIO 19, endereço 0x32)",
+  "mm3": 117,
   "encaixe": true
  }
 ]

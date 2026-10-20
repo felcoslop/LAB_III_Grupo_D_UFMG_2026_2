@@ -1,830 +1,261 @@
 {
- "sobre": "Montagem 3D do robô do Grupo D: modelos, posição de cada peça e ligações. As posições dos sensores (ToF e borda) e os GPIOs das ligações saem do config.h; o resto sai daqui. Referencial do robô em mm: origem no meio do eixo das rodas, no chão, x para a frente, y para a esquerda e z para cima. rot é [rx, ry, rz] em graus, aplicados na ordem z, y, x. Depois de mudar este arquivo: python ferramentas/gera_montagem.py. Depois de trocar o STEP: python ferramentas/step_para_stl.py LAB3-Modelagem.step PASTA e python ferramentas/exporta_pecas.py PASTA PASTA_DOS_COMPONENTES e depois o gera_montagem.py.",
- "provisorio": "Chassi do STEP LAB3-Modelagem (10/2026). As posições dos componentes são provisórias e foram conferidas contra o STEP em blocos de 1 mm. A protoboard de 81 x 55 mm cabe na tampa da frente (cerca de 1 % dela passa da borda inclinada, num canto); a segunda protoboard de 81 x 55 mm não tem lugar, pois a tampa de trás tem só 42 mm de comprimento. A chave DIP e o botão de ligar ficam nos furos A e B da tampa de trás. O que ainda precisa do projetista do chassi (rasgo da rampa para o TCRT5000 da frente, janelas dos VL53L0X FE, FD e FC, passa-fios nas tampas) está em doc/montagem/README (seção Espaço no chassi).",
+ "sobre": "Montagem 3D do robô do Grupo D no chassi de dois andares (editor 3D v11): modelos, posição de cada peça e ligações. As posições dos sensores (ToF e borda) e os GPIOs das ligações saem do config.h, e o gerador confere que a posição e o ângulo de cada sensor no editor batem com a tabela do config.h; o resto sai daqui e do editor.json (matrizes das peças idênticas, geradas por ferramentas/exporta_pecas.py). Referencial do robô em mm: origem no meio do eixo das rodas, no chão, x para a frente, y para a esquerda e z para cima. rot é [rx, ry, rz] em graus, aplicados na ordem z, y, x; R, quando existe, é a matriz 3 x 3 da peça. Depois de mudar este arquivo: python ferramentas/gera_montagem.py. Depois de trocar o editor 3D: python ferramentas/exporta_pecas.py robo_3d_editor.html e depois o gera_montagem.py.",
+ "provisorio": "Chassi do editor 3D v11 (STL do grupo, 10/2026): a base com a ponte H, os motores e os TCRT5000; a prateleira com a extensora e o ESP32; e, por cima da tampa, a bateria 3S com o BMS, a célula da lógica com o TPS63070, as duas emendas do barramento de I2C, a chave DIP, o botão de início e a chave liga e desliga. Os modelos 3D da extensora e do ESP32 são os do editor (placa de 44 pinos): o DevKit de 30 pinos tem 15 pinos por lado, então os trios S, V e G foram colocados nas 15 últimas fileiras, do lado do USB. Os passa-fios laranja (PF1, PF2, PS-E e PS-D) não existem no chassi e são uma proposta: o projetista precisa abri-los. Os caminhos dos fios são indicativos; o que falta decidir está em doc/montagem/README (seção Espaço no chassi).",
  "modelos": {
   "base": {
-   "arquivos": [
-    "chassi/Base.stl"
+   "editor": [
+    0
    ],
-   "referencial": "step_robo",
-   "faces": 5000
+   "cores": false
   },
   "frente": {
-   "arquivos": [
-    "chassi/Frente1.stl",
-    "chassi/Frente2.stl"
-   ],
-   "referencial": "step_robo"
-  },
-  "laterais": {
-   "arquivos": [
-    "chassi/Lateral_L.stl",
-    "chassi/Lateral_R.stl"
-   ],
-   "referencial": "step_robo"
-  },
-  "hastes": {
-   "arquivos": [
-    "chassi/Haste_L.stl",
-    "chassi/Haste_R.stl"
-   ],
-   "referencial": "step_robo"
-  },
-  "topo": {
-   "arquivos": [
-    "chassi/Topo.stl"
-   ],
-   "referencial": "step_robo"
-  },
-  "suportes": {
-   "arquivos": [
-    "chassi/Suporte_L.stl",
-    "chassi/Suporte_R.stl",
-    "chassi/Body.stl",
-    "chassi/Body001.stl",
-    "chassi/COUPLING_BRACKET_GEARED_BODY_TO_DC_MOTOR_JGB37-520.stl",
-    "chassi/COUPLING_BRACKET_GEARED_BODY_TO_DC_MOTOR_JGB37-521.stl"
-   ],
-   "referencial": "step_robo",
-   "faces": 6000
-  },
-  "motorE": {
-   "arquivos": [
-    "chassi/DC_MOTOR_JGB37-521.stl",
-    "chassi/PLASTIC_COVER_DC_MOTOR_JGB37-521.stl",
-    "chassi/CONNECTION_DC_MOTOR_JGB37-522.stl",
-    "chassi/CONNECTION_DC_MOTOR_JGB37-523.stl",
-    "chassi/MOTOR_SHAFT_JGB37-521.stl",
-    "chassi/SHAFT_COUPLER_JGB37-521.stl"
-   ],
-   "referencial": "step_robo",
-   "faces": 3500
-  },
-  "motorD": {
-   "arquivos": [
-    "chassi/DC_MOTOR_JGB37-520.stl",
-    "chassi/PLASTIC_COVER_DC_MOTOR_JGB37-520.stl",
-    "chassi/CONNECTION_DC_MOTOR_JGB37-520.stl",
-    "chassi/CONNECTION_DC_MOTOR_JGB37-521.stl",
-    "chassi/MOTOR_SHAFT_JGB37-520.stl",
-    "chassi/SHAFT_COUPLER_JGB37-520.stl"
-   ],
-   "referencial": "step_robo",
-   "faces": 3500
-  },
-  "cuboE": {
-   "arquivos": [
-    "chassi/Roda_sumo501.stl"
-   ],
-   "referencial": "step_robo"
-  },
-  "cuboD": {
-   "arquivos": [
-    "chassi/Roda_sumo500.stl"
-   ],
-   "referencial": "step_robo"
-  },
-  "pneuE": {
-   "arquivos": [
-    "chassi/StickyMAX-32mm-Pneu-Loja001.stl"
-   ],
-   "referencial": "step_robo",
-   "faces": 2400
-  },
-  "pneuD": {
-   "arquivos": [
-    "chassi/StickyMAX-32mm-Pneu-Loja.stl"
-   ],
-   "referencial": "step_robo",
-   "faces": 2400
-  },
-  "esp32": {
-   "arquivo": "componentes/01_esp32_devkit_30pinos.stl",
-   "faces": 5000,
-   "escala": [
+   "editor": [
     1,
-    0.9,
-    1
-   ]
-  },
-  "tps63070": {
-   "arquivo": "componentes/03_regulador_tps63070.stl",
-   "faces": 1500
-  },
-  "dip4": {
-   "arquivo": "componentes/04_chave_dip_4vias.stl",
+    2
+   ],
+   "cores": false,
    "faces": 1200
   },
-  "ponte_h": {
-   "arquivo": "componentes/05_ponte_h_zk_bm1.stl",
-   "faces": 7000
+  "laterais": {
+   "editor": [
+    3,
+    4
+   ],
+   "cores": false
   },
-  "celula": {
-   "arquivo": "componentes/07_celula_18650_generica.stl"
+  "hastes": {
+   "editor": [
+    6,
+    7
+   ],
+   "cores": false
   },
-  "bms": {
-   "arquivo": "componentes/08_bms_3s_20a.stl",
+  "topo": {
+   "editor": [
+    5
+   ],
+   "cores": false,
+   "faces": 2500
+  },
+  "suportes": {
+   "editor": [
+    8,
+    9
+   ],
+   "cores": false
+  },
+  "prateleira": {
+   "editor": [
+    10
+   ],
+   "cores": false
+  },
+  "calco_v": {
+   "editor": [
+    18
+   ],
+   "cores": false
+  },
+  "suporte160": {
+   "editor": [
+    21,
+    23
+   ],
+   "cores": false,
+   "faces": 2400
+  },
+  "motorD": {
+   "editor": [
+    11
+   ],
+   "cores": true,
+   "tol": 8,
+   "faces": 3500
+  },
+  "motorE": {
+   "editor": [
+    13
+   ],
+   "cores": true,
+   "tol": 8,
+   "faces": 3500
+  },
+  "rodaD": {
+   "editor": [
+    12
+   ],
+   "cores": true,
+   "tol": 4,
+   "faces": 3000
+  },
+  "rodaE": {
+   "editor": [
+    14
+   ],
+   "cores": true,
+   "tol": 4,
+   "faces": 3000
+  },
+  "vl53_A": {
+   "editor": [
+    19
+   ],
+   "cores": true,
+   "tol": 2,
+   "faces": 3500
+  },
+  "vl53_B": {
+   "editor": [
+    22
+   ],
+   "cores": true,
+   "tol": 2,
    "faces": 2500
   },
   "tcrt5000": {
-   "arquivo": "componentes/10_tcrt5000.stl",
-   "faces": 2200
-  },
-  "suporte_tof": {
-   "arquivo": "repo/vl53l0x-bracket.stl",
-   "referencial": "local_gira",
-   "origem": [
-    16,
-    7.75,
-    0
+   "editor": [
+    25
    ],
-   "R": [
-    [
-     -1,
-     0,
-     0
-    ],
-    [
-     0,
-     1,
-     0
-    ],
-    [
-     0,
-     0,
-     -1
-    ]
-   ]
+   "cores": true,
+   "tol": 2,
+   "faces": 2500
   },
-  "vl53l0x": {
-   "arquivo": "repo/cj_vl53l0x.stl"
-  },
-  "protoboard": {
-   "procedural": "protoboard",
-   "dim": [
-    81,
-    55,
-    8.5
+  "extensora": {
+   "editor": [
+    29
    ],
-   "colunas": 30,
-   "trilhos": true
+   "cores": true,
+   "tol": 1.0,
+   "faces": 7000
+  },
+  "esp32": {
+   "editor": [
+    30
+   ],
+   "cores": true,
+   "tol": 1.0,
+   "faces": 5000
+  },
+  "ponte": {
+   "editor": [
+    32
+   ],
+   "cores": true,
+   "tol": 5,
+   "faces": 6000
+  },
+  "bms": {
+   "editor": [
+    36
+   ],
+   "cores": true,
+   "tol": 1.0,
+   "faces": 3000
+  },
+  "tps63070": {
+   "editor": [
+    39
+   ],
+   "cores": true,
+   "tol": 3,
+   "faces": 1500
+  },
+  "celula": {
+   "editor": [
+    33
+   ],
+   "cores": true
+  },
+  "fita": {
+   "editor": [
+    37,
+    40
+   ],
+   "cores": true
+  },
+  "dip4": {
+   "editor": [
+    42
+   ],
+   "cores": true,
+   "faces": 1500
   },
   "chave_liga": {
-   "procedural": "chave_gangorra",
+   "editor": [
+    43
+   ],
+   "cores": true,
+   "tol": 3,
+   "faces": 2500
+  },
+  "botao": {
+   "editor": [
+    44
+   ],
+   "cores": true,
+   "tol": 3,
+   "faces": 2500
+  },
+  "pf": {
+   "procedural": "caixa",
    "dim": [
-    10.5,
-    15,
-    11
+    8,
+    8,
+    12
+   ],
+   "centro": [
+    0,
+    0,
+    0
+   ]
+  },
+  "emenda": {
+   "procedural": "caixa",
+   "dim": [
+    6,
+    4,
+    4
    ]
   }
  },
- "pinos": {
-  "vl53l0x": {
-   "_nota": "módulo CJVL53L0XV2 no suporte de PLA (referencial do suporte: origem na janela, +z é o feixe); barra de 6 pinos na ponta de x negativo, com os pinos para trás (-z)",
-   "lente": [
-    0,
-    0,
-    -0.5
-   ],
-   "VIN": {
-    "p": [
-     -7,
-     -4.1,
-     -8.0
+ "contorno": {
+  "_nota": "caixa por onde os fios podem andar (mm, robô): fora dela, abaixo do topo da tampa da frente, é fora do chassi",
+  "x_min": -35,
+  "x_max": 119,
+  "y": 76,
+  "z_tampa": 56,
+  "tampas": [
+   {
+    "x": [
+     -26,
+     15
     ],
-    "d": [
-     0,
-     0,
-     -1
-    ],
-    "tipo": "macho"
+    "z": [
+     44,
+     47.5
+    ]
    },
-   "GND": {
-    "p": [
-     -7,
-     -1.56,
-     -8.0
+   {
+    "x": [
+     15,
+     78
     ],
-    "d": [
-     0,
-     0,
-     -1
-    ],
-    "tipo": "macho"
+    "z": [
+     52.5,
+     55.5
+    ]
    },
-   "SCL": {
-    "p": [
-     -7,
-     0.98,
-     -8.0
+   {
+    "x": [
+     14,
+     27
     ],
-    "d": [
-     0,
-     0,
-     -1
-    ],
-    "tipo": "macho"
-   },
-   "SDA": {
-    "p": [
-     -7,
-     3.52,
-     -8.0
-    ],
-    "d": [
-     0,
-     0,
-     -1
-    ],
-    "tipo": "macho"
-   },
-   "GPIO1": {
-    "p": [
-     -7,
-     6.06,
-     -8.0
-    ],
-    "d": [
-     0,
-     0,
-     -1
-    ],
-    "tipo": "macho"
-   },
-   "XSHUT": {
-    "p": [
-     -7,
-     8.6,
-     -8.0
-    ],
-    "d": [
-     0,
-     0,
-     -1
-    ],
-    "tipo": "macho"
+    "z": [
+     47.5,
+     53
+    ]
    }
-  },
-  "tcrt5000": {
-   "_nota": "barra de 4 pinos em 90 graus na ponta da placa; o par infravermelho olha para -z local",
-   "face": [
-    -15.5,
-    0,
-    0.4
-   ],
-   "VCC": {
-    "p": [
-     13.2,
-     4.25,
-     14.5
-    ],
-    "d": [
-     1,
-     0,
-     0
-    ],
-    "tipo": "macho"
-   },
-   "GND": {
-    "p": [
-     13.2,
-     1.45,
-     14.5
-    ],
-    "d": [
-     1,
-     0,
-     0
-    ],
-    "tipo": "macho"
-   },
-   "D0": {
-    "p": [
-     13.2,
-     -1.4,
-     14.5
-    ],
-    "d": [
-     1,
-     0,
-     0
-    ],
-    "tipo": "macho"
-   },
-   "A0": {
-    "p": [
-     13.2,
-     -4.25,
-     14.5
-    ],
-    "d": [
-     1,
-     0,
-     0
-    ],
-    "tipo": "macho"
-   }
-  },
-  "ponte_h": {
-   "_nota": "barra de 5 pinos GND, IN1, IN2, IN3, IN4 (HW-956); bornes: motor A, alimentação, motor B",
-   "GND": {
-    "p": [
-     -5.1,
-     18.0,
-     4.0
-    ],
-    "d": [
-     0,
-     0,
-     1
-    ],
-    "tipo": "macho"
-   },
-   "IN1": {
-    "p": [
-     -2.55,
-     18.0,
-     4.0
-    ],
-    "d": [
-     0,
-     0,
-     1
-    ],
-    "tipo": "macho"
-   },
-   "IN2": {
-    "p": [
-     0.0,
-     18.0,
-     4.0
-    ],
-    "d": [
-     0,
-     0,
-     1
-    ],
-    "tipo": "macho"
-   },
-   "IN3": {
-    "p": [
-     2.55,
-     18.0,
-     4.0
-    ],
-    "d": [
-     0,
-     0,
-     1
-    ],
-    "tipo": "macho"
-   },
-   "IN4": {
-    "p": [
-     5.1,
-     18.0,
-     4.0
-    ],
-    "d": [
-     0,
-     0,
-     1
-    ],
-    "tipo": "macho"
-   },
-   "OUT1": {
-    "p": [
-     -20.4,
-     -19.5,
-     5.5
-    ],
-    "d": [
-     0,
-     -1,
-     0
-    ],
-    "tipo": "borne"
-   },
-   "OUT2": {
-    "p": [
-     -15.7,
-     -19.5,
-     5.5
-    ],
-    "d": [
-     0,
-     -1,
-     0
-    ],
-    "tipo": "borne"
-   },
-   "VCC": {
-    "p": [
-     -7.6,
-     -19.5,
-     5.5
-    ],
-    "d": [
-     0,
-     -1,
-     0
-    ],
-    "tipo": "borne"
-   },
-   "PGND": {
-    "p": [
-     -2.8,
-     -19.5,
-     5.5
-    ],
-    "d": [
-     0,
-     -1,
-     0
-    ],
-    "tipo": "borne"
-   },
-   "OUT3": {
-    "p": [
-     8.6,
-     -19.5,
-     5.5
-    ],
-    "d": [
-     0,
-     -1,
-     0
-    ],
-    "tipo": "borne"
-   },
-   "OUT4": {
-    "p": [
-     13.4,
-     -19.5,
-     5.5
-    ],
-    "d": [
-     0,
-     -1,
-     0
-    ],
-    "tipo": "borne"
-   }
-  },
-  "tps63070": {
-   "VIN": {
-    "p": [
-     -13.0,
-     4.0,
-     1.6
-    ],
-    "d": [
-     -1,
-     0,
-     0
-    ],
-    "tipo": "solda"
-   },
-   "GNDI": {
-    "p": [
-     -13.0,
-     -4.0,
-     1.6
-    ],
-    "d": [
-     -1,
-     0,
-     0
-    ],
-    "tipo": "solda"
-   },
-   "VOUT": {
-    "p": [
-     13.0,
-     4.0,
-     1.6
-    ],
-    "d": [
-     1,
-     0,
-     0
-    ],
-    "tipo": "solda"
-   },
-   "GNDO": {
-    "p": [
-     13.0,
-     -4.0,
-     1.6
-    ],
-    "d": [
-     1,
-     0,
-     0
-    ],
-    "tipo": "solda"
-   }
-  },
-  "bms": {
-   "B-": {
-    "p": [
-     -27.5,
-     -6.0,
-     3.5
-    ],
-    "d": [
-     0,
-     0,
-     1
-    ],
-    "tipo": "solda"
-   },
-   "B1": {
-    "p": [
-     -9.0,
-     7.0,
-     3.5
-    ],
-    "d": [
-     0,
-     0,
-     1
-    ],
-    "tipo": "solda"
-   },
-   "B2": {
-    "p": [
-     9.0,
-     7.0,
-     3.5
-    ],
-    "d": [
-     0,
-     0,
-     1
-    ],
-    "tipo": "solda"
-   },
-   "B+": {
-    "p": [
-     27.5,
-     6.0,
-     3.5
-    ],
-    "d": [
-     0,
-     0,
-     1
-    ],
-    "tipo": "solda"
-   },
-   "P-": {
-    "p": [
-     -27.5,
-     6.0,
-     3.5
-    ],
-    "d": [
-     0,
-     0,
-     1
-    ],
-    "tipo": "solda"
-   },
-   "P+": {
-    "p": [
-     27.5,
-     -6.0,
-     3.5
-    ],
-    "d": [
-     0,
-     0,
-     1
-    ],
-    "tipo": "solda"
-   }
-  },
-  "celula": {
-   "+": {
-    "p": [
-     32.6,
-     0,
-     9.3
-    ],
-    "d": [
-     1,
-     0,
-     0
-    ],
-    "tipo": "solda"
-   },
-   "-": {
-    "p": [
-     -32.6,
-     0,
-     9.3
-    ],
-    "d": [
-     -1,
-     0,
-     0
-    ],
-    "tipo": "solda"
-   }
-  },
-  "chave_liga": {
-   "C": {
-    "p": [
-     0,
-     3.5,
-     -5
-    ],
-    "d": [
-     0,
-     0,
-     -1
-    ],
-    "tipo": "solda"
-   },
-   "NA": {
-    "p": [
-     0,
-     -3.5,
-     -5
-    ],
-    "d": [
-     0,
-     0,
-     -1
-    ],
-    "tipo": "solda"
-   }
-  },
-  "motorE": {
-   "_nota": "terminais de solda do motor, na ponta de dentro (STEP): referencial do robô",
-   "M+": {
-    "p": [
-     0,
-     5.0,
-     34.4
-    ],
-    "d": [
-     0,
-     -1,
-     0
-    ],
-    "tipo": "solda"
-   },
-   "M-": {
-    "p": [
-     0,
-     5.0,
-     12.0
-    ],
-    "d": [
-     0,
-     -1,
-     0
-    ],
-    "tipo": "solda"
-   }
-  },
-  "motorD": {
-   "M+": {
-    "p": [
-     0,
-     -5.0,
-     34.4
-    ],
-    "d": [
-     0,
-     1,
-     0
-    ],
-    "tipo": "solda"
-   },
-   "M-": {
-    "p": [
-     0,
-     -5.0,
-     12.0
-    ],
-    "d": [
-     0,
-     1,
-     0
-    ],
-    "tipo": "solda"
-   }
-  },
-  "dip4": {
-   "_nota": "quatro pernas de cada lado, dobradas para fora: o lado A (y positivo) tem as quatro pernas unidas por um fio nu soldado e um só fio para o 3V3; cada perna do lado B leva uma via a um GPIO",
-   "A1": {
-    "p": [
-     -3.81,
-     5.6,
-     1.5
-    ],
-    "d": [
-     0,
-     1,
-     0
-    ],
-    "tipo": "solda"
-   },
-   "A2": {
-    "p": [
-     -1.27,
-     5.6,
-     1.5
-    ],
-    "d": [
-     0,
-     1,
-     0
-    ],
-    "tipo": "solda"
-   },
-   "A3": {
-    "p": [
-     1.27,
-     5.6,
-     1.5
-    ],
-    "d": [
-     0,
-     1,
-     0
-    ],
-    "tipo": "solda"
-   },
-   "A4": {
-    "p": [
-     3.81,
-     5.6,
-     1.5
-    ],
-    "d": [
-     0,
-     1,
-     0
-    ],
-    "tipo": "solda"
-   },
-   "B1": {
-    "p": [
-     -3.81,
-     -5.6,
-     1.5
-    ],
-    "d": [
-     0,
-     -1,
-     0
-    ],
-    "tipo": "solda"
-   },
-   "B2": {
-    "p": [
-     -1.27,
-     -5.6,
-     1.5
-    ],
-    "d": [
-     0,
-     -1,
-     0
-    ],
-    "tipo": "solda"
-   },
-   "B3": {
-    "p": [
-     1.27,
-     -5.6,
-     1.5
-    ],
-    "d": [
-     0,
-     -1,
-     0
-    ],
-    "tipo": "solda"
-   },
-   "B4": {
-    "p": [
-     3.81,
-     -5.6,
-     1.5
-    ],
-    "d": [
-     0,
-     -1,
-     0
-    ],
-    "tipo": "solda"
-   }
-  }
+  ]
  },
  "pecas": [
   {
@@ -837,9 +268,10 @@
   {
    "id": "frente",
    "modelo": "frente",
-   "nome": "Rampa da frente (PLA)",
+   "nome": "Rampa da frente: placas D e E (PLA)",
    "grupo": "chassi",
-   "cor": "#3b414b"
+   "cor": "#3b414b",
+   "opacidade": 0.55
   },
   {
    "id": "laterais",
@@ -859,17 +291,39 @@
   {
    "id": "topo",
    "modelo": "topo",
-   "nome": "Tampa (PLA, 2 mm na frente e 1,2 mm atrás)",
-   "grupo": "chassi",
+   "nome": "Tampas de trás (1,2 mm) e da frente (2 mm) (PLA)",
+   "grupo": "tampas",
    "cor": "#565e6b",
    "opacidade": 0.35
   },
   {
    "id": "suportes",
    "modelo": "suportes",
-   "nome": "Suportes e berços dos motores (PLA)",
+   "nome": "Suportes dos motores (PLA)",
    "grupo": "chassi",
    "cor": "#4b525e"
+  },
+  {
+   "id": "prateleira",
+   "modelo": "prateleira",
+   "nome": "Prateleira da extensora e do ESP32 (PLA)",
+   "grupo": "chassi",
+   "cor": "#6a5a8a",
+   "opacidade": 0.9
+  },
+  {
+   "id": "calco_v",
+   "modelo": "calco_v",
+   "nome": "Calço em V do sensor central (PLA)",
+   "grupo": "chassi",
+   "cor": "#cfc9b8"
+  },
+  {
+   "id": "suporte160",
+   "modelo": "suporte160",
+   "nome": "Suportes angulares de 160° do TE e do TD (PLA)",
+   "grupo": "chassi",
+   "cor": "#cfc9b8"
   },
   {
    "id": "motorE",
@@ -886,51 +340,134 @@
    "cor": "#9aa3ad"
   },
   {
-   "id": "cuboE",
-   "modelo": "cuboE",
-   "nome": "Cubo esquerdo",
+   "id": "rodaE",
+   "modelo": "rodaE",
+   "nome": "Roda esquerda com pneu StickyMAX",
    "grupo": "chassi",
    "cor": "#d8d8d8"
   },
   {
-   "id": "cuboD",
-   "modelo": "cuboD",
-   "nome": "Cubo direito",
+   "id": "rodaD",
+   "modelo": "rodaD",
+   "nome": "Roda direita com pneu StickyMAX",
    "grupo": "chassi",
    "cor": "#d8d8d8"
   },
   {
-   "id": "pneuE",
-   "modelo": "pneuE",
-   "nome": "Pneu StickyMAX S20",
-   "grupo": "chassi",
-   "cor": "#f2d23c",
-   "opacidade": 0.85
+   "id": "LD",
+   "modelo": "vl53_A",
+   "nome": "VL53L0X LD (lateral direito) com suporte",
+   "grupo": "sensores",
+   "cor": "#2b7a3a",
+   "editor_item": 19
   },
   {
-   "id": "pneuD",
-   "modelo": "pneuD",
-   "nome": "Pneu StickyMAX S20",
-   "grupo": "chassi",
-   "cor": "#f2d23c",
-   "opacidade": 0.85
+   "id": "LE",
+   "modelo": "vl53_A",
+   "nome": "VL53L0X LE (lateral esquerdo) com suporte",
+   "grupo": "sensores",
+   "cor": "#2b7a3a",
+   "editor_item": 20
+  },
+  {
+   "id": "FD",
+   "modelo": "vl53_A",
+   "nome": "VL53L0X FD (frente direito) com suporte",
+   "grupo": "sensores",
+   "cor": "#2b7a3a",
+   "editor_item": 15
+  },
+  {
+   "id": "FE",
+   "modelo": "vl53_A",
+   "nome": "VL53L0X FE (frente esquerdo) com suporte",
+   "grupo": "sensores",
+   "cor": "#2b7a3a",
+   "editor_item": 16
+  },
+  {
+   "id": "FC",
+   "modelo": "vl53_A",
+   "nome": "VL53L0X FC (frente central) com suporte",
+   "grupo": "sensores",
+   "cor": "#2b7a3a",
+   "editor_item": 17
+  },
+  {
+   "id": "TD",
+   "modelo": "vl53_B",
+   "nome": "VL53L0X TD (de trás direito (160°)) com suporte",
+   "grupo": "sensores",
+   "cor": "#2b7a3a",
+   "editor_item": 22
+  },
+  {
+   "id": "TE",
+   "modelo": "vl53_B",
+   "nome": "VL53L0X TE (de trás esquerdo (160°)) com suporte",
+   "grupo": "sensores",
+   "cor": "#2b7a3a",
+   "editor_item": 24
+  },
+  {
+   "id": "BFD",
+   "modelo": "tcrt5000",
+   "nome": "TCRT5000 BFD (frente direito)",
+   "grupo": "sensores",
+   "cor": "#1f5fa8",
+   "editor_item": 25
+  },
+  {
+   "id": "BFE",
+   "modelo": "tcrt5000",
+   "nome": "TCRT5000 BFE (frente esquerdo)",
+   "grupo": "sensores",
+   "cor": "#1f5fa8",
+   "editor_item": 27
+  },
+  {
+   "id": "BTD",
+   "modelo": "tcrt5000",
+   "nome": "TCRT5000 BTD (trás direito)",
+   "grupo": "sensores",
+   "cor": "#1f5fa8",
+   "editor_item": 26
+  },
+  {
+   "id": "BTE",
+   "modelo": "tcrt5000",
+   "nome": "TCRT5000 BTE (trás esquerdo)",
+   "grupo": "sensores",
+   "cor": "#1f5fa8",
+   "editor_item": 28
+  },
+  {
+   "id": "ext",
+   "modelo": "extensora",
+   "nome": "Extensora do ESP32 (trios S, V e G)",
+   "grupo": "controle",
+   "cor": "#2a4a7a"
+  },
+  {
+   "id": "esp",
+   "modelo": "esp32",
+   "nome": "ESP32 DevKit",
+   "grupo": "controle",
+   "cor": "#20242a"
+  },
+  {
+   "id": "ponte",
+   "modelo": "ponte",
+   "nome": "Ponte H dupla HW-956",
+   "grupo": "potencia",
+   "cor": "#b3261e"
   },
   {
    "id": "cel1",
    "modelo": "celula",
    "nome": "Célula 1 da bateria 3S (LG 3200)",
    "grupo": "potencia",
-   "cor": "#3c7dd9",
-   "pos": [
-    37.1,
-    0,
-    12.0
-   ],
-   "rot": [
-    0,
-    0,
-    90
-   ]
+   "cor": "#3c7dd9"
   },
   {
    "id": "cel2",
@@ -938,16 +475,7 @@
    "nome": "Célula 2 da bateria 3S (LG 3200)",
    "grupo": "potencia",
    "cor": "#3c7dd9",
-   "pos": [
-    55.7,
-    0,
-    12.0
-   ],
-   "rot": [
-    0,
-    0,
-    -90
-   ]
+   "editor_item": 34
   },
   {
    "id": "cel3",
@@ -955,16 +483,23 @@
    "nome": "Célula 3 da bateria 3S (LG 3200)",
    "grupo": "potencia",
    "cor": "#3c7dd9",
-   "pos": [
-    37.1,
-    0,
-    30.6
-   ],
-   "rot": [
-    0,
-    0,
-    90
-   ]
+   "editor_item": 35
+  },
+  {
+   "id": "bms",
+   "modelo": "bms",
+   "nome": "BMS 3S 20 A",
+   "grupo": "potencia",
+   "cor": "#1f7a3a"
+  },
+  {
+   "id": "fita3",
+   "modelo": "fita",
+   "nome": "Fita isolante das células",
+   "grupo": "potencia",
+   "cor": "#1e1e1e",
+   "visivel": true,
+   "ignora_interferencia": true
   },
   {
    "id": "cel_logica",
@@ -972,451 +507,2609 @@
    "nome": "Bateria 18650 da lógica",
    "grupo": "logica",
    "cor": "#d9533c",
-   "pos": [
-    55.7,
-    0,
-    30.6
-   ],
-   "rot": [
-    0,
-    0,
-    90
-   ]
-  },
-  {
-   "id": "bms",
-   "modelo": "bms",
-   "nome": "BMS 3S 20 A",
-   "grupo": "potencia",
-   "cor": "#1f7a3a",
-   "pos": [
-    72,
-    0,
-    12.0
-   ],
-   "rot": [
-    0,
-    0,
-    90
-   ]
+   "editor_item": 38
   },
   {
    "id": "tps",
    "modelo": "tps63070",
    "nome": "Regulador TPS63070 (saída 3,3 V)",
    "grupo": "logica",
-   "cor": "#7b2a8f",
-   "pos": [
-    44,
-    -50,
-    12.0
-   ],
-   "rot": [
-    0,
-    0,
-    90
-   ]
-  },
-  {
-   "id": "ponte",
-   "modelo": "ponte_h",
-   "nome": "Ponte H dupla HW-956 (modelo ZK-BM1 do relatório)",
-   "grupo": "potencia",
-   "cor": "#b3261e",
-   "pos": [
-    -6,
-    45,
-    46.9
-   ],
-   "rot": [
-    0,
-    0,
-    90
-   ]
+   "cor": "#7b2a8f"
   },
   {
    "id": "chave_liga",
    "modelo": "chave_liga",
-   "nome": "Botão liga e desliga da lógica (mini gangorra de 15 x 10 mm, no furo B da tampa de trás)",
+   "nome": "Chave liga e desliga da lógica KCD1 (furo C da tampa de trás)",
    "grupo": "logica",
-   "cor": "#151515",
-   "pos": [
-    -5,
-    0,
-    46.9
-   ]
+   "cor": "#151515"
   },
   {
-   "id": "proto",
-   "modelo": "protoboard",
-   "nome": "Protoboard de 400 pontos (81 x 55 mm): ESP32, I2C, 3V3 e GND",
+   "id": "botao",
+   "modelo": "botao",
+   "nome": "Botão de início de 12 x 12 mm (furo B da tampa de trás)",
    "grupo": "controle",
-   "cor": "#f4f4f2",
-   "pos": [
-    43.5,
-    0,
-    55.0
-   ],
-   "rot": [
-    0,
-    0,
-    90
-   ]
+   "cor": "#333338"
   },
   {
    "id": "dip",
    "modelo": "dip4",
-   "nome": "Chave DIP de 4 vias (no furo A da tampa de trás)",
+   "nome": "Chave DIP de 4 vias (furo A da tampa de trás)",
    "grupo": "controle",
-   "cor": "#1d63c8",
+   "cor": "#d81e19"
+  },
+  {
+   "id": "emenda_sda",
+   "modelo": "emenda",
+   "nome": "Emenda soldada do SDA (sete VL53L0X e GPIO 21)",
+   "grupo": "controle",
+   "cor": "#e8a317",
    "pos": [
-    -17,
-    0,
-    46.9
+    17.5,
+    6.4,
+    39.5
    ]
   },
   {
-   "id": "esp",
-   "modelo": "esp32",
-   "nome": "ESP32 DevKit (30 pinos)",
+   "id": "emenda_scl",
+   "modelo": "emenda",
+   "nome": "Emenda soldada do SCL (sete VL53L0X e GPIO 22)",
    "grupo": "controle",
-   "cor": "#20242a",
-   "pai": "proto",
+   "cor": "#e8a317",
    "pos": [
-    21.24,
-    0,
-    2.5
-   ],
-   "rot": [
-    0,
-    0,
-    0
+    17.5,
+    -0.3,
+    39.5
    ]
+  },
+  {
+   "id": "pf1",
+   "modelo": "pf",
+   "nome": "PF1: passa-fios a abrir na tampa da frente (x 17 a 25, y -5 a 3)",
+   "grupo": "passafios",
+   "cor": "#f08c00",
+   "pos": [
+    21,
+    -1,
+    54
+   ],
+   "opacidade": 0.7,
+   "ignora_interferencia": true
   }
  ],
- "protoboard_uso": {
-  "_nota": "Protoboard de 400 pontos (81 x 55 mm): 30 colunas de 10 furos (a a e e f a j, cada metade ligada) e dois pares de trilhos de 25 furos. O ESP32 ocupa as colunas 16 a 30 (pinos em b e i, 22,86 mm entre as fileiras): o furo livre do pino é o a (fileira de trás) ou o j (fileira da frente), os únicos fora do corpo da placa. Colunas 1 a 13 ficam livres: SDA na coluna 2 e SCL na 4, cada uma com uma ponte e a ligando as duas metades. Trilho P (3V3) e M (GND) no lado de trás.",
-  "SDA": 2,
-  "SCL": 4,
-  "trilho_3v3": "P",
-  "trilho_gnd": "M",
-  "colunas": 30,
-  "coluna_primeira_esp": 16,
-  "esp32": {
-   "fileira_pino_tras": "b",
-   "furo_livre_tras": "a",
-   "fileira_pino_frente": "i",
-   "furo_livre_frente": "j",
-   "tras": [
-    "23",
-    "22",
-    "1",
-    "3",
-    "21",
-    "19",
-    "18",
-    "5",
-    "17",
-    "16",
-    "4",
-    "2",
-    "15",
-    "GND",
-    "3V3"
+ "pinos": {
+  "vl53_A": {
+   "_nota": "módulo CJVL53L0XV2 com o suporte (ou só o módulo, no vl53_B), no referencial do robô da peça de referência do editor; pontas dos 6 pinos do lado oposto ao feixe; ordem VIN, GND, SCL, SDA, GPIO1, XSHUT pela foto do módulo (sensor de frente, barra embaixo, da esquerda para a direita)",
+   "lente": [
+    45.51,
+    -69.99,
+    23.98
    ],
-   "frente": [
-    "EN",
-    "36",
-    "39",
-    "34",
-    "35",
-    "32",
-    "33",
-    "25",
-    "26",
-    "27",
-    "14",
-    "12",
-    "13",
-    "GND",
-    "VIN"
-   ]
+   "feixe": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "VIN": {
+    "p": [
+     52.37,
+     -59.15,
+     26.83
+    ],
+    "d": [
+     -0.0,
+     1.0,
+     -0.0
+    ],
+    "tipo": "macho"
+   },
+   "GND": {
+    "p": [
+     49.77,
+     -59.15,
+     26.83
+    ],
+    "d": [
+     -0.0,
+     1.0,
+     -0.0
+    ],
+    "tipo": "macho"
+   },
+   "SCL": {
+    "p": [
+     47.27,
+     -59.15,
+     26.83
+    ],
+    "d": [
+     -0.0,
+     1.0,
+     -0.0
+    ],
+    "tipo": "macho"
+   },
+   "SDA": {
+    "p": [
+     44.72,
+     -59.16,
+     26.84
+    ],
+    "d": [
+     -0.0,
+     1.0,
+     -0.0
+    ],
+    "tipo": "macho"
+   },
+   "GPIO1": {
+    "p": [
+     42.2,
+     -59.15,
+     26.83
+    ],
+    "d": [
+     -0.0,
+     1.0,
+     -0.0
+    ],
+    "tipo": "macho"
+   },
+   "XSHUT": {
+    "p": [
+     39.69,
+     -59.13,
+     26.85
+    ],
+    "d": [
+     -0.0,
+     1.0,
+     -0.0
+    ],
+    "tipo": "macho"
+   }
+  },
+  "vl53_B": {
+   "_nota": "módulo CJVL53L0XV2 com o suporte (ou só o módulo, no vl53_B), no referencial do robô da peça de referência do editor; pontas dos 6 pinos do lado oposto ao feixe; ordem VIN, GND, SCL, SDA, GPIO1, XSHUT pela foto do módulo (sensor de frente, barra embaixo, da esquerda para a direita)",
+   "lente": [
+    -30.08,
+    -66.07,
+    29.11
+   ],
+   "feixe": [
+    -0.94,
+    -0.34,
+    0.0
+   ],
+   "VIN": {
+    "p": [
+     -20.91,
+     -59.68,
+     35.98
+    ],
+    "d": [
+     0.94,
+     0.34,
+     -0.0
+    ],
+    "tipo": "macho"
+   },
+   "GND": {
+    "p": [
+     -20.91,
+     -59.68,
+     33.38
+    ],
+    "d": [
+     0.94,
+     0.34,
+     -0.0
+    ],
+    "tipo": "macho"
+   },
+   "SCL": {
+    "p": [
+     -20.91,
+     -59.68,
+     30.88
+    ],
+    "d": [
+     0.94,
+     0.34,
+     -0.0
+    ],
+    "tipo": "macho"
+   },
+   "SDA": {
+    "p": [
+     -20.92,
+     -59.67,
+     28.32
+    ],
+    "d": [
+     0.94,
+     0.34,
+     -0.0
+    ],
+    "tipo": "macho"
+   },
+   "GPIO1": {
+    "p": [
+     -20.91,
+     -59.68,
+     25.8
+    ],
+    "d": [
+     0.94,
+     0.34,
+     -0.0
+    ],
+    "tipo": "macho"
+   },
+   "XSHUT": {
+    "p": [
+     -20.91,
+     -59.64,
+     23.29
+    ],
+    "d": [
+     0.94,
+     0.34,
+     -0.0
+    ],
+    "tipo": "macho"
+   }
+  },
+  "tcrt5000": {
+   "_nota": "barra de 4 pinos do TCRT5000 (VCC, GND, D0, A0) apontando para dentro do chassi; face do par infravermelho a 3 mm do chão",
+   "face": [
+    95.52,
+    -62.0,
+    2.99
+   ],
+   "VCC": {
+    "p": [
+     66.82,
+     -66.25,
+     17.09
+    ],
+    "d": [
+     -1,
+     0,
+     0
+    ],
+    "tipo": "macho"
+   },
+   "GND": {
+    "p": [
+     66.82,
+     -63.45,
+     17.09
+    ],
+    "d": [
+     -1,
+     0,
+     0
+    ],
+    "tipo": "macho"
+   },
+   "D0": {
+    "p": [
+     66.82,
+     -60.6,
+     17.09
+    ],
+    "d": [
+     -1,
+     0,
+     0
+    ],
+    "tipo": "macho"
+   },
+   "A0": {
+    "p": [
+     66.82,
+     -57.75,
+     17.09
+    ],
+    "d": [
+     -1,
+     0,
+     0
+    ],
+    "tipo": "macho"
+   }
+  },
+  "ponte": {
+   "_nota": "barra GND, IN1 a IN4 (HW-956) no lado da frente; bornes de parafuso no lado de trás: motor A, alimentação, motor B (ordem do modelo do editor)",
+   "GND": {
+    "p": [
+     69.15,
+     5.05,
+     18.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho"
+   },
+   "IN1": {
+    "p": [
+     69.15,
+     2.51,
+     18.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho"
+   },
+   "IN2": {
+    "p": [
+     69.15,
+     -0.03,
+     18.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho"
+   },
+   "IN3": {
+    "p": [
+     69.15,
+     -2.57,
+     18.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho"
+   },
+   "IN4": {
+    "p": [
+     69.15,
+     -5.11,
+     18.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho"
+   },
+   "OUT1": {
+    "p": [
+     31.1,
+     22.0,
+     15.6
+    ],
+    "d": [
+     -1,
+     0,
+     0
+    ],
+    "tipo": "borne"
+   },
+   "OUT2": {
+    "p": [
+     31.1,
+     17.0,
+     15.6
+    ],
+    "d": [
+     -1,
+     0,
+     0
+    ],
+    "tipo": "borne"
+   },
+   "VCC": {
+    "p": [
+     31.1,
+     8.0,
+     15.6
+    ],
+    "d": [
+     -1,
+     0,
+     0
+    ],
+    "tipo": "borne"
+   },
+   "PGND": {
+    "p": [
+     31.1,
+     3.0,
+     15.6
+    ],
+    "d": [
+     -1,
+     0,
+     0
+    ],
+    "tipo": "borne"
+   },
+   "OUT3": {
+    "p": [
+     31.1,
+     -8.5,
+     15.6
+    ],
+    "d": [
+     -1,
+     0,
+     0
+    ],
+    "tipo": "borne"
+   },
+   "OUT4": {
+    "p": [
+     31.1,
+     -13.5,
+     15.6
+    ],
+    "d": [
+     -1,
+     0,
+     0
+    ],
+    "tipo": "borne"
+   }
+  },
+  "bms": {
+   "_nota": "pastas de solda do BMS 3S (lado de cima); B- e B+ no polo da bateria, B1 e B2 nas derivações, P- e P+ na saída",
+   "B-": {
+    "p": [
+     38.3,
+     67.0,
+     78.32
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "solda"
+   },
+   "B1": {
+    "p": [
+     51.3,
+     48.5,
+     78.32
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "solda"
+   },
+   "B2": {
+    "p": [
+     51.3,
+     30.5,
+     78.32
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "solda"
+   },
+   "B+": {
+    "p": [
+     50.3,
+     12.0,
+     78.32
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "solda"
+   },
+   "P-": {
+    "p": [
+     50.3,
+     67.0,
+     78.32
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "solda"
+   },
+   "P+": {
+    "p": [
+     38.3,
+     12.0,
+     78.32
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "solda"
+   }
+  },
+  "tps63070": {
+   "VIN": {
+    "p": [
+     6.0,
+     53.89,
+     67.87
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "solda"
+   },
+   "GNDI": {
+    "p": [
+     -2.0,
+     53.89,
+     67.87
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "solda"
+   },
+   "VOUT": {
+    "p": [
+     6.0,
+     27.89,
+     67.87
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "solda"
+   },
+   "GNDO": {
+    "p": [
+     -2.0,
+     27.89,
+     67.87
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "solda"
+   }
+  },
+  "celula": {
+   "_nota": "célula 18650 do editor: polo + (bico de 0,8 mm) no lado de y menor, polo - no lado de y maior; terminais no centro de cada tampa",
+   "+": {
+    "p": [
+     24.9,
+     5.0,
+     64.6
+    ],
+    "d": [
+     0,
+     -1,
+     0
+    ],
+    "tipo": "solda"
+   },
+   "-": {
+    "p": [
+     24.9,
+     74.0,
+     64.6
+    ],
+    "d": [
+     0,
+     1,
+     0
+    ],
+    "tipo": "solda"
+   }
+  },
+  "chave_liga": {
+   "_nota": "terminais de solda da chave KCD1, embaixo da tampa de trás (dentro do chassi)",
+   "C": {
+    "p": [
+     -17.0,
+     7.0,
+     27.7
+    ],
+    "d": [
+     0,
+     0,
+     -1
+    ],
+    "tipo": "solda"
+   },
+   "NA": {
+    "p": [
+     -17.0,
+     -5.8,
+     34.5
+    ],
+    "d": [
+     0,
+     0,
+     -1
+    ],
+    "tipo": "solda"
+   }
+  },
+  "botao": {
+   "_nota": "botão de início de 12 x 12 mm: dois terminais de lados opostos, embaixo da tampa de trás",
+   "A": {
+    "p": [
+     -10.9,
+     2.4,
+     36.3
+    ],
+    "d": [
+     0,
+     0,
+     -1
+    ],
+    "tipo": "solda"
+   },
+   "B": {
+    "p": [
+     1.3,
+     2.4,
+     36.3
+    ],
+    "d": [
+     0,
+     0,
+     -1
+    ],
+    "tipo": "solda"
+   }
+  },
+  "dip4": {
+   "_nota": "quatro pernas de cada lado, embaixo da chave: a fileira de trás (A) vai unida por fio nu ao 3V3 e a da frente (B) leva uma via a cada GPIO",
+   "A1": {
+    "p": [
+     4.0,
+     -3.81,
+     37.4
+    ],
+    "d": [
+     0,
+     0,
+     -1
+    ],
+    "tipo": "solda"
+   },
+   "B1": {
+    "p": [
+     10.8,
+     -3.81,
+     37.4
+    ],
+    "d": [
+     0,
+     0,
+     -1
+    ],
+    "tipo": "solda"
+   },
+   "A2": {
+    "p": [
+     4.0,
+     -1.27,
+     37.4
+    ],
+    "d": [
+     0,
+     0,
+     -1
+    ],
+    "tipo": "solda"
+   },
+   "B2": {
+    "p": [
+     10.8,
+     -1.27,
+     37.4
+    ],
+    "d": [
+     0,
+     0,
+     -1
+    ],
+    "tipo": "solda"
+   },
+   "A3": {
+    "p": [
+     4.0,
+     1.27,
+     37.4
+    ],
+    "d": [
+     0,
+     0,
+     -1
+    ],
+    "tipo": "solda"
+   },
+   "B3": {
+    "p": [
+     10.8,
+     1.27,
+     37.4
+    ],
+    "d": [
+     0,
+     0,
+     -1
+    ],
+    "tipo": "solda"
+   },
+   "A4": {
+    "p": [
+     4.0,
+     3.81,
+     37.4
+    ],
+    "d": [
+     0,
+     0,
+     -1
+    ],
+    "tipo": "solda"
+   },
+   "B4": {
+    "p": [
+     10.8,
+     3.81,
+     37.4
+    ],
+    "d": [
+     0,
+     0,
+     -1
+    ],
+    "tipo": "solda"
+   }
+  },
+  "esp32": {
+   "BOOT1": {
+    "p": [
+     33.3,
+     32.3,
+     49.0
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "solda"
+   },
+   "BOOT2": {
+    "p": [
+     39.3,
+     32.3,
+     49.0
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "solda"
+   },
+   "_nota": "botão BOOT do DevKit (GPIO 0) e o GND, lado de trás do USB; as duas pernas do botão de início vão soldadas nelas, e a ordem não importa"
+  },
+  "extensora": {
+   "_nota": "trios S, V, G de cada pino do DevKit, na fileira de trás (x 22 a 26) e da frente (x 63 a 66); S é o mais perto da placa. O modelo do editor tem 22 fileiras de 2,23 mm (placa de 44 pinos); os 15 pinos do DevKit de 30 pinos ficam nas 15 últimas, a partir do lado do USB",
+   "S23": {
+    "p": [
+     25.5,
+     -2.54,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V23": {
+    "p": [
+     23.8,
+     -2.54,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G23": {
+    "p": [
+     22.1,
+     -2.54,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "S22": {
+    "p": [
+     25.5,
+     -0.32,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V22": {
+    "p": [
+     23.8,
+     -0.32,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G22": {
+    "p": [
+     22.1,
+     -0.32,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "S1": {
+    "p": [
+     25.5,
+     1.91,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V1": {
+    "p": [
+     23.8,
+     1.91,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G1": {
+    "p": [
+     22.1,
+     1.91,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "S3": {
+    "p": [
+     25.5,
+     4.14,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V3": {
+    "p": [
+     23.8,
+     4.14,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G3": {
+    "p": [
+     22.1,
+     4.14,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "S21": {
+    "p": [
+     25.5,
+     6.36,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V21": {
+    "p": [
+     23.8,
+     6.36,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G21": {
+    "p": [
+     22.1,
+     6.36,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "S19": {
+    "p": [
+     25.5,
+     8.59,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V19": {
+    "p": [
+     23.8,
+     8.59,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G19": {
+    "p": [
+     22.1,
+     8.59,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "S18": {
+    "p": [
+     25.5,
+     10.82,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V18": {
+    "p": [
+     23.8,
+     10.82,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G18": {
+    "p": [
+     22.1,
+     10.82,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "S5": {
+    "p": [
+     25.5,
+     13.04,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V5": {
+    "p": [
+     23.8,
+     13.04,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G5": {
+    "p": [
+     22.1,
+     13.04,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "S17": {
+    "p": [
+     25.5,
+     15.27,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V17": {
+    "p": [
+     23.8,
+     15.27,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G17": {
+    "p": [
+     22.1,
+     15.27,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "S16": {
+    "p": [
+     25.5,
+     17.5,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V16": {
+    "p": [
+     23.8,
+     17.5,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G16": {
+    "p": [
+     22.1,
+     17.5,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "S4": {
+    "p": [
+     25.5,
+     19.72,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V4": {
+    "p": [
+     23.8,
+     19.72,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G4": {
+    "p": [
+     22.1,
+     19.72,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "S2": {
+    "p": [
+     25.5,
+     21.95,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V2": {
+    "p": [
+     23.8,
+     21.95,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G2": {
+    "p": [
+     22.1,
+     21.95,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "S15": {
+    "p": [
+     25.5,
+     24.18,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V15": {
+    "p": [
+     23.8,
+     24.18,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G15": {
+    "p": [
+     22.1,
+     24.18,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "SGND": {
+    "p": [
+     25.5,
+     26.4,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "VGND": {
+    "p": [
+     23.8,
+     26.4,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "GGND": {
+    "p": [
+     22.1,
+     26.4,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "S3V3": {
+    "p": [
+     25.5,
+     28.63,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "V3V3": {
+    "p": [
+     23.8,
+     28.63,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "G3V3": {
+    "p": [
+     22.1,
+     28.63,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     -1,
+     0,
+     0
+    ]
+   },
+   "SEN": {
+    "p": [
+     62.7,
+     -2.54,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "VEN": {
+    "p": [
+     64.3,
+     -2.54,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "GEN": {
+    "p": [
+     65.9,
+     -2.54,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "S36": {
+    "p": [
+     62.7,
+     -0.32,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "V36": {
+    "p": [
+     64.3,
+     -0.32,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "G36": {
+    "p": [
+     65.9,
+     -0.32,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "S39": {
+    "p": [
+     62.7,
+     1.91,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "V39": {
+    "p": [
+     64.3,
+     1.91,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "G39": {
+    "p": [
+     65.9,
+     1.91,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "S34": {
+    "p": [
+     62.7,
+     4.14,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "V34": {
+    "p": [
+     64.3,
+     4.14,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "G34": {
+    "p": [
+     65.9,
+     4.14,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "S35": {
+    "p": [
+     62.7,
+     6.36,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "V35": {
+    "p": [
+     64.3,
+     6.36,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "G35": {
+    "p": [
+     65.9,
+     6.36,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "S32": {
+    "p": [
+     62.7,
+     8.59,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "V32": {
+    "p": [
+     64.3,
+     8.59,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "G32": {
+    "p": [
+     65.9,
+     8.59,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "S33": {
+    "p": [
+     62.7,
+     10.82,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "V33": {
+    "p": [
+     64.3,
+     10.82,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "G33": {
+    "p": [
+     65.9,
+     10.82,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "S25": {
+    "p": [
+     62.7,
+     13.04,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "V25": {
+    "p": [
+     64.3,
+     13.04,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "G25": {
+    "p": [
+     65.9,
+     13.04,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "S26": {
+    "p": [
+     62.7,
+     15.27,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "V26": {
+    "p": [
+     64.3,
+     15.27,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "G26": {
+    "p": [
+     65.9,
+     15.27,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "S27": {
+    "p": [
+     62.7,
+     17.5,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "V27": {
+    "p": [
+     64.3,
+     17.5,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "G27": {
+    "p": [
+     65.9,
+     17.5,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "S14": {
+    "p": [
+     62.7,
+     19.72,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "V14": {
+    "p": [
+     64.3,
+     19.72,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "G14": {
+    "p": [
+     65.9,
+     19.72,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "S12": {
+    "p": [
+     62.7,
+     21.95,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "V12": {
+    "p": [
+     64.3,
+     21.95,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "G12": {
+    "p": [
+     65.9,
+     21.95,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "S13": {
+    "p": [
+     62.7,
+     24.18,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "V13": {
+    "p": [
+     64.3,
+     24.18,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "G13": {
+    "p": [
+     65.9,
+     24.18,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "SGNDf": {
+    "p": [
+     62.7,
+     26.4,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "VGNDf": {
+    "p": [
+     64.3,
+     26.4,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "GGNDf": {
+    "p": [
+     65.9,
+     26.4,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "SVIN": {
+    "p": [
+     62.7,
+     28.63,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "VVIN": {
+    "p": [
+     64.3,
+     28.63,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   },
+   "GVIN": {
+    "p": [
+     65.9,
+     28.63,
+     44.6
+    ],
+    "d": [
+     0,
+     0,
+     1
+    ],
+    "tipo": "macho",
+    "h": [
+     1,
+     0,
+     0
+    ]
+   }
+  },
+  "motorE": {
+   "_nota": "terminais de solda do motor, na ponta de dentro: referencial do robô",
+   "M+": {
+    "p": [
+     0,
+     5.0,
+     34.4
+    ],
+    "d": [
+     0,
+     -1,
+     0
+    ],
+    "tipo": "solda"
+   },
+   "M-": {
+    "p": [
+     0,
+     5.0,
+     12.0
+    ],
+    "d": [
+     0,
+     -1,
+     0
+    ],
+    "tipo": "solda"
+   }
+  },
+  "motorD": {
+   "M+": {
+    "p": [
+     0,
+     -5.0,
+     34.4
+    ],
+    "d": [
+     0,
+     1,
+     0
+    ],
+    "tipo": "solda"
+   },
+   "M-": {
+    "p": [
+     0,
+     -5.0,
+     12.0
+    ],
+    "d": [
+     0,
+     1,
+     0
+    ],
+    "tipo": "solda"
+   }
+  },
+  "emenda": {
+   "_nota": "emenda soldada com termorretrátil (6 x 4 x 4 mm): do lado de trás chegam os sete fios dos VL53L0X, do lado da frente sai o jumper curto até o pino S da extensora",
+   "P": {
+    "p": [
+     -3,
+     0,
+     2
+    ],
+    "d": [
+     -1,
+     0,
+     0
+    ],
+    "h": [
+     -1,
+     0,
+     0
+    ],
+    "tipo": "solda"
+   },
+   "E": {
+    "p": [
+     3,
+     0,
+     2
+    ],
+    "d": [
+     1,
+     0,
+     0
+    ],
+    "h": [
+     1,
+     0,
+     0
+    ],
+    "tipo": "solda"
+   }
   }
  },
  "encaixes_esperados": {
-  "_nota": "Pares que se tocam de propósito (placa do módulo no rebaixo do suporte, suporte contra a parede do chassi, pinos do ESP32 nas protoboards): aparecem na lista como encaixe, não como interferência. Peças do chassi entre si não entram na conferência (montagem do projeto mecânico).",
+  "_nota": "Pares que se tocam de propósito (módulo no suporte, suporte contra a parede, pinos do ESP32 na extensora, chaves e botão nos furos da tampa, peças presas na prateleira). Aparecem na lista como encaixe, não como interferência. Peças do chassi entre si não entram na conferência.",
   "pares": [
    [
-    "suporte_tof",
-    "vl53l0x"
+    "esp32",
+    "extensora"
    ],
    [
-    "suporte_tof",
-    "laterais"
+    "dip4",
+    "topo"
    ],
    [
-    "suporte_tof",
+    "chave_liga",
+    "topo"
+   ],
+   [
+    "botao",
+    "topo"
+   ],
+   [
+    "vl53_A",
     "frente"
    ],
    [
-    "suporte_tof",
-    "hastes"
+    "vl53_A",
+    "calco_v"
    ],
    [
-    "suporte_tof",
+    "vl53_B",
+    "suporte160"
+   ],
+   [
+    "tcrt5000",
     "base"
    ],
    [
-    "base",
-    "tcrt5000"
+    "tcrt5000",
+    "frente"
    ],
    [
-    "esp",
-    "protoboard"
+    "celula",
+    "topo"
+   ],
+   [
+    "motorE",
+    "suportes"
+   ],
+   [
+    "motorD",
+    "suportes"
+   ],
+   [
+    "prateleira",
+    "suportes"
+   ],
+   [
+    "vl53_B",
+    "laterais"
+   ],
+   [
+    "vl53_B",
+    "topo"
    ]
   ]
  },
  "rotas": {
-  "_nota": "Pontos de passagem (mm) dos feixes de fios. Chaves: esquerda_f, direita_f e frente_f levam o fio de dentro do chassi (de onde sai o sensor) até a tampa da frente por um passa-fios ao lado da protoboard: em (36, 52) e (36, -52), e em (75, 0) na ponta da rampa; tras_t e tras_t_d sobem do sensor de borda traseiro até o furo C da tampa de trás, em (7, 0); t_f leva do furo C até a protoboard; r_f_e e r_f_c vão dos itens em cima da tampa de trás (ponte H e chave DIP) até a protoboard; motores_t, potencia, cel_chave e chave_tps são dentro do chassi. Cada feixe sobe por um passa-fios que o projetista precisa abrir na tampa; o furo C já existe na tampa de trás.",
-  "esquerda_f": [
-   [
-    40,
-    62,
-    28
-   ],
-   [
-    38,
-    56,
-    42
-   ],
-   [
-    36,
-    52,
-    52
-   ],
-   [
-    36,
-    52,
-    62
-   ]
-  ],
-  "direita_f": [
-   [
-    40,
-    -62,
-    28
-   ],
-   [
-    38,
-    -56,
-    42
-   ],
-   [
-    36,
-    -52,
-    52
-   ],
-   [
-    36,
-    -52,
-    62
-   ]
-  ],
-  "frente_f": [
-   [
-    70,
-    0,
-    30
-   ],
-   [
-    76,
-    0,
-    45
-   ],
-   [
-    75,
-    0,
-    58
-   ],
-   [
-    75,
-    0,
-    66
-   ]
-  ],
-  "tras_t": [
-   [
-    -45,
-    34,
-    20
-   ],
-   [
-    -34,
-    20,
-    36
-   ],
-   [
-    7,
-    2,
-    44
-   ],
-   [
-    7,
-    0,
-    52
-   ]
-  ],
-  "tras_t_d": [
-   [
-    -45,
-    -34,
-    20
-   ],
-   [
-    -34,
-    -20,
-    36
-   ],
-   [
-    7,
-    -2,
-    44
-   ],
-   [
-    7,
-    0,
-    52
-   ]
-  ],
-  "t_f": [
-   [
-    7,
-    0,
-    52
-   ],
-   [
-    11,
-    0,
-    58
-   ],
-   [
-    17,
-    0,
-    66
-   ]
-  ],
-  "r_f_e": [
-   [
-    -12,
-    30,
-    55
-   ],
-   [
-    8,
-    24,
-    61
-   ],
-   [
-    17,
-    20,
-    66
-   ]
-  ],
-  "r_f_c": [
-   [
-    -17,
-    -16,
-    54
-   ],
-   [
-    2,
-    -16,
-    60
-   ],
-   [
-    17,
-    -14,
-    66
-   ]
-  ],
-  "motores_t": [
-   [
-    -12,
-    0,
-    30
-   ],
-   [
-    -12,
-    0,
-    44
-   ],
-   [
-    7,
-    0,
-    52
-   ]
-  ],
-  "potencia": [
-   [
-    75,
-    -20,
-    28
-   ],
-   [
-    60,
-    -40,
-    40
-   ],
-   [
-    40,
-    -40,
-    51
-   ],
-   [
-    24,
-    -30,
-    52
-   ],
-   [
-    24,
-    30,
-    52
-   ]
-  ],
-  "cel_chave": [
-   [
-    40,
-    0,
-    40
-   ],
-   [
-    20,
-    0,
-    42
-   ],
-   [
-    2,
-    2,
-    40
-   ]
-  ],
-  "chave_tps": [
-   [
-    0,
-    -10,
-    40
-   ],
-   [
-    20,
-    -30,
-    40
-   ],
-   [
-    26,
-    -46,
-    30
-   ]
-  ]
+  "_nota": "pontos de passagem (mm, referencial do robô) dos feixes de fios; preenchido pelo script de montagem"
  },
  "esquematico": {
   "_nota": "Diferenças entre o esquema do Fritzing (SUMO_Esquemático e SUMO_bb) e o firmware (config.h) e o documento de ligação (Lab3-Liga). A montagem segue o firmware.",
@@ -1450,6 +3143,12 @@
     "fritzing": "P+ e P- do BMS direto na ponte H, sem chave",
     "firmware": "-",
     "porque": "sem chave, a ponte H fica sempre ligada à bateria 3S; uma chave de 5 A no P+ desliga os motores com o robô parado"
+   },
+   {
+    "item": "Ligação ao ESP32",
+    "fritzing": "jumpers do ESP32 na protoboard",
+    "firmware": "-",
+    "porque": "o DevKit vai na extensora (trios S, V e G de cada GPIO), na prateleira; não há protoboard: o SDA e o SCL dos sete VL53L0X se juntam em duas emendas soldadas, cada uma com um jumper curto até o pino S do GPIO 21 ou 22"
    }
   ]
  }
