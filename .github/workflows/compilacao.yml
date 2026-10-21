@@ -242,8 +242,21 @@ jobs:
       # o painel versionado (file://) conecta num servidor que imita o ESP32 com USAR_WIFI 1
       - name: Playwright e Chrome do runner
         run: npm install --no-save --no-package-lock --prefix teste/painel playwright-core@1.56.1
+      # a saída do teste vai também para anotações (::error::) e para o resumo do job, para a causa de uma
+      # falha aparecer sem abrir o log
       - name: Painel pelo WiFi
-        run: CHROME_PATH="$(command -v google-chrome)" node teste/painel/smoke_wifi.mjs
+        run: |
+          export CHROME_PATH="$(command -v google-chrome)"
+          echo "Chrome: $CHROME_PATH $("$CHROME_PATH" --version 2>&1 | head -1)"
+          set +e
+          node teste/painel/smoke_wifi.mjs > saida_painel.txt 2>&1
+          codigo=$?
+          cat saida_painel.txt
+          { echo "### Painel pelo WiFi"; echo '```'; cat saida_painel.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$codigo" -ne 0 ]; then
+            grep -vE '^ok ' saida_painel.txt | head -20 | while IFS= read -r l; do echo "::error::${l}"; done
+          fi
+          exit "$codigo"
 
   painel:
     name: Painel e página do simulador
