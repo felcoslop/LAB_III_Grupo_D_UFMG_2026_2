@@ -17,6 +17,7 @@
 #include "chave.h"
 #include "antitrava.h"   // ANTI_TRAVA
 #include <Wire.h>
+#include <strings.h>   // strcasecmp
 
 static char     linha[48];          // comando que está sendo digitado
 static uint8_t  nLinha = 0;
@@ -25,6 +26,7 @@ static bool     modoVer = false, modoId = false, modoBorda = false, modoStream =
 static uint32_t tVer = 0, tId = 0, tBorda = 0, tStream = 0, tMapa = 0;
 static uint16_t cobertoAnt = 0;     // sensores cobertos na leitura anterior do modo id
 
+static void streamCabecalho();
 static void streamDados();
 static void streamMapa();
 
@@ -42,6 +44,8 @@ static void ajuda() {
   Log.println(F("# borda              liga/desliga leitura dos sensores de borda (mV, limiar)"));
   Log.println(F("# calborda           diagnostico + calibracao da borda: ar, preto e branco"));
   Log.println(F("# bordazera          apaga a calibracao da borda"));
+  Log.println(F("# calpista on|off    janelas de minimo/maximo da borda para a calibracao de pista do painel"));
+  Log.println(F("# bordalim NOME LIM [PRETO BRANCO]  grava o limiar da borda (mV) calculado pelo painel"));
   Log.println(F("# init               tenta religar sensores que falharam (robo parado)"));
   Log.println(F("# tempo              duracao do ciclo (atual e pior caso)"));
   Log.println(F("# cin                modelo das rodas: velocidade, giro, feed-forward e parada"));
@@ -79,7 +83,8 @@ static void lista() {
   Log.println(F("# borda  GPIO   x    y   limiar  preto  branco  cal"));
   for (uint8_t i = 0; i < N_BORDA; i++)
     Log.printf("# %-4s   %2d  %4d %4d  %5u  %5u  %5u   %s\n", BORDA[i].nome, BORDA[i].pino, BORDA[i].x, BORDA[i].y,
-               borda_limiar(i), borda_cal_preto(i), borda_cal_branco(i), borda_cal_gravada(i) ? "ESP32" : "padrao");
+               borda_limiar(i), borda_cal_preto(i), borda_cal_branco(i),
+               borda_cal_gravada(i) ? (borda_cal_limiar_gravado(i) ? "pista" : "ESP32") : "padrao");
   for (uint8_t i = 0; i < N_BORDA; i++)
     if (!borda_cal_gravada(i)) { Log.printf("! borda SEM calibracao: rode calborda (sem ela vale o limiar fixo de %d mV)\n", BORDA_LIMIAR_MV); break; }
 #else
@@ -303,13 +308,16 @@ static void __attribute__((unused)) mediaBorda(uint16_t n, float* med, float* dp
 // A medida no ar mostra se chega luz no receptor sem chão embaixo, o que indica reflexo em uma
 // superfície branca colada no sensor (a protoboard, por exemplo) ou luz forte do ambiente.
 // O preto e o branco dão o contraste e a polaridade, já que alguns módulos são invertidos.
-// O trimpot azul do módulo não muda nada aqui, porque ele só ajusta a saída D0 e o código lê a A0.
+// O trimpot azul do módulo só ajusta a saída D0. Com o fio no A0 ele não muda nada; com o fio no D0
+// o sinal é digital (cerca de 0 V no branco e 3,3 V no preto), o trimpot decide a borda e esta
+// calibração não refina nada (o aviso aparece no resultado).
 // O branco é opcional: sem ele, o limiar é estimado a partir do preto.
 static void calBorda() {
 #if USAR_BORDA
   if (estado_atual() != ESPERA) { Log.println(F("! pare o robo antes (stop)")); return; }
   Log.println(F("# ===== BORDA: DIAGNOSTICO + CALIBRACAO (3 medidas) ====="));
-  Log.println(F("# O trimpot azul NAO importa: ele so mexe na saida D0, e o codigo le a A0."));
+  Log.println(F("# O trimpot azul so mexe na saida D0: com o fio no A0 ele NAO importa; com o fio no D0 o sinal e digital e o trimpot decide."));
+  Log.println(F("# Para um limiar que valha na pista inteira (arranhoes, volta pela faixa), use a calibracao de pista do painel."));
   float ar[N_BORDA], pr[N_BORDA], br[N_BORDA], dp[N_BORDA], med[N_BORDA];
   bool temBr[N_BORDA];
 
@@ -357,6 +365,10 @@ static void calBorda() {
                tb, luzAr * 100, luzPreto * 100,
                abaixo ? "branco = tensao BAIXA" : "branco = tensao ALTA (modulo invertido, o codigo se ajusta)");
     bool ok = true;
+    // sinal digital: o fio está no D0 do módulo (saída do comparador), que só vale 0 V ou 3,3 V
+    bool digital = (ar[i] < 150 || ar[i] > 3000) && (pr[i] < 150 || pr[i] > 3000) && (!temBr[i] || br[i] < 150 || br[i] > 3000);
+    if (digital)
+      Log.printf("! %s: so le 0 V ou 3,3 V (sinal DIGITAL). O fio esta no D0 do modulo? Quem decide a borda e o trimpot azul; para o limiar do firmware valer, ligue o fio no A0.\n", n);
     if (luzAr > 0.25f) {
       Log.printf("! %s: chega luz no receptor SEM chao embaixo. Causa provavel: a lateral BRANCA da protoboard\n", n);
       Log.println(F("!    colada no sensor reflete o infravermelho direto no receptor (ou ha sol/lampada forte)."));
@@ -386,13 +398,63 @@ static void calBorda() {
 #endif
 }
 
+// Índice do sensor de borda pelo nome (BFE, BFD, BTE, BTD), sem diferenciar maiúscula de minúscula; -1 se não existir.
+static int8_t bordaIndice(const char* nome) {
+  for (uint8_t i = 0; i < N_BORDA; i++) if (!strcasecmp(nome, BORDA[i].nome)) return (int8_t)i;
+  return -1;
+}
+
+// Comando calpista on|off: liga as janelas de mínimo, máximo e média dos sensores de borda (linha J do
+// protocolo), usadas pela calibração de pista do painel. Sem argumento, mostra o estado.
+static void calPista(const char* arg) {
+#if USAR_BORDA
+  if (!strcmp(arg, "on") || !strcmp(arg, "1")) {
+    if (estado_atual() != ESPERA) { Log.println(F("! pare o robo antes (stop)")); return; }
+    borda_pista(true);
+    Log.println(F("# calpista ON: linhas J com minimo, maximo e media de cada sensor de borda (desliga sozinho ao sair da ESPERA)"));
+  } else if (!strcmp(arg, "off") || !strcmp(arg, "0")) {
+    borda_pista(false);
+    Log.println(F("# calpista OFF"));
+  } else Log.printf("# calpista %s (uso: calpista on|off)\n", borda_pista_ativa() ? "ON" : "OFF");
+#else
+  (void)arg;
+  Log.println(F("! USAR_BORDA esta 0 em config.h"));
+#endif
+}
+
+// Comando bordalim NOME LIM [PRETO BRANCO]: grava o limiar (mV) de um sensor de borda, calculado pelo painel com
+// o pior preto e o pior branco da pista. Preto e branco são os valores típicos (padrão: 3 vezes e 0,3 vez o limiar).
+static void bordaLim(const char* arg) {
+#if USAR_BORDA
+  char nome[8] = "";
+  int lim = 0, p = 0, b = 0;
+  int n = sscanf(arg, "%7s %d %d %d", nome, &lim, &p, &b);
+  int8_t i = n >= 2 ? bordaIndice(nome) : -1;
+  if (i < 0 || lim < 50 || lim > 3300 || (n == 3)) {
+    Log.println(F("! uso: bordalim NOME LIM [PRETO BRANCO]   (NOME: BFE, BFD, BTE ou BTD; LIM de 50 a 3300 mV)"));
+    return;
+  }
+  if (estado_atual() != ESPERA) { Log.println(F("! pare o robo antes (stop)")); return; }
+  if (n < 4) { p = lim * 3; b = lim / 3; }
+  p = constrain(p, 0, 4095); b = constrain(b, 0, 4095);
+  if (p == b) { Log.println(F("! preto e branco iguais: o sentido do sensor ficaria indefinido")); return; }
+  borda_cal_limiar((uint8_t)i, (uint16_t)lim, (uint16_t)p, (uint16_t)b);
+  Log.printf("# %s: limiar de pista %u mV gravado (preto %u, branco %u, branco = tensao %s)\n", BORDA[i].nome, borda_limiar(i),
+             borda_cal_preto(i), borda_cal_branco(i), borda_branco_abaixo(i) ? "BAIXA" : "ALTA");
+  streamCabecalho();
+#else
+  (void)arg;
+  Log.println(F("! USAR_BORDA esta 0 em config.h"));
+#endif
+}
+
 // Protocolo de texto entre o ESP32 e o painel (painel_sumo.html).
 // Cada linha começa com uma letra que indica o tipo. O cabeçalho é enviado nos comandos s1 e geo
 // (o painel manda s1 logo depois de abrir a porta USB) e depois de cada calibração:
 //   G,i,nome,x,y,ang            geometria de cada ToF
 //   I,i,ok                      sensor respondendo
 //   C,i,ganho,offset,gravada    calibração do ToF
-//   R,i,nome,x,y,altura,limiar,preto,branco,gravada,abaixo    sensores de borda
+//   R,i,nome,x,y,altura,limiar,preto,branco,gravada,abaixo,limiarDePista    sensores de borda
 //   B,frente,tras,esq,dir,alt_corpo,alt_lente,nomeGeometria  corpo do robô
 //   E,nome0,nome1,...           nomes dos estados
 //   K,alcance,map...            mantido para ser compatível com o radar antigo
@@ -403,6 +465,8 @@ static void calBorda() {
 //     sigma*10,confianca*100,existe*100,rumoModo,rumoAng*10,buscaGanho*100
 //     (cx e cy são o centro do oponente; rumoModo: 0 nada, 1 atacar, 2 mirar, 3 provável, 4 procurar)
 //   Q,bordaConfirmada,bordaCru,mv0..mv3
+//   J,seq,voltas,min0,max0,med0,min1,max1,med1,...   janela dos sensores de borda em mV, só com calpista ligado
+//     (seq conta as janelas enviadas, então um salto mostra janela perdida; voltas é quantas leituras entraram)
 //   A,estrategia,escuro,dip,arenaValida,arenaConfiavel,cx,cy,sigma,aproximacao,contato,descartes,
 //     travado,destravas,aquecimento (travado: 0 livre, 1 empurrao travado, 2 giro preso, 3 manobra do
 //     empurrao travado; aquecimento em K)
@@ -416,8 +480,9 @@ static void streamCabecalho() {
   }
 #if USAR_BORDA
   for (uint8_t i = 0; i < N_BORDA; i++)
-    Log.printf("R,%u,%s,%d,%d,%.1f,%u,%u,%u,%u,%u\n", i, BORDA[i].nome, BORDA[i].x, BORDA[i].y, BORDA_ALTURA_MM,
-               borda_limiar(i), borda_cal_preto(i), borda_cal_branco(i), borda_cal_gravada(i) ? 1 : 0, borda_branco_abaixo(i) ? 1 : 0);
+    Log.printf("R,%u,%s,%d,%d,%.1f,%u,%u,%u,%u,%u,%u\n", i, BORDA[i].nome, BORDA[i].x, BORDA[i].y, BORDA_ALTURA_MM,
+               borda_limiar(i), borda_cal_preto(i), borda_cal_branco(i), borda_cal_gravada(i) ? 1 : 0, borda_branco_abaixo(i) ? 1 : 0,
+               borda_cal_limiar_gravado(i) ? 1 : 0);
 #endif
   Log.printf("B,%.2f,%.2f,%.2f,%.2f,%.1f,%.1f,%s\n", CORPO_FRENTE_MM, CORPO_TRAS_MM, CORPO_ESQ_MM, CORPO_DIR_MM,
                 CORPO_ALTURA_MM, LENTE_ALTURA_MM, GEOMETRIA_NOME);
@@ -465,6 +530,19 @@ static void streamDados() {
   Log.printf("Q,%u,%u", P.borda.mascara, P.borda.cru);
   for (uint8_t i = 0; i < N_BORDA; i++) Log.printf(",%u", borda_mv(i));
   Log.println();
+  // calibração de pista: a janela de mínimo, máximo e média desde o último envio. Fora da ESPERA
+  // (luta) o modo desliga sozinho, para a linha extra não ocupar a serial durante a luta.
+  if (borda_pista_ativa() && estado_atual() != ESPERA) { borda_pista(false); Log.println(F("# calpista desligado: o robo saiu da ESPERA")); }
+  if (borda_pista_ativa()) {
+    static uint32_t seqJanela = 0;
+    uint16_t mn[N_BORDA], mx[N_BORDA], md[N_BORDA];
+    uint16_t voltas = borda_pista_janela(mn, mx, md);
+    if (voltas) {
+      Log.printf("J,%lu,%u", (unsigned long)seqJanela++, voltas);
+      for (uint8_t i = 0; i < N_BORDA; i++) Log.printf(",%u,%u,%u", mn[i], mx[i], md[i]);
+      Log.println();
+    }
+  }
 #endif
   bool ativa = estado_atual() != ESPERA;
   Log.printf("A,%u,%u,%u,%u,%u,%d,%d,%d,%d,%u,%u,%u,%u,%d\n", (unsigned)(ativa ? estados_estrategia() : chave_estrategia()),
@@ -525,6 +603,8 @@ static void executa(char* c) {
   else if (!strcmp(c, "calver"))       calver();
   else if (!strcmp(c, "calborda") || !strcmp(c, "diagborda")) { calBorda(); streamCabecalho(); }
   else if (!strcmp(c, "bordazera"))    { borda_cal_zera(); Log.println(F("# calibracao da borda apagada")); streamCabecalho(); }
+  else if (!strcmp(c, "calpista") || !strncmp(c, "calpista ", 9)) calPista(c + (c[8] ? 9 : 8));
+  else if (!strncmp(c, "bordalim ", 9)) bordaLim(original + 9);
   else if (!strncmp(c, "calzera ", 8)) { calzera(original + 8); streamCabecalho(); }
   else if (!strncmp(c, "medir ", 6))   medir(original + 6);
   else if (!strcmp(c, "init")) {

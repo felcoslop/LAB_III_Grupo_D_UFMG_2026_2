@@ -4,12 +4,19 @@
 // responde com o cabeçalho do protocolo (G, I, C, R, B, E, K, X, F) e passa a mandar os quadros D, Q e A.
 // Cada comando recebido fica em "recebidos". O firmware de verdade é testado em teste/unidade/teste_wifi.cpp;
 // aqui o que se confere é o lado do navegador.
+// Calibração de pista: com "calpista on" o robô de mentira manda uma linha J (janela de 20 ms) por quadro, com as
+// leituras da "cena" (servidor.cena) e do "perfil" (servidor.perfil); "bordalim NOME LIM PRETO BRANCO" muda o
+// limiar e reenvia o cabeçalho, como o debug.cpp.
 import http from "node:http";
 
 export function iniciaRoboFalso(porta = 0) {
   const recebidos = [];
   const fluxos = new Set();
-  let streamLigado = false, t0 = Date.now(), timer = null;
+  let streamLigado = false, t0 = Date.now(), timer = null, pista = false, seqJ = 0, rng = 12345;
+  const nomes = ["BFE", "BFD", "BTE", "BTD"];
+  const bordas = nomes.map((n) => ({lim: 600, preto: 3000, branco: 450, grav: 0, pista: 0}));
+  const rand = () => { rng = (rng * 1664525 + 1013904223) >>> 0; return rng / 4294967296; };
+  const gauss = () => { let s = 0; for (let k = 0; k < 6; k++) s += rand(); return (s - 3) / 0.7071; };
   const cors = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Private-Network": "true", "Cache-Control": "no-cache"};
   const manda = (l) => { for (const r of fluxos) r.write(`data: ${l}\n\n`); };
 
@@ -17,18 +24,47 @@ export function iniciaRoboFalso(porta = 0) {
     const f = Object.assign({motores: 1, wifi: 1, auto: 0, borda: 1, tof: 5, bancada: 1, radio: 1}, cfg);
     const sens = [["FE", 60, 40, 17], ["FC", 70, 0, 0], ["FD", 60, -40, -17], ["LE", 10, 60, 90], ["LD", 10, -60, -90]];
     sens.forEach(([n, x, y, a], i) => { manda(`G,${i},${n},${x},${y},${a}`); manda(`I,${i},1`); manda(`C,${i},1.0000,0.00,0`); });
-    [["BFE", 60, 40], ["BFD", 60, -40], ["BTE", -50, 40], ["BTD", -50, -40]].forEach(([n, x, y], i) => manda(`R,${i},${n},${x},${y},2.7,600,3000,450,0,1`));
+    [["BFE", 60, 40], ["BFD", 60, -40], ["BTE", -50, 40], ["BTD", -50, -40]].forEach(([n, x, y], i) => {
+      const b = bordas[i];
+      manda(`R,${i},${n},${x},${y},2.7,${b.lim},${b.preto},${b.branco},${b.grav},${b.preto > b.branco ? 1 : 0},${b.pista}`);
+    });
     manda("B,100.00,100.00,60.00,60.00,40.0,30.0,BANCADA");
     manda("E,ESPERA,CONTAGEM,BUSCA,MIRA,ATAQUE,FLANCO,ATAQUE_RE,DESTRAVA,RECUO,GIRO_BORDA,AVANCO_BORDA,SAIDA_LATERAL,LEQUE");
     manda("K,600,0,1,2,3,4,0,0,0,0");
     manda("X,1,152,550,0.25,80,200");
     manda(`F,${f.motores},${f.wifi},${f.auto},${f.borda},${f.tof},${f.bancada},${f.radio}`);
   };
+  // uma janela de 20 ms: 20 leituras por sensor, na cena atual. cena = {faixa: ["BTE", "BTD"]} põe esses sensores
+  // sobre a faixa branca e os outros sobre o preto. perfil: níveis em mV, ruído, arranhões (probabilidade e nível),
+  // módulo invertido (branco = tensão alta) e sinal digital (D0: só 0 V e 3,3 V).
+  const janela = () => {
+    const p = servidor.perfil, faixa = servidor.cena.faixa || [];
+    const v = [];
+    nomes.forEach((n) => {
+      const naFaixa = faixa.includes(n);
+      let mn = Infinity, mx = -Infinity, soma = 0;
+      for (let k = 0; k < 20; k++) {
+        let x;
+        if (p.digital) x = naFaixa ? 0 : 3300;
+        else {
+          x = (naFaixa ? p.brancoMv : p.pretoMv) + gauss() * p.ruidoMv;
+          if (!naFaixa && rand() < p.arranhaoProb / 20) x = p.arranhaoMv + gauss() * p.ruidoMv;   // arranhão claro no preto
+          if (naFaixa && rand() < p.sujeiraProb / 20) x = p.sujeiraMv + gauss() * p.ruidoMv;      // pedaço escuro na faixa
+          if (p.invertido) x = 4095 - x;
+          x = Math.max(0, Math.min(3300, Math.round(x)));
+        }
+        mn = Math.min(mn, x); mx = Math.max(mx, x); soma += x;
+      }
+      v.push(mn, mx, Math.round(soma / 20));
+    });
+    return `J,${seqJ++},20,${v.join(",")}`;
+  };
   const quadro = () => {
     const ms = Date.now() - t0;
     manda(`D,300,310,-1,-1,-1,300,310,-1,-1,-1,1,150,300,2,3,290,80,3,1,0,31,${ms},20,90,100,2,150,0`);
     manda("Q,0,0,3000,3000,3000,3000");
     manda("A,0,0,0,1,1,0,0,20,0,0,0,0,0,0");
+    if (pista) manda(janela());
   };
 
   const srv = http.createServer((req, res) => {
@@ -40,6 +76,18 @@ export function iniciaRoboFalso(porta = 0) {
       recebidos.push(c);
       if (c === "s1") { streamLigado = true; cabecalho(servidor.cfg); }
       if (c === "s0") streamLigado = false;
+      if (c === "calpista on") { pista = true; manda("# calpista ON: linhas J com minimo, maximo e media de cada sensor de borda"); }
+      if (c === "calpista off") { pista = false; manda("# calpista OFF"); }
+      const bl = /^bordalim (\w+) (\d+)(?: (\d+) (\d+))?$/.exec(c);
+      if (bl) {
+        const i = nomes.indexOf(bl[1].toUpperCase());
+        if (i >= 0) {
+          const lim = +bl[2], p = bl[3] ? +bl[3] : lim * 3, b = bl[4] ? +bl[4] : Math.round(lim / 3);
+          Object.assign(bordas[i], {lim, preto: p, branco: b, grav: 1, pista: 1});
+          manda(`# ${bl[1]}: limiar de pista ${lim} mV gravado (preto ${p}, branco ${b})`);
+          cabecalho(servidor.cfg);
+        }
+      }
       res.writeHead(200, {...cors, "Content-Type": "text/plain"}); res.end("ok"); return;
     }
     if (u.pathname === "/stream") {
@@ -52,7 +100,10 @@ export function iniciaRoboFalso(porta = 0) {
     res.writeHead(404, cors); res.end("nao existe");
   });
   const servidor = {
-    recebidos, cfg: {}, srv,
+    recebidos, cfg: {}, srv, bordas,
+    cena: {faixa: []},
+    perfil: {pretoMv: 2800, brancoMv: 300, ruidoMv: 40, arranhaoProb: 0, arranhaoMv: 1700, sujeiraProb: 0, sujeiraMv: 900, invertido: false, digital: false},
+    pistaLigada: () => pista,
     derrubaFluxos() { for (const r of fluxos) r.destroy(); fluxos.clear(); },
     fluxosAbertos: () => fluxos.size,
     manda,

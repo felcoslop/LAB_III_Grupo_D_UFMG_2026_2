@@ -3,9 +3,10 @@
 # passam por quatro testes: a compilação do firmware para o ESP32 Dev Module (na linha 2.x e na
 # linha 3.x do core da Espressif, com 5 e com 7 sensores de oponente, com os motores desligados
 # como na bancada e também ligados, e com o WiFi opcional ligado), os testes da cinemática, da
-# máquina de estados, da partida automática, do servidor WiFi, da localização no dojô e do PWM dos
-# motores rodando no computador, o painel num navegador de verdade (Chromium sem tela) contra um
-# robô de mentira pelo WiFi, uma bateria de lutas
+# máquina de estados, da partida automática, do servidor WiFi, da calibração da borda, da localização
+# no dojô e do PWM dos motores rodando no computador, o painel num navegador de verdade (Chromium sem
+# tela) contra um robô de mentira (conexão pelo WiFi e assistente de calibração da pista), a conta da
+# calibração da pista, uma bateria de lutas
 # simuladas com o firmware de verdade (nenhuma queda própria e nenhuma perseguição longa de
 # objeto fora do dojô) e a conferência de que o painel/painel_sumo.html, a página do combate
 # (site/combate.html) e a da montagem (site/montagem.html) foram gerados a partir do código
@@ -114,6 +115,11 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror -DUSAR_WIFI=1 -I teste/unidade/stub_wifi $INC teste/unidade/teste_wifi.cpp $FW/telemetria.cpp -o teste_wifi
           ./teste_wifi
+      # borda: limiar explícito da calibração de pista, janelas de mínimo e máximo, gravação na NVS de mentira
+      - name: Borda (limiar de pista e janelas)
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror $INC teste/unidade/teste_borda.cpp $FW/borda.cpp -o teste_borda
+          ./teste_borda
       # filtro de partículas do dojô nas duas geometrias dos sensores de borda
       - name: Localização no dojô (bancada e robô montado)
         run: |
@@ -239,24 +245,32 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # conta da calibração da pista (bloco do painel_src.html), sem navegador
+      - name: Calibração da pista (conta)
+        run: node teste/painel/teste_calibracao.mjs
       # o painel versionado (file://) conecta num servidor que imita o ESP32 com USAR_WIFI 1
       - name: Playwright e Chrome do runner
         run: npm install --no-save --no-package-lock --prefix teste/painel playwright-core@1.56.1
-      # a saída do teste vai também para anotações (::error::) e para o resumo do job, para a causa de uma
+      # a saída de cada teste vai também para anotações (::error::) e para o resumo do job, para a causa de uma
       # falha aparecer sem abrir o log
-      - name: Painel pelo WiFi
+      - name: Painel no navegador (conexão e calibração)
         run: |
           export CHROME_PATH="$(command -v google-chrome)"
           echo "Chrome: $CHROME_PATH $("$CHROME_PATH" --version 2>&1 | head -1)"
-          set +e
-          node teste/painel/smoke_wifi.mjs > saida_painel.txt 2>&1
-          codigo=$?
-          cat saida_painel.txt
-          { echo "### Painel pelo WiFi"; echo '```'; cat saida_painel.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$codigo" -ne 0 ]; then
-            grep -vE '^ok ' saida_painel.txt | head -20 | while IFS= read -r l; do echo "::error::${l}"; done
-          fi
-          exit "$codigo"
+          falhou=0
+          for t in smoke_wifi smoke_calibracao; do
+            set +e
+            node "teste/painel/$t.mjs" > "saida_$t.txt" 2>&1
+            codigo=$?
+            set -e
+            cat "saida_$t.txt"
+            { echo "### $t"; echo '```'; cat "saida_$t.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            if [ "$codigo" -ne 0 ]; then
+              falhou=1
+              grep -vE '^ok ' "saida_$t.txt" | head -20 | while IFS= read -r l; do echo "::error::$t: ${l}"; done
+            fi
+          done
+          exit "$falhou"
 
   painel:
     name: Painel e página do simulador
