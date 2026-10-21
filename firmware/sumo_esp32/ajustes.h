@@ -8,6 +8,7 @@
 //   tof      5 ou 7    sensores de oponente em uso; o robô reinicia, porque os sensores são configurados no boot
 //   alinha   0 ou 1    na contagem de 5 s só gira até ficar de frente para o oponente; BOOT reinicia a contagem
 //   wifi     0 ou 1    o rádio continua ligado na luta, mesmo sem painel conectado
+//   leve     0 ou 1    Wi-Fi leve: pelo rádio só o essencial (D e Q em taxa baixa, sem mapa); vale na hora, a USB não muda
 // O comando do terminal e do painel é "ajuste NOME VALOR" (debug.cpp); "ajuste padrao" apaga tudo e volta ao valor de fábrica.
 #pragma once
 #include "config.h"

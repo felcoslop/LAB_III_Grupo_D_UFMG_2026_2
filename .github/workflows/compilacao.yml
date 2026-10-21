@@ -3,7 +3,7 @@
 # passam por quatro testes: a compilação do firmware para o ESP32 Dev Module (na linha 2.x e na
 # linha 3.x do core da Espressif, com 5 e com 7 sensores de oponente, com os motores desligados
 # como na bancada e também ligados, e com o WiFi opcional ligado), os testes da cinemática, da
-# máquina de estados, da partida automática, do servidor WiFi, da calibração da borda, do alinhamento
+# máquina de estados, da partida automática, do servidor WiFi (com o Wi-Fi leve), da calibração da borda, do alinhamento
 # com o oponente (demonstração), das opções gravadas na memória do robô (modo autônomo, linha da
 # frente de lado, 5 ou 7 sensores, contagem e WiFi na luta), da contagem de 5 s com o botão BOOT, da
 # localização no dojô e do PWM dos motores rodando no computador, o painel num navegador de verdade
@@ -113,7 +113,8 @@ jobs:
           g++ -std=c++11 -Wall -Wextra -Werror $INC -DAUTO_START=1 teste/unidade/teste_autostart.cpp \
             $FW/estados.cpp $FW/cinematica.cpp $FW/arena.cpp $FW/chave.cpp $FW/antitrava.cpp -o teste_autostart
           ./teste_autostart
-      # servidor WiFi opcional (USAR_WIFI 1): o telemetria.cpp de verdade sobre sockets reais, com o WiFi.h de mentira
+      # servidor WiFi opcional (USAR_WIFI 1): o telemetria.cpp de verdade sobre sockets reais, com o WiFi.h de mentira;
+      # confere também o Wi-Fi leve (D a 10 Hz, Q e A a 4 Hz, sem mapa; USB completa) e o canal de 20 MHz
       - name: Servidor WiFi (USAR_WIFI 1)
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror -DUSAR_WIFI=1 -I teste/unidade/stub_wifi $INC teste/unidade/teste_wifi.cpp $FW/telemetria.cpp -o teste_wifi

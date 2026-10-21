@@ -27,6 +27,7 @@ int main() {
   confere(ajustes().tof == QTD_TOF && (uint8_t)N_TOF == QTD_TOF, "fábrica: quantidade de ToF igual ao QTD_TOF do config.h", N_TOF);
   confere(ajustes().autonomo == (AUTO_START != 0), "fábrica: modo autônomo igual ao AUTO_START do config.h", ajustes().autonomo);
   confere(!ajustes().borda_lateral && !ajustes().alinha_contagem && !ajustes().wifi_luta, "fábrica: linha no CAD, contagem parada e Wi-Fi desligado na luta", 0);
+  confere(ajustes().wifi_leve == (WIFI_LEVE != 0), "fábrica: Wi-Fi leve igual ao WIFI_LEVE do config.h", ajustes().wifi_leve);
   confere(!ajustes_gravado(), "fábrica: nada gravado na NVS", 0);
 
   // validação
@@ -41,12 +42,15 @@ int main() {
   confere(ajustes_define("linha", 1) == AJUSTE_OK && ajustes().borda_lateral, "linha 1: grava e vale", ajustes().borda_lateral);
   confere(ajustes_define("ALINHA", 1) == AJUSTE_OK && ajustes().alinha_contagem, "alinha 1 (maiúsculas): grava e vale", ajustes().alinha_contagem);
   confere(ajustes_define("wifi", 1) == AJUSTE_OK && ajustes().wifi_luta, "wifi 1: grava e vale", ajustes().wifi_luta);
+  const bool leveFabrica = WIFI_LEVE != 0;
+  confere(ajustes_define("leve", leveFabrica ? 0 : 1) == AJUSTE_OK && ajustes().wifi_leve == !leveFabrica, "leve (contrário da fábrica): grava e vale", ajustes().wifi_leve);
   confere(ajustes_gravado(), "agora existe ajuste gravado", 0);
 
   // sobrevive ao boot
-  ajustes() = Ajustes{QTD_TOF, false, false, false, false};     // RAM zerada pelo reset
+  ajustes() = Ajustes{QTD_TOF, false, false, false, false, leveFabrica};     // RAM zerada pelo reset
   boot();
-  confere(ajustes().autonomo && ajustes().borda_lateral && ajustes().alinha_contagem && ajustes().wifi_luta, "depois do boot as quatro opções voltam da NVS", 0);
+  confere(ajustes().autonomo && ajustes().borda_lateral && ajustes().alinha_contagem && ajustes().wifi_luta && ajustes().wifi_leve == !leveFabrica,
+          "depois do boot as cinco opções voltam da NVS", 0);
   confere(ajustes_define("auto", 0) == AJUSTE_OK && !ajustes().autonomo, "auto 0 desliga", ajustes().autonomo);
   boot();
   confere(!ajustes().autonomo && ajustes().borda_lateral, "e o desligado também fica gravado", ajustes().autonomo);
@@ -81,7 +85,8 @@ int main() {
   // padrão de fábrica
   ajustes_define("auto", 1); ajustes_define("wifi", 1);
   const int8_t r = ajustes_padrao();
-  confere(!ajustes_gravado() && ajustes().autonomo == (AUTO_START != 0) && !ajustes().borda_lateral && !ajustes().wifi_luta, "ajuste padrao: apaga tudo e volta ao valor de fábrica", 0);
+  confere(!ajustes_gravado() && ajustes().autonomo == (AUTO_START != 0) && !ajustes().borda_lateral && !ajustes().wifi_luta && ajustes().wifi_leve == leveFabrica,
+          "ajuste padrao: apaga tudo e volta ao valor de fábrica", 0);
   confere(r == AJUSTE_REINICIA && (uint8_t)N_TOF == outra, "ajuste padrao com outra quantidade de ToF em uso: pede reiniciar e mantém a em uso", N_TOF);
   boot();
   confere((uint8_t)N_TOF == QTD_TOF, "e depois do boot volta à quantidade de fábrica", N_TOF);

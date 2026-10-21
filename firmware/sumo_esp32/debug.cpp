@@ -52,8 +52,8 @@ static void ajuda() {
   Log.println(F("# cin                modelo das rodas: velocidade, giro, feed-forward e parada"));
   Log.println(F("# mov V W MS [F]     teste parado: V mm/s e W graus/s por MS ms (ate 3000); F: 1 ignora a linha, 2 sem texto, 3 os dois"));
   Log.println(F("# pwm E D MS [F]     teste dos fios: E% e D% de PWM (-100 a 100) por MS ms; F como no mov"));
-  Log.println(F("# alinha on [S]      demo: so gira em pulsos ate alinhar com o oponente (S segundos, padrao 60); alinha off para"));
-  Log.println(F("# ajuste             opcoes do painel gravadas no robo: auto, linha, tof, alinha, wifi (ajuste NOME VALOR | ajuste padrao)"));
+  Log.println(F("# alinha on [S]      demo: gira no lugar, em pulsos, ate alinhar com o oponente da frente (sem busca, gira no maximo ALINHA_GIRO_MAX_DEG de cada lado; S segundos, padrao 60); alinha off para"));
+  Log.println(F("# ajuste             opcoes do painel gravadas no robo: auto, linha, tof, alinha, wifi, leve (ajuste NOME VALOR | ajuste padrao)"));
   Log.println(F("# estrategia rush|flank|fan|chave   escolhe a estrategia (chave = segue a DIP)"));
   Log.println(F("# perfil claro|escuro|chave         perfil do oponente (chave = segue a DIP 4)"));
   Log.println(F("# arena              localizacao no dojo: centro, incerteza e espaco livre"));
@@ -462,7 +462,7 @@ static void bordaLim(const char* arg) {
 //   E,nome0,nome1,...           nomes dos estados
 //   K,alcance,map...            mantido para ser compatível com o radar antigo
 //   X,bayes,ladoOponente,alcancePreto,massaMin     parâmetros do rastreador
-//   F,usarMotores,usarWifi,autoStart,usarBorda,qtdTof,bancada,wifiLigado,linhaLateral,alinhaContagem,wifiLuta
+//   F,usarMotores,usarWifi,autoStart,usarBorda,qtdTof,bancada,wifiLigado,linhaLateral,alinhaContagem,wifiLuta,wifiLeve
 //     (chaves do config.h compiladas no firmware e, de autoStart em diante, as opções do painel gravadas na NVS: ajustes.h)
 // Dados enviados a cada STREAM_MS:
 //   D,mm0..mmN,bruto0..brutoN,visto,ang*10,dist,conf,mascara,cx,cy,acao,lado,estado,saude,millis,
@@ -501,8 +501,8 @@ static void streamCabecalho() {
   Log.printf("X,%d,%d,%d,%.2f,%d,%d\n", oponente_bayes() ? 1 : 0, OPONENTE_LADO_MM, ALCANCE_PRETO_MM, FUSAO_MASSA_MIN,
                 TOF_ALCANCE_LATERAL_MM, TOF_ALCANCE_TRAS_MM);
   const Ajustes& aj = ajustes();
-  Log.printf("F,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", USAR_MOTORES, USAR_WIFI, aj.autonomo ? 1 : 0, USAR_BORDA, (int)aj.tof, GEOMETRIA_BANCADA,
-             telemetria_wifi_ligado() ? 1 : 0, aj.borda_lateral ? 1 : 0, aj.alinha_contagem ? 1 : 0, aj.wifi_luta ? 1 : 0);
+  Log.printf("F,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", USAR_MOTORES, USAR_WIFI, aj.autonomo ? 1 : 0, USAR_BORDA, (int)aj.tof, GEOMETRIA_BANCADA,
+             telemetria_wifi_ligado() ? 1 : 0, aj.borda_lateral ? 1 : 0, aj.alinha_contagem ? 1 : 0, aj.wifi_luta ? 1 : 0, aj.wifi_leve ? 1 : 0);
 }
 
 // Linha M com o mapa de probabilidade comprimido pelo rastreador.cpp.
@@ -552,8 +552,9 @@ static void streamDados() {
   }
 #endif
   bool ativa = estado_atual() != ESPERA;
-  // demo de alinhamento (comando alinha): fase (0 desligado, 1 buscando, 2 virando, 3 alinhado), erro em décimos de grau,
-  // segundos restantes e pulsos; a cada 100 ms e quando a fase muda, e uma vez com fase 0 depois de desligar
+  // demo de alinhamento (comando alinha): fase (0 desligado, 1 sem oponente ao alcance, 2 virando, 3 alinhado), erro em décimos de
+  // grau, segundos restantes, pulsos, giro desde o rumo inicial em décimos de grau e limite do giro de cada lado em graus (0 na
+  // contagem, que busca); a cada 100 ms e quando a fase muda, e uma vez com fase 0 depois de desligar
   {
     static uint8_t faseAntZ = 0;
     static uint32_t tZ = 0;
@@ -561,8 +562,8 @@ static void streamDados() {
     uint32_t agora = millis();
     if ((fz || faseAntZ) && (fz != faseAntZ || agora - tZ >= 100)) {
       tZ = agora;
-      Log.printf("Z,%u,%d,%u,%u\n", (unsigned)fz, (int)lroundf(estados_alinha_erro() * 10), (unsigned)estados_alinha_restante_s(),
-                 (unsigned)estados_alinha_pulsos());
+      Log.printf("Z,%u,%d,%u,%u,%d,%u\n", (unsigned)fz, (int)lroundf(estados_alinha_erro() * 10), (unsigned)estados_alinha_restante_s(),
+                 (unsigned)estados_alinha_pulsos(), (int)lroundf(estados_alinha_giro() * 10), (unsigned)estados_alinha_limite());
     }
     faseAntZ = fz;
   }
@@ -606,9 +607,9 @@ static uint32_t tReinicia = 0;       // diferente de zero: reinicia o ESP32 ness
 
 static void ajustesImprime() {
   const Ajustes& a = ajustes();
-  Log.printf("# ajustes (gravados no robo): auto %d | linha %d (%s) | tof %u | alinha %d | wifi %d%s\n", a.autonomo ? 1 : 0,
+  Log.printf("# ajustes (gravados no robo): auto %d | linha %d (%s) | tof %u | alinha %d | wifi %d | leve %d%s\n", a.autonomo ? 1 : 0,
              a.borda_lateral ? 1 : 0, a.borda_lateral ? "colados de lado" : "como no CAD", (unsigned)a.tof, a.alinha_contagem ? 1 : 0,
-             a.wifi_luta ? 1 : 0, ajustes_gravado() ? "" : " | valores de fabrica");
+             a.wifi_luta ? 1 : 0, a.wifi_leve ? 1 : 0, ajustes_gravado() ? "" : " | valores de fabrica");
 }
 
 static void ajuste(const char* arg) {
@@ -620,7 +621,7 @@ static void ajuste(const char* arg) {
   if (!strcmp(arg, "padrao")) { r = ajustes_padrao(); Log.println(F("# ajustes: valores de fabrica")); }
   else {
     if (sscanf(arg, "%9s %d", nome, &v) != 2 || (r = ajustes_define(nome, v)) == AJUSTE_INVALIDO) {
-      Log.println(F("! uso: ajuste auto|linha|alinha|wifi 0|1 | ajuste tof 5|7 | ajuste padrao | ajuste (mostra)"));
+      Log.println(F("! uso: ajuste auto|linha|alinha|wifi|leve 0|1 | ajuste tof 5|7 | ajuste padrao | ajuste (mostra)"));
       return;
     }
     if (!strcmp(nome, "auto"))
@@ -719,9 +720,9 @@ static void executa(char* c) {
       estados_alinha(true, (uint16_t)constrain(seg, 0, ALINHA_TEMPO_MAX_S));
     }
     else if (n >= 1 && (!strcmp(acao, "off") || !strcmp(acao, "0"))) estados_alinha(false, 0);
-    else if (n == 0 || n == -1) Log.printf("# alinha %s | fase %u, erro %.1f graus, %u s, %u pulsos (uso: alinha on [S] | alinha off)\n",
+    else if (n == 0 || n == -1) Log.printf("# alinha %s | fase %u, erro %.1f graus, giro %.1f graus, %u s, %u pulsos (uso: alinha on [S] | alinha off)\n",
                                            estados_alinha_ativo() ? "LIGADO" : "desligado", (unsigned)estados_alinha_fase(),
-                                           estados_alinha_erro(), (unsigned)estados_alinha_restante_s(), (unsigned)estados_alinha_pulsos());
+                                           estados_alinha_erro(), estados_alinha_giro(), (unsigned)estados_alinha_restante_s(), (unsigned)estados_alinha_pulsos());
     else Log.println(F("! uso: alinha on [S] | alinha off"));
   }
 #if ANTI_TRAVA

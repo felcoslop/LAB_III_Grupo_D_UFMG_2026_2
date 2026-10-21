@@ -12,7 +12,9 @@
 #include <string>
 #include <vector>
 #include "WiFi.h"
+#include "esp_wifi.h"
 #include "ESPmDNS.h"
+#include "config.h"
 #include "telemetria.h"
 #include "estados.h"
 
@@ -21,6 +23,7 @@
 #endif
 
 uint32_t relogio_us = 1000000;
+int g_wifi_if_largura = -1, g_wifi_largura = -1;
 int g_envio_max = 0;                          // limite de bytes por send() do firmware (lwip/sockets.h de mentira)
 WiFiFalso WiFi;
 MDNSFalso MDNS;
@@ -85,9 +88,37 @@ static bool quadrosInteiros(const std::string& rx, std::vector<std::string>& lin
   return true;
 }
 
+// Conta as linhas que começam com a letra dada ("D,", "Q,"...) nos quadros do /stream.
+static int contaLinhas(const std::string& rx, char tipo) {
+  std::vector<std::string> linhas;
+  quadrosInteiros(rx.compare(0, 6, "retry:") == 0 ? rx : "retry: 1000\n\n" + rx, linhas);   // rx pode ter perdido o começo (rx.clear())
+  int n = 0;
+  for (size_t i = 0; i < linhas.size(); i++) if (linhas[i].size() > 1 && linhas[i][0] == tipo && linhas[i][1] == ',') n++;
+  return n;
+}
+static int contaUsb(char tipo) {
+  int n = 0; size_t pos = 0; std::string pad; pad.push_back('\n'); pad.push_back(tipo); pad.push_back(',');
+  std::string u = "\n" + usb;
+  while ((pos = u.find(pad, pos)) != std::string::npos) { n++; pos += 3; }
+  return n;
+}
+// Um segundo de telemetria completa (D, Q, A e J a 20 ms, M a 250 ms, Z a 100 ms), como o stream do firmware manda.
+static void umSegundoDeTelemetria(Cliente& p) {
+  for (int ms = 0; ms < 1000; ms++) {
+    relogio_us += 1000;
+    if (ms % 20 == 0) { Log.printf("D,%d,x\n", ms); Log.printf("Q,%d,x\n", ms); Log.printf("A,%d,x\n", ms); Log.printf("J,%d,x\n", ms); }
+    if (ms % 250 == 0) Log.printf("M,%d,x\n", ms);
+    if (ms % 100 == 0) Log.printf("Z,%d,x\n", ms);
+    telemetria_passo(); p.le();
+  }
+  drena(p, 30);
+}
+
 int main() {
+  ajustes().wifi_leve = false;                      // os testes abaixo são do stream completo; o Wi-Fi leve tem a seção dele
   telemetria_init();
   confere(telemetria_wifi_ligado(), "telemetria_init liga o WiFi");
+  confere(g_wifi_if_largura == WIFI_IF_AP && g_wifi_largura == WIFI_BW_HT20, "o ponto de acesso trabalha em 20 MHz (HT20)");
   confere(usb.find("conecte na rede \"SUMO-ROBO\"") != std::string::npos, "USB mostra a rede e o endereco");
 
   // ---- /ping e cabeçalhos CORS (o painel abre do disco, origem diferente do robô)
@@ -206,6 +237,48 @@ int main() {
   confere(telemetria_wifi_ligado(), "luta com painel conectado: radio continua ligado");
   p.fecha(); bombeia(20);
   confere(!telemetria_wifi_ligado(), "o painel saiu durante a luta: radio desligado");
+
+  // ---- Wi-Fi leve: pelo rádio só o essencial, a USB segue completa
+  usb.clear(); estadoFalso = ESPERA; ajustes().wifi_leve = false;       // a rede cheia a seguir é do stream completo
+  telemetria_init();
+  p = Cliente(); p.abre(); p.manda("GET /stream HTTP/1.1\r\n\r\n"); drena(p, 40);
+  // ---- a linha A (50 Hz) é dado: com a rede cheia é descartada, não guardada como se fosse texto importante
+  {
+    uint32_t desc0 = telemetria_descartes_wifi();
+    for (int i = 0; i < 4000 && telemetria_descartes_wifi() == desc0; i++) {
+      char l[400]; int k = snprintf(l, sizeof(l), "A,%d,", i);
+      for (; k < 300; k++) l[k] = 'z';
+      l[k] = 0; Log.println(l);
+    }
+    confere(telemetria_descartes_wifi() > desc0, "rede cheia: linha A descartada como dado", telemetria_descartes_wifi() - desc0);
+    p.fecha(); bombeia(20);                              // o painel cheio sai; o próximo conecta limpo
+    p = Cliente(); p.abre(); p.manda("GET /stream HTTP/1.1\r\n\r\n"); drena(p, 40);
+  }
+  p.rx.clear(); usb.clear(); ajustes().wifi_leve = true;
+  umSegundoDeTelemetria(p);
+  int nD = contaLinhas(p.rx, 'D'), nQ = contaLinhas(p.rx, 'Q'), nM = contaLinhas(p.rx, 'M'), nZ = contaLinhas(p.rx, 'Z'), nJ = contaLinhas(p.rx, 'J');
+  confere(nD >= 9 && nD <= 11, "leve: D a cada 100 ms no rádio (10 por segundo)", nD);
+  confere(nQ >= 3 && nQ <= 5, "leve: Q a cada 250 ms no rádio (4 por segundo)", nQ);
+  int nA = contaLinhas(p.rx, 'A');
+  confere(nA >= 3 && nA <= 5, "leve: A a cada 250 ms no rádio (4 por segundo)", nA);
+  confere(nM >= 1 && nM <= 3, "leve: o mapa M vai para o rádio a cada WIFI_LEVE_M_MS (2 por segundo, metade do completo)", nM);
+  confere(WIFI_LEVE_M_MS > 0 && nM < contaUsb('M'), "leve: o mapa vai com menos frequência que na USB", nM);
+  confere(nZ == 10, "leve: a Z do alinhamento passa inteira", nZ);
+  confere(nJ == 50, "leve: a J da calibração da pista passa inteira", nJ);
+  confere(contaUsb('D') == 50 && contaUsb('Q') == 50 && contaUsb('A') == 50 && contaUsb('M') == 4, "leve: a USB continua completa (D, Q, A e M)", contaUsb('D'));
+  Log.println("# texto comum"); Log.println("F,1,1,0,1,5,0,1,0,0,0,1"); drena(p, 20);
+  confere(p.tem("data: # texto comum\n\n") && p.tem("data: F,1,1,0,1,5,0,1,0,0,0,1\n\n"), "leve: textos e linhas do cabeçalho passam sem corte");
+  p.manda("GET /cmd?c=mov%20100%200%20250%203 HTTP/1.1\r\n\r\n"); drena(p, 5);
+  { Cliente c2; c2.abre(); c2.manda("GET /cmd?c=mov%20100%200%20250%203 HTTP/1.1\r\nHost: x\r\n\r\n"); drena(c2, 20);
+    confere(c2.tem("200 OK") && lidoDoAnel().find("mov 100 0 250 3\n") != std::string::npos, "leve: o comando do controle remoto chega ao anel"); c2.fecha(); }
+  confere(contaLinhas(p.rx, 'D') >= 9, "leve: o painel continua recebendo dados");
+
+  // voltando ao completo, o stream sai inteiro de novo
+  ajustes().wifi_leve = false;
+  usb.clear(); p.rx.clear();
+  umSegundoDeTelemetria(p);
+  confere(contaLinhas(p.rx, 'D') >= 45 && contaLinhas(p.rx, 'M') == 4, "completo: D a 50 Hz e o mapa voltam", contaLinhas(p.rx, 'D'));
+  p.fecha(); bombeia(20);
 
   printf("\n%s: %d falha(s)\n", falhas ? "ERRO" : "OK", falhas);
   return falhas ? 1 : 0;

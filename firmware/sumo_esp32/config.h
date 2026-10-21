@@ -67,13 +67,14 @@ struct CfgToF {
 #endif
 
 // Opções que o painel muda sem recompilar (ajustes.cpp grava na NVS e lê no boot). O valor de fábrica de cada
-// uma vem das chaves deste arquivo (QTD_TOF, AUTO_START); as outras começam desligadas.
+// uma vem das chaves deste arquivo (QTD_TOF, AUTO_START, WIFI_LEVE); as outras começam desligadas.
 struct Ajustes {
   uint8_t tof;               // sensores de oponente em uso: 5 ou 7
   bool    autonomo;          // partida automática depois de ligar (AUTO_START)
   bool    borda_lateral;     // BFE e BFD colados de lado, 90 graus do encaixe do CAD (BORDA_LATERAL_*)
   bool    alinha_contagem;   // durante a contagem de 5 s o robô só gira até ficar de frente para o oponente
   bool    wifi_luta;         // o rádio fica ligado depois do start, mesmo sem painel conectado
+  bool    wifi_leve;         // Wi-Fi leve: pelo rádio só o essencial (D, Q em taxa baixa, sem mapa); a USB não muda
 };
 inline Ajustes& ajustes();
 
@@ -368,24 +369,42 @@ inline int16_t borda_y(uint8_t i) {
 #define AUTO_START_ESPERA_MS 1000   // sensores prontos há esse tempo antes de pedir o start
 // AUTO_START é o valor de fábrica do "modo autônomo" do painel (comando "ajuste auto 0|1", gravado na NVS): o painel liga e
 // desliga sem regravar o firmware, e a escolha vale a partir da próxima vez que o robô ligar (não larga na hora do clique).
-// Os outros três ajustes do painel começam desligados:
+// Os outros ajustes do painel (menos o wifi_leve, acima) começam desligados:
 //   borda_lateral    BFE e BFD colados de lado, no lugar do encaixe do CAD (posição BORDA_LATERAL_* abaixo)
 //   alinha_contagem  na contagem de 5 s o robô só gira em pulsos até ficar de frente para o oponente, e o botão BOOT
 //                    reinicia a contagem (também no meio da luta, com o modo autônomo ligado). ATENÇÃO: o regulamento
 //                    da CoRA manda o robô ficar parado nos 5 s; use na demonstração e desmarque na competição.
 //   wifi_luta        o rádio continua ligado depois do start sem painel conectado, para acompanhar a luta pelo Wi-Fi
 //                    (o regulamento proíbe rádio durante a luta; só para demonstração e testes)
+// WIFI_LEVE é o valor de fábrica do "Wi-Fi leve" (comando "ajuste leve 0|1"). Pelo rádio, a telemetria completa leva uns
+// 10 a 13 KB/s (D, Q e A a 50 Hz, mais o mapa M a 4 Hz) e disputa os buffers do lwIP e o ar com cada comando do /cmd; no robô
+// isso deixou o controle remoto e os ajustes lentos. Com o modo leve, só para o rádio (a USB segue completa): a linha D sai
+// a cada WIFI_LEVE_D_MS, a Q e a A a cada WIFI_LEVE_QA_MS e o mapa de probabilidade M a cada WIFI_LEVE_M_MS (0 tira o mapa); os
+// textos, a Z do alinhamento, as linhas do cabeçalho (G, I, C, R, B, E, K, X, F) e a J da calibração da pista (que só existe
+// enquanto o assistente roda) passam como antes. As leituras de todos os sensores seguem em tempo real (10 Hz) e o mapa a 2 Hz
+// (uns 1,6 KB/s a mais, uns 3,6 KB/s no total); ele é uma linha de dados, então é o primeiro a ser descartado quando a rede
+// enche e não atrasa o controle remoto (WASD), os ajustes nem a demonstração de alinhamento.
+#ifndef WIFI_LEVE
+#define WIFI_LEVE 1
+#endif
+#define WIFI_LEVE_D_MS 100
+#define WIFI_LEVE_QA_MS 250
+#define WIFI_LEVE_M_MS  500   // 0 = sem o mapa de probabilidade no modo leve
 inline Ajustes& ajustes() {
-  static Ajustes a = { QTD_TOF, AUTO_START != 0, false, false, false };
+  static Ajustes a = { QTD_TOF, AUTO_START != 0, false, false, false, WIFI_LEVE != 0 };
   return a;
 }
 // Demonstração de alinhamento (comando "alinha on", botão "Alinhar com o oponente" do painel). Com o robô parado em
 // ESPERA ele só gira no eixo, em pulsos curtos separados por pausas em que os ToF medem sem o robô girando, até o
 // oponente ficar a no máximo ALINHA_TOL_DEG do centro, e então fica parado e alinhado (a linha Z do painel mostra
 // ALINHADO). Não anda para a frente nem para trás e a linha (borda) é ignorada: em ESPERA ela só encerra os testes
-// mov e pwm. Sem ver o oponente (ele está de lado ou atrás, onde os ToF da frente não alcançam) gira em pulsos de
-// busca, no último lado visto. Termina sozinho depois do tempo pedido, ao sair da ESPERA ou com "alinha off", e
-// funciona com AUTO_START 0 ou 1 (com AUTO_START 1 o start automático fica suspenso enquanto o alinhamento roda).
+// mov e pwm. Como a linha está ignorada, o robô NÃO pode sair do lugar: a demonstração só acompanha o oponente que os
+// ToF da frente enxergam (e, por ALINHA_SEGUE_MS depois de perdê-lo, a estimativa do rastreador). Sem oponente na
+// frente ela fica parada, sem pulsos de busca às cegas, e o giro total desde o rumo em que o robô foi colocado e
+// ligado nunca passa de ALINHA_GIRO_MAX_DEG para cada lado (0 tira o limite). Termina sozinho depois do tempo pedido,
+// ao sair da ESPERA ou com "alinha off", e funciona com AUTO_START 0 ou 1 (com AUTO_START 1 o start automático fica
+// suspenso enquanto o alinhamento roda). A busca em pulsos (ALINHA_BUSCA_*) fica só na contagem de 5 s com a opção
+// "alinha" do painel (ajustes().alinha_contagem), que nunca anda e que o usuário escolhe de propósito.
 #define ALINHA_TOL_DEG        3.0f   // alinhado: oponente visto a no máximo isso do centro do robô
 #define ALINHA_SEGURA_MS      250    // dentro da tolerância por esse tempo (as pausas contam) para valer como alinhado
 #define ALINHA_SAI_FATOR      1.7f   // alinhado só se desfaz com erro acima de ALINHA_TOL_DEG vezes isso (histerese)
@@ -397,7 +416,9 @@ inline Ajustes& ajustes() {
 #define ALINHA_PULSO_MIN_MS   40
 #define ALINHA_PULSO_MAX_MS   220
 #define ALINHA_PAUSA_MS       160    // parado entre pulsos, para os ToF medirem
-#define ALINHA_BUSCA_W_DPS    130    // giro do pulso de busca (oponente fora da vista)
+#define ALINHA_GIRO_MAX_DEG   90.0f  // demonstração: giro total máximo para cada lado desde o rumo inicial (0 = sem limite)
+#define ALINHA_SEGUE_MS       500    // demonstração: depois de perder o oponente de vista, ainda segue a estimativa por esse tempo
+#define ALINHA_BUSCA_W_DPS    130    // giro do pulso de busca (contagem de 5 s: oponente fora da vista)
 #define ALINHA_BUSCA_PULSO_MS 230    // 30 graus por pulso, menos que o campo dos três ToF da frente
 #define ALINHA_TEMPO_PADRAO_S 60     // "alinha on" sem tempo
 #define ALINHA_TEMPO_MAX_S    600

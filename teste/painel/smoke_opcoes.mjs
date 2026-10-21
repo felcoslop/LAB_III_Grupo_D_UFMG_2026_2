@@ -1,6 +1,6 @@
 // smoke_opcoes.mjs
 // Teste no navegador (Chromium sem tela) contra o robô de mentira (robo_falso.mjs) do cartão "Opções do robô": modo autônomo,
-// sensores de linha da frente (CAD ou de lado), 5 ou 7 ToF, contagem girando e Wi-Fi na luta. Cada seletor manda "ajuste NOME VALOR",
+// sensores de linha da frente (CAD ou de lado), 5 ou 7 ToF, contagem girando, Wi-Fi na luta e telemetria leve do Wi-Fi. Cada seletor manda "ajuste NOME VALOR",
 // o robô reenvia o cabeçalho (linha F, R e G) e o painel mostra o valor em uso; trocar a quantidade de ToF reinicia o robô, o fluxo
 // cai e o painel reconecta sozinho com 5 ou 7 sensores na tabela. Fora de ESPERA os seletores ficam travados.
 // Uso: node teste/painel/smoke_opcoes.mjs   (precisa de "playwright" ou "playwright-core"; CHROME_PATH aponta o Chrome)
@@ -35,7 +35,7 @@ pagina.on("console", (m) => { if (m.type() === "error" && !/WebGL|GPU|GL_|Failed
 await pagina.goto("file://" + painelHtml);
 
 // sem conexão: tudo travado e o aviso pede a conexão
-confere((await pagina.locator("#cardAj .seg button:disabled").count()) === 10, "sem conexão os 10 botões de opção ficam travados");
+confere((await pagina.locator("#cardAj .seg button:disabled").count()) === 12, "sem conexão os 12 botões de opção ficam travados");
 confere(/Conecte ao robô/.test(await texto(pagina, "#ajNota")) && (await texto(pagina, "#ajPill")) === "sem robô", "e o cartão pede a conexão");
 confere(!/GEOMETRIA_BANCADA|QTD_TOF|AUTO_START/.test(await texto(pagina, "#tbCfg")), "o guia do config.h não lista mais AUTO_START, QTD_TOF nem GEOMETRIA_BANCADA");
 
@@ -46,7 +46,8 @@ confere(await ate(async () => (await texto(pagina, "#status")) === "Wi-Fi conect
 confere(await ate(() => pagina.evaluate(() => S.cfg && S.cfg.opcoes && S.estado === 0)), "recebe a linha F com as opções e o estado ESPERA");
 confere((await pagina.locator("#cardAj .seg button:disabled").count()) === 0 && (await texto(pagina, "#ajPill")) === "no robô", "conectado em ESPERA: os seletores liberam");
 confere((await marcado(pagina, "auto")) === 0 && (await marcado(pagina, "linha")) === 0 && (await marcado(pagina, "tof")) === 5 &&
-        (await marcado(pagina, "alinha")) === 0 && (await marcado(pagina, "wifi")) === 0, "valores de fábrica marcados: autônomo desligado, linha no CAD, 5 ToF, contagem parada, Wi-Fi desliga ao largar");
+        (await marcado(pagina, "alinha")) === 0 && (await marcado(pagina, "wifi")) === 0 && (await marcado(pagina, "leve")) === 0,
+        "valores do robô de mentira marcados: autônomo desligado, linha no CAD, 5 ToF, contagem parada, Wi-Fi desliga ao largar, telemetria completa");
 confere((await pagina.evaluate(() => S.geo.length)) === 5 && (await pagina.evaluate(() => S.bg[0].x + "," + S.bg[0].y)) === "60,40", "tabela com 5 ToF e BFE na posição do CAD");
 
 // modo autônomo
@@ -86,6 +87,40 @@ await clica(pagina, "wifi", 0);
 robo.cfg = {};
 await ate(async () => (await marcado(pagina, "wifi")) === 0);
 
+// Wi-Fi leve: o robô corta o stream (D a 10 Hz) e o painel mostra a taxa sem contar perdas
+const taxa = () => pagina.evaluate(() => rede.hz);
+await pagina.evaluate(() => { window.__nM = 0; const o = dadosMapa; dadosMapa = function (p) { window.__nM++; return o(p); }; });      // conta os quadros do mapa
+const contaM = async (ms) => { await pagina.evaluate(() => { window.__nM = 0; }); await espera(ms); return pagina.evaluate(() => window.__nM); };
+confere(await ate(async () => (await taxa()) > 30, 6000), "telemetria completa: o painel recebe mais de 30 quadros por segundo", String(Math.round(await taxa())));
+confere(/perdas/.test(await texto(pagina, "#pRede")), "e a pílula da rede mostra as perdas");
+const mCompleto = await contaM(2000);
+confere(mCompleto >= 6 && mCompleto <= 10, "completa: o mapa chega a 4 por segundo (8 em 2 s)", String(mCompleto));
+robo.recebidos.length = 0;
+await clica(pagina, "leve", 1);
+confere(await ate(() => robo.recebidos.includes("ajuste leve 1")) && await ate(async () => (await marcado(pagina, "leve")) === 1), "Telemetria Leve: manda ajuste leve 1 e marca");
+confere(await ate(async () => { const t = await taxa(); return t >= 6 && t <= 14; }, 6000), "no leve o painel recebe uns 10 quadros por segundo", String(Math.round(await taxa())));
+confere(await ate(async () => /^Wi-Fi leve · \d+ Hz$/.test(await texto(pagina, "#pRede"))), "a pílula mostra Wi-Fi leve e a taxa, sem perdas falsas", await texto(pagina, "#pRede"));
+confere(await ate(async () => /Wi-Fi leve: o painel recebe os dados dos sensores a 10 Hz e o mapa de probabilidade a 2 Hz/.test(await texto(pagina, "#ajNota"))), "a nota explica o que muda (sensores a 10 Hz e mapa a 2 Hz)");
+await espera(600);
+const mLeve = await contaM(2000);
+confere(mLeve >= 2 && mLeve <= 6 && mLeve < mCompleto, "leve: o mapa de probabilidade continua chegando, a 2 por segundo (4 em 2 s)", String(mLeve));
+confere(await pagina.evaluate(() => !!S.mapa && performance.now() - S.mapa.t < 800), "e o mapa na tela está fresco (menos de 0,8 s), sem esmaecer");
+confere(await pagina.evaluate(() => rede.tot === 0 && rede.perd === 0), "e nenhum pacote conta como perdido");
+// o controle remoto e os comandos continuam passando no leve
+robo.recebidos.length = 0;
+await pagina.evaluate(() => { enviar("mov 100 0 250 3", true); });
+confere(await ate(() => robo.recebidos.includes("mov 100 0 250 3")), "no leve os comandos de movimento chegam ao robô");
+await clica(pagina, "leve", 0);
+confere(await ate(async () => (await marcado(pagina, "leve")) === 0) && await ate(async () => (await taxa()) > 30, 6000), "Telemetria Completa volta aos 50 quadros por segundo", String(Math.round(await taxa())));
+// firmware sem a opção (linha F de 10 campos): o seletor trava e avisa
+robo.cfg = { semLeve: true };
+await clica(pagina, "auto", 1); await clica(pagina, "auto", 0);
+confere(await ate(async () => (await pagina.locator("#cardAj .seg[data-aj=leve] button:disabled").count()) === 2), "firmware sem o Wi-Fi leve: os dois botões de telemetria travam");
+confere(await ate(async () => /ainda não tem o Wi-Fi leve/.test(await texto(pagina, "#ajNota"))), "e a nota manda gravar o firmware atual");
+robo.cfg = {};
+await clica(pagina, "auto", 1); await clica(pagina, "auto", 0);
+await ate(async () => (await pagina.locator("#cardAj .seg[data-aj=leve] button:disabled").count()) === 0);
+
 // 7 sensores: o robô reinicia, o fluxo cai e o painel reconecta com 7 na tabela
 robo.recebidos.length = 0;
 const reiniciosAntes = robo.reinicios;
@@ -107,7 +142,7 @@ confere(!robo.recebidos.some((c) => c.startsWith("ajuste tof")), "clicar no valo
 // fora de ESPERA os seletores travam
 robo.estado = 2;
 confere(await ate(() => pagina.evaluate(() => S.estado === 2)), "robô em BUSCA");
-confere(await ate(async () => (await pagina.locator("#cardAj .seg button:disabled").count()) === 10), "em luta os 10 botões travam");
+confere(await ate(async () => (await pagina.locator("#cardAj .seg button:disabled").count()) === 12), "em luta os 12 botões travam");
 confere(await ate(async () => /só mudam em ESPERA/.test(await texto(pagina, "#ajNota"))), "e a nota manda enviar stop", (await texto(pagina, "#ajNota")).slice(0, 80));
 robo.estado = 0;
 confere(await ate(async () => (await pagina.locator("#cardAj .seg button:disabled").count()) === 0), "de volta em ESPERA os seletores liberam");
@@ -122,7 +157,7 @@ confere(await ate(async () => (await marcado(pagina, "auto")) === 0 && (await ma
 
 // desconectar trava de novo
 await pagina.click("#bDisc");
-confere(await ate(async () => (await pagina.locator("#cardAj .seg button:disabled").count()) === 10 && (await texto(pagina, "#ajPill")) === "sem robô"), "desconectado: os seletores travam outra vez");
+confere(await ate(async () => (await pagina.locator("#cardAj .seg button:disabled").count()) === 12 && (await texto(pagina, "#ajPill")) === "sem robô"), "desconectado: os seletores travam outra vez");
 
 confere(erros.length === 0, "nenhum erro de JavaScript na página", erros.slice(0, 3).join(" | "));
 await navegador.close();

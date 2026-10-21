@@ -54,16 +54,26 @@ robo.recebidos.length = 0;
 await pagina.fill("#alSeg", "30");
 await pagina.click("#alLiga");
 confere(await ate(() => robo.recebidos.includes("alinha on 30")), "o botão manda alinha on 30");
-confere(await ate(async () => /PROCURANDO/.test(await texto(pagina, "#alStatus"))), "fase 1: PROCURANDO O OPONENTE");
+confere(await ate(async () => /SEM OPONENTE NA FRENTE · robô parado/.test(await texto(pagina, "#alStatus"))), "fase 1: SEM OPONENTE NA FRENTE (o robô não sai procurando)", await texto(pagina, "#alStatus"));
 confere(await ate(async () => /VIRANDO · erro \+\d+,\d°/.test(await texto(pagina, "#alStatus"))), "fase 2: VIRANDO com o erro em graus");
 confere(await ate(async () => /ALINHADO/.test(await texto(pagina, "#alStatus")), 4000), "fase 3: ALINHADO");
 confere((await pagina.getAttribute("#alStatus", "class")).includes("ok") && (await texto(pagina, "#alPill")) === "alinhado", "status e etiqueta ficam verdes");
 confere(/pulsos · \d+ s/.test(await texto(pagina, "#alPulsos")), "mostra pulsos e tempo restante", await texto(pagina, "#alPulsos"));
+confere(/giro \+\d+° de ±90°/.test(await texto(pagina, "#alPulsos")), "e o giro desde o rumo inicial com o limite de ±90°", await texto(pagina, "#alPulsos"));
+confere(/fica no mesmo lugar e só gira no eixo/.test(await texto(pagina, "#cardAlinha")) && /não sai procurando/.test(await texto(pagina, "#cardAlinha")), "o cartão explica: no mesmo lugar, só gira, não sai procurando");
 confere(await pagina.isVisible("#alMarca"), "a barra mostra o oponente visto pelo ToF (quadros D)");
 robo.recebidos.length = 0;
 await pagina.click("#alPara");
 confere(await ate(() => robo.recebidos.includes("alinha off")), "Parar manda alinha off");
 confere(await ate(async () => (await texto(pagina, "#alStatus")) === "DESLIGADO"), "volta a DESLIGADO");
+// firmware antigo (Z com 4 campos, sem giro nem limite): o painel segue mostrando pulsos e tempo, sem inventar o giro
+robo.cfg = { zAntigo: 1 };
+await pagina.click("#alLiga");
+confere(await ate(async () => /ALINHADO/.test(await texto(pagina, "#alStatus")), 4000), "firmware antigo (Z de 4 campos): também chega em ALINHADO");
+confere(/^\d+ pulsos · \d+ s$/.test(await texto(pagina, "#alPulsos")), "e mostra só pulsos e tempo, sem giro", await texto(pagina, "#alPulsos"));
+await pagina.click("#alPara");
+confere(await ate(async () => (await texto(pagina, "#alStatus")) === "DESLIGADO"), "e volta a DESLIGADO");
+robo.cfg = {};
 // só em ESPERA
 robo.estado = 4;
 await ate(() => pagina.evaluate(() => S.estado === 4));
@@ -71,7 +81,8 @@ robo.recebidos.length = 0;
 await pagina.click("#alLiga");
 await espera(300);
 confere(!robo.recebidos.some((c) => c.startsWith("alinha on")), "robô em luta (estado 4): o painel não manda alinha on");
-confere(/ESPERA/.test(await texto(pagina, "#alAviso")), "e explica que só vale em ESPERA", (await texto(pagina, "#alAviso")).slice(0, 70));
+// o aviso é redesenhado por um timer de 500 ms: espera até ele aparecer em vez de contar com 300 ms de sorte
+confere(await ate(async () => /ESPERA/.test(await texto(pagina, "#alAviso")), 3000), "e explica que só vale em ESPERA", (await texto(pagina, "#alAviso")).slice(0, 70));
 robo.estado = 0;
 await ate(() => pagina.evaluate(() => S.estado === 0));
 

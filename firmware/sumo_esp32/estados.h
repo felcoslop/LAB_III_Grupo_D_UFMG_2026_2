@@ -33,14 +33,18 @@ enum : uint8_t { TESTE_IGNORA_BORDA = 1, TESTE_QUIETO = 2 };
 void        estados_teste_mov(float v_mms, float w_dps, uint16_t ms, uint8_t flags = 0);   // movimento de teste em ESPERA (comando "mov")
 void        estados_teste_pwm(int8_t esq_pct, int8_t dir_pct, uint16_t ms, uint8_t flags = 0); // PWM direto em cada roda (comando "pwm")
 bool        estados_teste_ativo();    // true durante um teste mov ou pwm
-// Demonstração de alinhamento (comando "alinha", config.h ALINHA_*): em ESPERA, só gira em pulsos até o oponente ficar
-// centrado; não anda e ignora a linha. Fase: 0 desligado, 1 buscando (oponente fora da vista), 2 virando, 3 alinhado.
+// Demonstração de alinhamento (comando "alinha", config.h ALINHA_*): em ESPERA, só gira no lugar em pulsos até o oponente
+// ficar centrado; não anda, ignora a linha, não busca às cegas e gira no máximo ALINHA_GIRO_MAX_DEG para cada lado.
+// Fase: 0 desligado, 1 sem oponente ao alcance (a contagem de 5 s busca em pulsos; a demonstração fica parada), 2 virando,
+// 3 alinhado.
 void        estados_alinha(bool liga, uint16_t segundos);
 bool        estados_alinha_ativo();
 uint8_t     estados_alinha_fase();
 float       estados_alinha_erro();    // graus até o oponente na última decisão (positivo é esquerda)
 uint16_t    estados_alinha_restante_s();
 uint16_t    estados_alinha_pulsos();  // pulsos de giro dados desde que ligou
+float       estados_alinha_giro();    // giro estimado desde que ligou, graus (positivo é esquerda)
+uint16_t    estados_alinha_limite();  // limite do giro de cada lado na demonstração (ALINHA_GIRO_MAX_DEG); 0 na contagem (que busca)
 Estado      estado_atual();
 const char* estado_nome(Estado e);
 Estrategia  estados_estrategia();     // estratégia em uso (travada no start)
