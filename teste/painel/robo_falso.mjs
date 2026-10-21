@@ -86,12 +86,14 @@ export function iniciaRoboFalso(porta = 0) {
     if (pista) manda(janela());
     if (alinha) {
       const dt = Date.now() - alinha.t0;
-      if (dt >= alinha.fim) { manda("# alinha: tempo esgotado"); manda("Z,0,0,0," + alinha.pulsos); alinha = null; }
+      if (dt >= alinha.fim) { manda("# alinha: tempo esgotado"); manda("Z,0,0,0," + alinha.pulsos + (servidor.cfg.zAntigo ? "" : ",0,0")); alinha = null; }
       else if (Date.now() - tZ >= 100) {
         tZ = Date.now();
         const fase = dt < 300 ? 1 : dt < 700 ? 2 : 3, erro = fase === 1 ? 0 : fase === 2 ? 125 - Math.round((dt - 300) * 0.25) : 12;
         alinha.pulsos = Math.floor(dt / 160);
-        manda(`Z,${fase},${erro},${Math.max(0, Math.ceil((alinha.fim - dt) / 1000))},${alinha.pulsos}`);
+        // giro desde o rumo inicial em décimos de grau (o oponente fica a 12,5 graus) e o limite de cada lado; firmware antigo manda só 4 campos
+        const giro = fase === 1 ? 0 : fase === 2 ? Math.round(Math.min(125, (dt - 300) * 0.3125)) : 125;
+        manda(`Z,${fase},${erro},${Math.max(0, Math.ceil((alinha.fim - dt) / 1000))},${alinha.pulsos}` + (servidor.cfg.zAntigo ? "" : `,${giro},90`));
       }
     }
   };
@@ -113,10 +115,10 @@ export function iniciaRoboFalso(porta = 0) {
       const al = /^alinha on(?: (\d+))?$/.exec(c);
       if (al) {
         if (servidor.estado !== 0) manda("! alinha so funciona com o robo parado (ESPERA)");
-        else { const s = +(al[1] || 60); alinha = {t0: Date.now(), fim: s * 1000, pulsos: 0}; manda(`# alinha: ligado por ${s} s (so gira, nao anda, linha ignorada); alinha off para parar`); }
+        else { const s = +(al[1] || 60); alinha = {t0: Date.now(), fim: s * 1000, pulsos: 0}; manda(`# alinha: ligado por ${s} s (so gira no lugar, nao anda, linha ignorada, so acompanha o oponente da frente, no maximo 90 graus de cada lado); alinha off para parar`); }
       }
-      if (c === "alinha off" && alinha) { alinha = null; manda("# alinha: desligado"); manda("Z,0,0,0,0"); }
-      if (c === "stop" || c === "go") { if (alinha) { alinha = null; manda("Z,0,0,0,0"); } }
+      if (c === "alinha off" && alinha) { alinha = null; manda("# alinha: desligado"); manda("Z,0,0,0,0" + (servidor.cfg.zAntigo ? "" : ",0,0")); }
+      if (c === "stop" || c === "go") { if (alinha) { alinha = null; manda("Z,0,0,0,0" + (servidor.cfg.zAntigo ? "" : ",0,0")); } }
       const ajc = /^ajuste(?: (\w+)(?: (\d+))?)?$/.exec(c);
       if (ajc) {
         const mostra = () => manda(`# ajustes (gravados no robo): auto ${aj.auto} | linha ${aj.linha} | tof ${aj.tof} | alinha ${aj.alinha} | wifi ${aj.wifi} | leve ${aj.leve}`);

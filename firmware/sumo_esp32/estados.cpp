@@ -71,6 +71,9 @@ static uint32_t alinhaFim = 0, alinhaT = 0, alinhaDentro = 0;
 static uint16_t alinhaDur = 0, alinhaPulsos = 0;
 static float    alinhaW = 0, alinhaErro = 0;
 static int8_t   alinhaUltSinal = 0;     // sentido do pulso de acerto anterior
+static bool     alinhaBusca = false;    // true na contagem de 5 s (gira às cegas atrás do oponente); false na demonstração (só acompanha o que os ToF veem)
+static float    alinhaGiro0 = 0;        // giro estimado da cinemática quando o alinhamento ligou (a demonstração mede o giro a partir daqui)
+static bool     alinhaLimiteAvisado = false;
 static uint8_t  alinhaCruzou = 0;       // pulsos de acerto seguidos que passaram do ponto
 
 static const char* NOMES[N_ESTADOS] = {"ESPERA", "CONTAGEM", "BUSCA", "MIRA", "ATAQUE", "FLANCO", "ATAQUE_RE",
@@ -189,12 +192,16 @@ void estados_alinha(bool liga, uint16_t segundos) {
   alinhaAtivo = true; alinhaOk = false; alinhaPulso = false; alinhaFase = 1;
   alinhaT = millis(); alinhaFim = alinhaT + (uint32_t)segundos * 1000UL;
   alinhaDentro = 0; alinhaPulsos = 0; alinhaUltSinal = 0; alinhaCruzou = 0; alinhaErro = 0;
-  Log.printf("# alinha: ligado por %u s (so gira, nao anda, linha ignorada); alinha off para parar\n", (unsigned)segundos);
+  alinhaBusca = false; alinhaGiro0 = cinematica_giro(); alinhaLimiteAvisado = false;
+  Log.printf("# alinha: ligado por %u s (so gira no lugar, nao anda, linha ignorada, so acompanha o oponente da frente, no maximo %d graus de cada lado); alinha off para parar\n",
+             (unsigned)segundos, (int)ALINHA_GIRO_MAX_DEG);
 }
 bool     estados_alinha_ativo() { return alinhaAtivo; }
 uint8_t  estados_alinha_fase()  { return alinhaAtivo ? alinhaFase : 0; }
 float    estados_alinha_erro()  { return alinhaErro; }
 uint16_t estados_alinha_pulsos() { return alinhaPulsos; }
+float    estados_alinha_giro()   { return alinhaAtivo ? cinematica_giro() - alinhaGiro0 : 0.0f; }
+uint16_t estados_alinha_limite() { return (alinhaAtivo && !alinhaBusca) ? (uint16_t)ALINHA_GIRO_MAX_DEG : 0; }
 uint16_t estados_alinha_restante_s() {
   if (!alinhaAtivo || (int32_t)(alinhaFim - millis()) <= 0) return 0;
   return (uint16_t)((alinhaFim - millis() + 999) / 1000);
@@ -203,6 +210,12 @@ uint16_t estados_alinha_restante_s() {
 // Um passo do alinhamento, chamado a cada volta do loop em ESPERA. Só comanda giro (v = 0).
 static void alinhaComeca(float w, uint16_t dur) {
   alinhaW = w; alinhaDur = dur; alinhaPulso = true; alinhaT = P.t_ms; alinhaPulsos++;
+}
+// Demonstração: o giro previsto do próximo pulso cabe no limite? Sempre cabe o que traz o robô de volta ao rumo inicial.
+static bool alinhaCabe(float graus) {
+  if (alinhaBusca || ALINHA_GIRO_MAX_DEG <= 0) return true;
+  float g = cinematica_giro() - alinhaGiro0;
+  return fabsf(g + graus) <= ALINHA_GIRO_MAX_DEG || fabsf(g + graus) < fabsf(g);
 }
 static void alinhaPasso() {
   if ((int32_t)(P.t_ms - alinhaFim) >= 0) {
@@ -248,16 +261,29 @@ static void alinhaPasso() {
       Log.printf("# alinha: ALINHADO no melhor que as rodas acertam (erro %.1f graus, %u pulsos)\n", e, (unsigned)alinhaPulsos);
       return;
     }
+    if (!alinhaCabe(sinal * ALINHA_FRACAO_PULSO * fabsf(e))) {      // oponente fora do que a demonstração acompanha: fica parado
+      alinhaFase = 1;
+      if (!alinhaLimiteAvisado) {
+        alinhaLimiteAvisado = true;
+        Log.printf("# alinha: o oponente esta alem de %d graus do rumo inicial; o robo fica parado no lugar\n", (int)ALINHA_GIRO_MAX_DEG);
+      }
+      return;
+    }
+    alinhaLimiteAvisado = false;
     float aw = constrain(ALINHA_K_DPS_GRAU * fabsf(e), (float)ALINHA_W_MIN_DPS, (float)ALINHA_W_MAX_DPS);
     int dur = (int)(1000.0f * ALINHA_FRACAO_PULSO * fabsf(e) / aw);
     alinhaComeca(sinal * aw, (uint16_t)constrain(dur, (int)ALINHA_PULSO_MIN_MS, (int)ALINHA_PULSO_MAX_MS));
     alinhaFase = 2;
     return;
   }
-  // sem ver o oponente: busca em pulsos. Com a estimativa do rastreador ainda boa, gira para ela; senão, para o último lado visto.
+  // sem ver o oponente. Contagem de 5 s: busca em pulsos (com a estimativa do rastreador ainda boa, gira para ela; senão, para
+  // o último lado visto). Demonstração: só segue a estimativa por ALINHA_SEGUE_MS depois de perdê-lo e, fora isso, fica parada
+  // (a linha está ignorada e o robô não pode varrer a arena nem sair do lugar).
   alinhaFase = 1; alinhaUltSinal = 0; alinhaCruzou = 0;
-  int8_t sinal = (P.op.existe >= 0.5f && P.op.ms_sem_ver < 1500 && fabsf(e) > 1.0f) ? (e > 0 ? 1 : -1)
-                                                                                   : (P.op.lado_ultimo != 0 ? P.op.lado_ultimo : 1);
+  const bool estimaBoa = P.op.existe >= 0.5f && P.op.ms_sem_ver < (alinhaBusca ? 1500u : (uint32_t)ALINHA_SEGUE_MS) && fabsf(e) > 1.0f;
+  if (!alinhaBusca && !estimaBoa) return;
+  int8_t sinal = estimaBoa ? (e > 0 ? 1 : -1) : (P.op.lado_ultimo != 0 ? P.op.lado_ultimo : 1);
+  if (!alinhaCabe(sinal * ALINHA_BUSCA_W_DPS * ALINHA_BUSCA_PULSO_MS / 1000.0f)) return;
   alinhaComeca(sinal * (float)ALINHA_BUSCA_W_DPS, ALINHA_BUSCA_PULSO_MS);
 }
 
@@ -268,6 +294,7 @@ static void contagemAlinha() {
     alinhaAtivo = true; alinhaOk = false; alinhaPulso = false; alinhaFase = 1;
     alinhaT = P.t_ms; alinhaFim = P.t_ms + (uint32_t)T_CONTAGEM_MS + 2000UL;
     alinhaDentro = 0; alinhaPulsos = 0; alinhaUltSinal = 0; alinhaCruzou = 0; alinhaErro = 0;
+    alinhaBusca = true; alinhaGiro0 = cinematica_giro(); alinhaLimiteAvisado = false;
     Log.println(F("# contagem: so gira ate ficar de frente para o oponente (ajuste alinha 0 deixa o robo parado)"));
   }
   alinhaPasso();

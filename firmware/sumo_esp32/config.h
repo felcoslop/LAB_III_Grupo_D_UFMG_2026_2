@@ -395,9 +395,13 @@ inline Ajustes& ajustes() {
 // ESPERA ele só gira no eixo, em pulsos curtos separados por pausas em que os ToF medem sem o robô girando, até o
 // oponente ficar a no máximo ALINHA_TOL_DEG do centro, e então fica parado e alinhado (a linha Z do painel mostra
 // ALINHADO). Não anda para a frente nem para trás e a linha (borda) é ignorada: em ESPERA ela só encerra os testes
-// mov e pwm. Sem ver o oponente (ele está de lado ou atrás, onde os ToF da frente não alcançam) gira em pulsos de
-// busca, no último lado visto. Termina sozinho depois do tempo pedido, ao sair da ESPERA ou com "alinha off", e
-// funciona com AUTO_START 0 ou 1 (com AUTO_START 1 o start automático fica suspenso enquanto o alinhamento roda).
+// mov e pwm. Como a linha está ignorada, o robô NÃO pode sair do lugar: a demonstração só acompanha o oponente que os
+// ToF da frente enxergam (e, por ALINHA_SEGUE_MS depois de perdê-lo, a estimativa do rastreador). Sem oponente na
+// frente ela fica parada, sem pulsos de busca às cegas, e o giro total desde o rumo em que o robô foi colocado e
+// ligado nunca passa de ALINHA_GIRO_MAX_DEG para cada lado (0 tira o limite). Termina sozinho depois do tempo pedido,
+// ao sair da ESPERA ou com "alinha off", e funciona com AUTO_START 0 ou 1 (com AUTO_START 1 o start automático fica
+// suspenso enquanto o alinhamento roda). A busca em pulsos (ALINHA_BUSCA_*) fica só na contagem de 5 s com a opção
+// "alinha" do painel (ajustes().alinha_contagem), que nunca anda e que o usuário escolhe de propósito.
 #define ALINHA_TOL_DEG        3.0f   // alinhado: oponente visto a no máximo isso do centro do robô
 #define ALINHA_SEGURA_MS      250    // dentro da tolerância por esse tempo (as pausas contam) para valer como alinhado
 #define ALINHA_SAI_FATOR      1.7f   // alinhado só se desfaz com erro acima de ALINHA_TOL_DEG vezes isso (histerese)
@@ -409,7 +413,9 @@ inline Ajustes& ajustes() {
 #define ALINHA_PULSO_MIN_MS   40
 #define ALINHA_PULSO_MAX_MS   220
 #define ALINHA_PAUSA_MS       160    // parado entre pulsos, para os ToF medirem
-#define ALINHA_BUSCA_W_DPS    130    // giro do pulso de busca (oponente fora da vista)
+#define ALINHA_GIRO_MAX_DEG   90.0f  // demonstração: giro total máximo para cada lado desde o rumo inicial (0 = sem limite)
+#define ALINHA_SEGUE_MS       500    // demonstração: depois de perder o oponente de vista, ainda segue a estimativa por esse tempo
+#define ALINHA_BUSCA_W_DPS    130    // giro do pulso de busca (contagem de 5 s: oponente fora da vista)
 #define ALINHA_BUSCA_PULSO_MS 230    // 30 graus por pulso, menos que o campo dos três ToF da frente
 #define ALINHA_TEMPO_PADRAO_S 60     // "alinha on" sem tempo
 #define ALINHA_TEMPO_MAX_S    600

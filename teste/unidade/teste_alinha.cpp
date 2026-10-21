@@ -2,9 +2,11 @@
 // Testes da demonstração de alinhamento (comando "alinha"), da máquina de estados de verdade no computador, com um
 // mundo mínimo em volta: o robô gira no eixo conforme o giro que a cinemática estima, o oponente fica em um rumo
 // fixo no mundo, e os ToF da frente só veem o que estiver a até 32 graus do centro (a cada 30 ms, com uma leitura
-// de atraso). Confere que o robô só gira (nunca anda), fica alinhado a menos de ALINHA_TOL_DEG, acha o oponente
-// que está de lado e atrás, não passa do ponto nem com as rodas girando mais do que o modelo, ignora a linha, acaba
-// no tempo e sai ao receber go ou stop. Também confere as flags de linha ignorada e de texto calado dos testes mov e pwm.
+// de atraso). Confere que o robô só gira no lugar (nunca anda), fica alinhado a menos de ALINHA_TOL_DEG, só acompanha o
+// oponente que os ToF da frente veem (de lado ou atrás ele fica parado, sem busca às cegas), nunca gira mais de
+// ALINHA_GIRO_MAX_DEG para cada lado do rumo em que foi colocado, não passa do ponto nem com as rodas girando mais do
+// que o modelo, ignora a linha, acaba no tempo e sai ao receber go ou stop. Também confere as flags de linha ignorada
+// e de texto calado dos testes mov e pwm.
 // Uso (uma linha só, FW = firmware/sumo_esp32):
 //   g++ -std=c++11 -Wall -Wextra -I teste/unidade/stub -I $FW teste/unidade/teste_alinha.cpp $FW/estados.cpp
 //       $FW/cinematica.cpp $FW/arena.cpp $FW/chave.cpp $FW/antitrava.cpp -o t && ./t
@@ -92,12 +94,14 @@ int main() {
   P.saude.pronto = true;
   passo(50);
 
-  // 1. oponente a 40 graus na esquerda, fora do campo dos ToF da frente (32 graus)
-  reinicia(0, 40);
+  // 1. oponente a 25 graus na esquerda, dentro do campo dos ToF da frente (32 graus)
+  reinicia(0, 25);
   estados_alinha(true, 30);
-  confere(estados_alinha_ativo() && contem("alinha: ligado por 30 s"), "alinha on 30: liga e avisa no terminal", estados_alinha_restante_s());
+  confere(estados_alinha_ativo() && contem("alinha: ligado por 30 s") && contem("so gira no lugar"), "alinha on 30: liga e avisa no terminal", estados_alinha_restante_s());
+  confere(estados_alinha_limite() == (uint16_t)ALINHA_GIRO_MAX_DEG, "o limite de giro vai na linha Z (graus)", estados_alinha_limite());
   int t1 = ateAlinhar(8000);
-  confere(t1 >= 0, "oponente a +40 graus: chega em ALINHADO", t1);
+  confere(t1 >= 0, "oponente a +25 graus: chega em ALINHADO", t1);
+  confere(fabsf(estados_alinha_giro() - psi) < 1.5f && psi > 20.0f, "o giro desde o início (linha Z) bate com o rumo do robô (graus)", estados_alinha_giro());
   float err = envolve(beta - psi);
   confere(fabsf(err) <= ALINHA_TOL_DEG + 0.6f, "erro final dentro da tolerância (graus)", err);
   confere(vMax < 5.0f, "só gira: o avanço estimado nunca passa de 5 mm/s", vMax);
@@ -107,28 +111,33 @@ int main() {
   confere(estados_alinha_fase() == 3 && fabsf(envolve(beta - psi)) <= ALINHA_TOL_DEG + 0.6f, "alinhado fica parado e alinhado por 1,5 s", envolve(beta - psi));
   confere(pwmE == 0 && pwmD == 0, "alinhado: rodas paradas", pwmE);
 
-  // 2. oponente atrás (180 graus): busca em pulsos até achar
-  reinicia(0, 180);
-  estados_alinha(true, 30);
-  passo(400);
-  confere(estados_alinha_fase() == 1, "oponente atrás: fase 1 (buscando)", estados_alinha_fase());
-  int t2 = ateAlinhar(15000);
-  confere(t2 >= 0, "oponente atrás: encontra e alinha", t2);
-  confere(fabsf(envolve(beta - psi)) <= ALINHA_TOL_DEG + 0.6f, "oponente atrás: erro final dentro da tolerância", envolve(beta - psi));
-  confere(vMax < 5.0f, "oponente atrás: nunca andou", vMax);
+  // 2. oponente fora do campo da frente (40 graus, -100 graus e atrás): o robô fica parado no lugar, sem pulso nenhum
+  const float fora[4] = {40.0f, -40.0f, -100.0f, 180.0f};
+  for (int i = 0; i < 4; i++) {
+    reinicia(0, fora[i]);
+    estados_alinha(true, 30);
+    passo(6000);
+    char nome[96];
+    snprintf(nome, sizeof(nome), "oponente a %+.0f graus (fora da frente): parado, sem pulsos (graus girados)", fora[i]);
+    confere(giroTotal < 0.5f && estados_alinha_pulsos() == 0 && pwmE == 0 && pwmD == 0 && vMax < 1.0f, nome, giroTotal);
+    confere(estados_alinha_fase() == 1 && estados_alinha_ativo(), "e fica na fase 1 (sem oponente à frente), ainda ligado", estados_alinha_fase());
+  }
 
-  // 3. oponente a -100 graus (direita): vai para o lado em que o último visto estava ou, sem pista, a esquerda; ainda assim acha
-  reinicia(0, -100);
+  // 3. oponente a -25 graus (direita): alinha para o outro lado
+  reinicia(0, -25);
   estados_alinha(true, 30);
-  int t3 = ateAlinhar(15000);
-  confere(t3 >= 0 && fabsf(envolve(beta - psi)) <= ALINHA_TOL_DEG + 0.6f, "oponente a -100 graus: alinha", envolve(beta - psi));
+  int t3 = ateAlinhar(8000);
+  confere(t3 >= 0 && fabsf(envolve(beta - psi)) <= ALINHA_TOL_DEG + 0.6f, "oponente a -25 graus: alinha", envolve(beta - psi));
+  confere(vMax < 5.0f && somaPwmMax <= 8, "e só girou: sem avanço e com as rodas opostas", vMax);
 
   // 4. rodas girando 1,8 vez mais que o modelo: não fica oscilando, termina alinhado no melhor que dá
   reinicia(0, 25, 1.8f);
   estados_alinha(true, 30);
   int t4 = ateAlinhar(10000);
   confere(t4 >= 0, "rodas girando demais: termina em ALINHADO", t4);
-  confere(fabsf(envolve(beta - psi)) <= 2.5f * ALINHA_TOL_DEG + 0.6f, "rodas girando demais: erro final pequeno", envolve(beta - psi));
+  // o menor pulso (ALINHA_PULSO_MIN_MS a ALINHA_W_MIN_DPS) já gira uns 5 graus com as rodas 1,8 vez mais fortes, e a leitura chega com
+  // 30 ms de atraso: o erro final de verdade fica até uns 2 graus acima do limite de 2,5 tolerâncias que o firmware aceita
+  confere(fabsf(envolve(beta - psi)) <= 2.5f * ALINHA_TOL_DEG + 2.0f, "rodas girando demais: erro final pequeno", envolve(beta - psi));
   // e rodas girando metade do que o modelo diz
   reinicia(0, 25, 0.5f);
   estados_alinha(true, 30);
@@ -153,10 +162,38 @@ int main() {
   confere(estados_alinha_fase() == 2 || estados_alinha_fase() == 3, "oponente andou 15 graus: reage", estados_alinha_fase());
   int t6 = ateAlinhar(6000);
   confere((t6 >= 0 || estados_alinha_fase() == 3) && fabsf(envolve(beta - psi)) <= ALINHA_TOL_DEG + 0.6f, "e alinha de novo", envolve(beta - psi));
-  // some do campo: depois de ALINHA_PERDE_MS volta a procurar
+  // some do campo: a demonstração não busca às cegas, fica parada
   oponentePresente = false;
+  passo(1200);
+  float giroAntes = giroTotal;
   passo(2500);
-  confere(estados_alinha_fase() == 1, "oponente sumiu: volta a buscar", estados_alinha_fase());
+  confere(estados_alinha_fase() == 1, "oponente sumiu: fase 1 (sem oponente à frente)", estados_alinha_fase());
+  confere(giroTotal - giroAntes < 0.5f && pwmE == 0 && pwmD == 0, "e o robô fica parado (graus girados depois de perdê-lo)", giroTotal - giroAntes);
+
+  // 6b. o oponente dá a volta no robô devagar: ele acompanha enquanto vê, mas nunca passa de ALINHA_GIRO_MAX_DEG
+  reinicia(0, 15);
+  estados_alinha(true, 120);
+  float psiMax = 0, psiMin = 0;
+  for (int t = 0; t < 8000; t += 2) {                    // 30 graus/s, de 15 até 255 graus
+    beta += 30.0f * 0.002f;
+    passo();
+    if (psi > psiMax) psiMax = psi;
+    if (psi < psiMin) psiMin = psi;
+  }
+  confere(psiMax > 50.0f, "oponente dando a volta: o robô acompanha até um bom pedaço (graus)", psiMax);
+  confere(psiMax <= ALINHA_GIRO_MAX_DEG + 6.0f && psiMin >= -6.0f, "mas nunca passa do limite de giro nem volta para o outro lado (graus)", psiMax);
+  confere(fabsf(estados_alinha_giro()) <= ALINHA_GIRO_MAX_DEG + 6.0f, "a linha Z informa o giro dentro do limite (graus)", estados_alinha_giro());
+  confere(vMax < 5.0f && somaPwmMax <= 8, "e durante toda a volta só girou no lugar", vMax);
+  confere(contem("alem de 90 graus do rumo inicial"), "o terminal avisa que o oponente passou do limite", 0);
+  estados_alinha(false, 0);
+
+  // 6c. oponente perdido logo depois de visto: segue a estimativa por ALINHA_SEGUE_MS (um pulso no máximo), depois para
+  reinicia(0, 28);
+  estados_alinha(true, 30);
+  passo(200);
+  oponentePresente = false; beta = psi + 60.0f;           // sumiu com a estimativa ainda boa, mais adiante
+  passo(6000);
+  confere(giroTotal < 40.0f, "oponente perdido: não vai atrás às cegas (graus girados no total)", giroTotal);
 
   // 7. tempo esgotado
   reinicia(0, 170);
