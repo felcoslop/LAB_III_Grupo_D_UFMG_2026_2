@@ -1,7 +1,7 @@
 // debug.cpp
 // Comandos de teste, calibração e o stream de dados para o painel. Os comandos chegam pela
-// entrada_le() do telemetria.cpp (Monitor Serial ou painel, os dois pela USB) e o comando help
-// mostra a lista completa.
+// entrada_le() do telemetria.cpp (Monitor Serial pela USB, painel pela USB ou pelo WiFi) e o
+// comando help mostra a lista completa.
 // Este é o único módulo que conversa com todos os outros, porque precisa mostrar tudo.
 #include "debug.h"
 #include "config.h"
@@ -55,6 +55,7 @@ static void ajuda() {
 #endif
   Log.println(F("# go | stop          inicia (5 s) / para a maquina de estados"));
   Log.println(F("# s1 | s0            liga/desliga stream para o painel (HTML)"));
+  Log.println(F("# wifi | wifi off    rede, endereco e paineis conectados / desliga o radio (USAR_WIFI 1)"));
   Log.println(F("# ============================================"));
 }
 
@@ -396,6 +397,7 @@ static void calBorda() {
 //   E,nome0,nome1,...           nomes dos estados
 //   K,alcance,map...            mantido para ser compatível com o radar antigo
 //   X,bayes,ladoOponente,alcancePreto,massaMin     parâmetros do rastreador
+//   F,usarMotores,usarWifi,autoStart,usarBorda,qtdTof,bancada,wifiLigado   chaves do config.h em uso
 // Dados enviados a cada STREAM_MS:
 //   D,mm0..mmN,bruto0..brutoN,visto,ang*10,dist,conf,mascara,cx,cy,acao,lado,estado,saude,millis,
 //     sigma*10,confianca*100,existe*100,rumoModo,rumoAng*10,buscaGanho*100
@@ -427,6 +429,8 @@ static void streamCabecalho() {
   Log.printf(",%d,%d,0,0\n", TOF_TIMING_US > 25000 ? 1 : 0, MODO_DEFENSIVO);
   Log.printf("X,%d,%d,%d,%.2f,%d,%d\n", oponente_bayes() ? 1 : 0, OPONENTE_LADO_MM, ALCANCE_PRETO_MM, FUSAO_MASSA_MIN,
                 TOF_ALCANCE_LATERAL_MM, TOF_ALCANCE_TRAS_MM);
+  Log.printf("F,%d,%d,%d,%d,%d,%d,%d\n", USAR_MOTORES, USAR_WIFI, AUTO_START, USAR_BORDA, QTD_TOF, GEOMETRIA_BANCADA,
+             telemetria_wifi_ligado() ? 1 : 0);
 }
 
 // Linha M com o mapa de probabilidade comprimido pelo rastreador.cpp.
@@ -534,7 +538,11 @@ static void executa(char* c) {
     if (oponente_bayes()) Log.printf(" | passo %lu us, pior %lu us (a cada %d ms, no nucleo %d)", (unsigned long)rastreador_us(),
                                      (unsigned long)rastreador_us_max(), (tof_perfil_escuro() ? ESCURO_TIMING_US : TOF_TIMING_US) / 1000,
                                      SENSORES_NUCLEO);
-    Log.printf(" | linhas de dados descartadas na USB: %lu\n", (unsigned long)telemetria_descartes_usb());
+    Log.printf(" | linhas de dados descartadas na USB: %lu", (unsigned long)telemetria_descartes_usb());
+#if USAR_WIFI
+    Log.printf(" | no WiFi: %lu", (unsigned long)telemetria_descartes_wifi());
+#endif
+    Log.println();
     P.saude.ciclo_us_max = 0;
     rastreador_us_zera();
   }
@@ -577,6 +585,8 @@ static void executa(char* c) {
   else if (!strcmp(c, "stop"))   { estados_parar();   Log.println(F("# parado")); }
   else if (!strcmp(c, "s1") || !strcmp(c, "geo") || !strcmp(c, "cfg")) { modoStream = modoStream || !strcmp(c, "s1"); streamCabecalho(); }
   else if (!strcmp(c, "s0"))     modoStream = false;
+  else if (!strcmp(c, "wifi"))     telemetria_wifi_info();
+  else if (!strcmp(c, "wifi off")) { if (telemetria_wifi_ligado()) telemetria_wifi_desliga("comando wifi off"); else telemetria_wifi_info(); }
   else Log.printf("! comando desconhecido: %s (digite help)\n", c);
 }
 

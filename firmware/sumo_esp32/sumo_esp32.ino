@@ -3,7 +3,7 @@
 // O setup inicializa cada módulo uma única vez e o loop chama os módulos em sequência.
 // Nenhum módulo usa delay dentro do loop: cada um faz uma parte pequena do trabalho e
 // devolve o controle, assim a borda e os motores nunca ficam parados esperando outra tarefa.
-// O robô é autônomo e o firmware não liga o rádio (sem WiFi e sem Bluetooth).
+// O firmware nunca liga Bluetooth; o WiFi só existe com USAR_WIFI 1 no config.h (padrão 0, sem rádio).
 //
 // Configuração usada na Arduino IDE: placa "ESP32 Dev Module", biblioteca "VL53L0X" da
 // Pololu (versão 1.3.1) e monitor serial em 115200 com "Nova linha". O Partition Scheme
@@ -28,6 +28,7 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
   delay(300);
   Log.println(F("\n# ===== ROBO SUMO | ESP32 ====="));
+  telemetria_init();       // com USAR_WIFI 1 a rede (SUMO-ROBO) e o servidor do painel começam aqui; com 0 não faz nada
   percepcao_init();        // inicialização do I2C, dos ToF, da borda e do botão (percepcao.cpp)
   estados_init();          // máquina de estados começa em ESPERA (estados.cpp)
   debug_init();            // a lista de comandos aparece no terminal (debug.cpp)
@@ -38,5 +39,6 @@ void loop() {
   estados_passo();         // passo 2: a máquina de estados decide e comanda os motores
   // com o robô parado (e fora dos testes mov e pwm), o código tenta religar sensor que caiu
   percepcao_manutencao(estado_atual() == ESPERA && !estados_teste_ativo());
-  debug_passo();           // passo 3: o debug trata os comandos e envia os dados para o painel pela USB
+  telemetria_passo();      // passo 3: o WiFi (se ligado) atende o painel sem bloquear
+  debug_passo();           // passo 4: o debug trata os comandos e envia os dados para o painel
 }

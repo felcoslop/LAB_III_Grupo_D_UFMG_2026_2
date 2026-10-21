@@ -8,7 +8,7 @@
 [![Compilação](https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2/actions/workflows/compilacao.yml/badge.svg)](https://github.com/felcoslop/LAB_III_Grupo_D_UFMG_2026_2/actions/workflows/compilacao.yml)
 [![Simulador](https://img.shields.io/badge/simulador-GitHub%20Pages-2ea44f)](https://felcoslop.github.io/LAB_III_Grupo_D_UFMG_2026_2/)
 
-Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **Grupo D**, desenvolvido na disciplina ELE635 Laboratório de Sistemas III da UFMG. O ESP32 lê cinco ou sete sensores de distância VL53L0X e quatro sensores de linha TCRT5000, estima onde está o oponente com um filtro bayesiano em grade, estima onde fica o centro do dojô com um filtro de partículas e decide o movimento com uma máquina de estados de três estratégias, escolhidas na chave DIP. Um painel web, que abre direto no navegador e conversa com o robô pela USB, mostra sensores, mapa de probabilidade, rumo e estado em 2D e 3D, e um simulador com o firmware de verdade roda lutas inteiras no GitHub Pages.
+Firmware e painel de telemetria do robô sumô autônomo da classe de 1 kg do **Grupo D**, desenvolvido na disciplina ELE635 Laboratório de Sistemas III da UFMG. O ESP32 lê cinco ou sete sensores de distância VL53L0X e quatro sensores de linha TCRT5000, estima onde está o oponente com um filtro bayesiano em grade, estima onde fica o centro do dojô com um filtro de partículas e decide o movimento com uma máquina de estados de três estratégias, escolhidas na chave DIP. Um painel web, que abre direto no navegador e conversa com o robô pela USB ou, opcionalmente, pelo Wi-Fi do próprio robô, mostra sensores, mapa de probabilidade, rumo e estado em 2D e 3D, e um simulador com o firmware de verdade roda lutas inteiras no GitHub Pages.
 
 ![Painel do robô em modo demo, com radar 2D, ambiente 3D, tabela de precisão e sensores de borda](doc/img/painel_demo.jpg)
 
@@ -54,8 +54,8 @@ O `config.h` vem com a configuração da bancada de teste (`GEOMETRIA_BANCADA 1`
 - Máquina de estados com contagem obrigatória de 5 s, busca, mira, ataque, flanco, ataque de ré e fuga da borda em quatro direções, sem nunca girar para trás quando a borda está atrás.
 - Reconhecimento de travamento sem encoder: o giro preso pelo oponente encostado na lateral vira uma manobra curta de soltura, e o empurrão longo em contato aparece no painel, reconhecido também pela caixa do rastreador parada, com cinco manobras experimentais de saída que se desligam no `config.h`; um modelo térmico de cada motor limita o PWM das manobras se o motor travado esquentar demais.
 - Cinemática das duas rodas com o modelo do motor JGB37-520 e da ponte H: cada estado pede avanço em mm/s e giro em graus/s, a fuga da borda usa a tensão toda na hora e o firmware não compila se a distância de parada não couber na margem até as rodas. Os comandos `pwm` e `mov` testam os motores com o robô parado.
-- Painel 2D e 3D em um único arquivo HTML, sem internet, ligado ao robô pela USB, com dados a 50 Hz e comandos pelo navegador.
-- Firmware sem rádio: o robô compete de forma autônoma, sem WiFi e sem Bluetooth, o que deixa o núcleo 0 livre para os sensores e o rastreador.
+- Painel 2D e 3D em um único arquivo HTML, sem internet, ligado ao robô pela USB ou pelo Wi-Fi, com dados a 50 Hz e comandos pelo navegador.
+- WiFi opcional, com a chave `USAR_WIFI` do `config.h` (0 por padrão): com 0 o firmware não tem uma linha do rádio, sem WiFi e sem Bluetooth, o que deixa o núcleo 0 livre para os sensores e o rastreador, e com 1 o painel funciona sem cabo.
 - Simulador de lutas (software in the loop): o firmware compilado no computador luta contra seis tipos de oponente, com pessoas paradas em volta do dojô, e o CI roda uma bateria de lutas em todo pull request.
 - Combate em 3D com o mesmo firmware nos dois robôs, na física de Belo Horizonte (gravidade e ar do lugar, pneu de silicone na madeira pintada, choque com restituição), e montagem 3D com cada jumper do esquema, as duas em páginas versionadas no repositório.
 - Terminal de comandos pela USB ou pelo painel para teste, calibração e diagnóstico.
@@ -65,7 +65,7 @@ O `config.h` vem com a configuração da bancada de teste (`GEOMETRIA_BANCADA 1`
 
 | Componente | Qtd. | Uso no projeto |
 |---|---|---|
-| ESP32 DevKit V1 (ESP32-WROOM-32D, 30 pinos) | 1 | microcontrolador de dois núcleos, com ADC (o rádio fica desligado) |
+| ESP32 DevKit V1 (ESP32-WROOM-32D, 30 pinos) | 1 | microcontrolador de dois núcleos, com ADC (o rádio só liga com `USAR_WIFI 1`) |
 | Extensora (expansion board) do ESP32 de 30 pinos | 1 | recebe o ESP32 e dá um trio S, V e G por GPIO, no lugar da protoboard |
 | VL53L0X (placas CJVL53L0XV2 / GY-530) | 7 | distância até o oponente: LE, FE, FC, FD, LD, TE e TD (o firmware também compila com 5, sem TE e TD) |
 | TCRT5000 com comparador LM393 | 4 | linha branca da borda, lida pela saída analógica A0 |
@@ -622,7 +622,7 @@ Os comandos funcionam no Monitor Serial e no terminal do painel.
 | `calborda` | diagnóstico e calibração da borda em três medidas |
 | `bordazera` | remoção da calibração da borda |
 | `init` | nova tentativa nos ToF que falharam, com o robô parado |
-| `tempo` | duração do ciclo do loop, tempo do rastreador e linhas descartadas na USB |
+| `tempo` | duração do ciclo do loop, tempo do rastreador e linhas descartadas na USB (e no WiFi, com `USAR_WIFI 1`) |
 | `cin` | números do modelo das rodas: velocidade e giro máximos, feed-forward e distância de parada |
 | `mov V W MS` | teste com o robô parado: avanço V mm/s e giro W graus/s por MS ms (até 3000), com a estimativa no fim |
 | `pwm E D MS` | teste dos fios: PWM direto de E% na roda esquerda e D% na direita (-100 a 100) por MS ms |
@@ -633,10 +633,24 @@ Os comandos funcionam no Monitor Serial e no terminal do painel.
 | `cin` | também mostra o aquecimento estimado dos motores e se o limite térmico está ligado |
 | `go` e `stop` | início (contagem de 5 s) e parada da máquina de estados |
 | `s1` e `s0` | stream de dados para o painel, ligado e desligado |
+| `wifi` e `wifi off` | rede, endereço, painéis conectados e linhas descartadas; `wifi off` desliga o rádio na hora (com `USAR_WIFI 1`) |
 
-### Painel pela USB
+### Painel pela USB ou pelo Wi-Fi
 
-O arquivo `painel/painel_sumo.html` abre direto no Chrome ou no Edge do computador, sem internet, porque o three.js está embutido nele [THREE.JS, 2022]. O botão "Conectar USB" usa a Web Serial do navegador a 115200 baud; logo depois de abrir a porta, o painel envia `s1` e passa a receber os dados a 50 Hz. O Monitor Serial da IDE precisa estar fechado, porque só um programa por vez usa a porta. O botão "Modo demo" simula um oponente preto de 15,2 cm e roda em JavaScript o mesmo rastreador do firmware; o quadrado pode ser arrastado no radar 2D e, com a opção "robô se mexe", o robô simulado obedece à seta.
+O arquivo `painel/painel_sumo.html` abre direto no Chrome ou no Edge do computador, sem internet, porque o three.js está embutido nele [THREE.JS, 2022]. Na barra do alto, a caixa de seleção escolhe o meio de conexão. Com "USB", o botão "Conectar" usa a Web Serial do navegador a 115200 baud; logo depois de abrir a porta, o painel envia `s1` e passa a receber os dados a 50 Hz. O Monitor Serial da IDE precisa estar fechado, porque só um programa por vez usa a porta. O botão "Modo demo" simula um oponente preto de 15,2 cm e roda em JavaScript o mesmo rastreador do firmware; o quadrado pode ser arrastado no radar 2D e, com a opção "robô se mexe", o robô simulado obedece à seta.
+
+#### Wi-Fi
+
+O painel funciona sem cabo quando o firmware é compilado com `USAR_WIFI 1` no `config.h`. O ESP32 cria a rede `SUMO-ROBO` (senha `sumo1234`, canais e nomes no `config.h`), o computador entra nela, o painel é aberto do disco (`painel_sumo.html`) e, na barra do alto, a seleção "Wi-Fi" mostra o campo do endereço, que já vem com `192.168.4.1`. O botão "Conectar" confere o robô em `/ping`, abre o fluxo `/stream` (Server-Sent Events, o mesmo protocolo de linhas da USB) e envia `s1`; os comandos digitados, as setas de controle e os botões saem por `/cmd?c=comando`, um por vez e na ordem, e um `mov` ou `pwm` que ainda não saiu é trocado pelo mais novo. Se o ESP32 reiniciar ou o sinal cair, o navegador reconecta sozinho e o painel pede o cabeçalho de novo. O firmware atende no máximo dois painéis ao mesmo tempo, não bloqueia o loop quando a rede engasga (a linha de dados é descartada, e o comando `tempo` conta quantas) e entrega inteiras as linhas de texto, como o resultado de um comando. Se o `config.h` tiver `WIFI_STA_SSID` preenchido, o ESP32 tenta entrar nesse roteador por até 8 s antes de criar a rede própria, e o endereço passa a ser o IP que o terminal mostra (ou `sumo.local`).
+
+Detalhes que importam no uso:
+
+- O painel precisa estar aberto do disco ou por `http`. Aberto por `https` (o GitHub Pages, por exemplo), o navegador bloqueia a conexão com o robô, que só fala `http`, e o painel avisa.
+- Conforme a versão, o Chrome pergunta se a página pode acessar dispositivos da rede local; é preciso permitir.
+- Com o computador na rede do robô não há internet; o painel não precisa dela.
+- O custo do rádio é a pilha do WiFi disputando o núcleo 0 com o rastreador (foi o motivo de o WiFi ter sido removido uma vez). Com `USAR_WIFI 0` o código do rádio nem é compilado, então o firmware de competição fica igual ao que não tem WiFi. Para medir no robô, rode `tempo` com `USAR_WIFI 0` e depois com `USAR_WIFI 1` e compare o pior ciclo e o passo do rastreador.
+- `WIFI_DESLIGA_SEM_PAINEL 1` (padrão) desliga o rádio sozinho quando a máquina de estados sai da ESPERA (início da luta) sem nenhum painel conectado, e também quando o último painel sai durante a luta. O comando `wifi off` desliga na hora; para ligar de novo é preciso reiniciar o ESP32.
+- O `teste/unidade/teste_wifi.cpp` roda o `telemetria.cpp` de verdade sobre sockets reais no CI (`/ping`, `/cmd`, `/stream`, rede cheia, envio parcial e desligamento sem painel), e o `teste/painel/smoke_wifi.mjs` abre o painel versionado num Chromium sem tela contra um robô de mentira e confere a conexão, os quadros, os comandos em ordem e a reconexão.
 
 | Oponente à vista (rumo ATACAR) | Arena vazia (rumo PROCURAR) |
 |---|---|
@@ -684,10 +698,10 @@ flowchart LR
     CIN -. "giro e avanço estimados" .-> RAS
     CIN -. "giro e avanço estimados" .-> ARE
     PER --> DEB["debug.cpp<br/>comandos e stream"]
-    DEB --> TEL["telemetria.cpp<br/>Log pela USB"]
+    DEB --> TEL["telemetria.cpp<br/>Log pela USB e pelo WiFi"]
     TEL --> USB["Monitor Serial"]
     TEL --> PAI["painel_sumo.html"]
-    PAI -- "comandos pela USB" --> TEL
+    PAI -- "comandos pela USB ou pelo WiFi" --> TEL
 ```
 
 Nenhum módulo usa `delay()` dentro do loop. Cada volta chama os módulos na ordem abaixo, e cada um faz uma parte pequena do trabalho e devolve o controle.
@@ -699,7 +713,7 @@ Nenhum módulo usa `delay()` dentro do loop. Cada volta chama os módulos na ord
 | 3 | `percepcao_manutencao()` | percepcao.cpp | nova tentativa nos ToF que caíram, só em ESPERA |
 | 4 | `debug_passo()` | debug.cpp | comandos e envio de dados para o painel |
 
-O ESP32 tem dois núcleos, e o trabalho fica dividido entre eles. No núcleo 0, uma tarefa do FreeRTOS lê os ToF, descarta as leituras de fora do dojô e roda o rastreador bayesiano, que leva alguns milissegundos por passo. No núcleo 1, o loop do Arduino lê a borda a cada volta, roda a localização no dojô, decide o estado e comanda os motores, então a reação à borda nunca espera um sensor I2C nem o rastreador. Como o firmware não liga o rádio, a pilha do WiFi não disputa o núcleo 0. A troca de dados entre os núcleos acontece dentro de travas curtas (spinlock), e o I2C tem um mutex para os comandos do terminal que mexem nos sensores.
+O ESP32 tem dois núcleos, e o trabalho fica dividido entre eles. No núcleo 0, uma tarefa do FreeRTOS lê os ToF, descarta as leituras de fora do dojô e roda o rastreador bayesiano, que leva alguns milissegundos por passo. No núcleo 1, o loop do Arduino lê a borda a cada volta, roda a localização no dojô, decide o estado e comanda os motores, então a reação à borda nunca espera um sensor I2C nem o rastreador. Com `USAR_WIFI 0` (padrão) o firmware não liga o rádio, e a pilha do WiFi não disputa o núcleo 0; com `USAR_WIFI 1` ela disputa, e o `tempo` mostra o custo. A troca de dados entre os núcleos acontece dentro de travas curtas (spinlock), e o I2C tem um mutex para os comandos do terminal que mexem nos sensores.
 
 O referencial é o mesmo em todo o código: origem no centro de giro do robô, x para a frente, y para a esquerda e ângulo positivo para a esquerda. Com isso, o ângulo do oponente já é o quanto o robô precisa girar.
 
@@ -814,7 +828,7 @@ Cinemática das rodas e modelo do acionamento, descritos na seção [Cinemática
 
 ### `telemetria.h` e `telemetria.cpp`
 
-Saída de texto e entrada de comandos pela USB. O objeto `Log` substitui o `Serial` em todo o projeto: cada linha sai inteira, o que deixa o painel ler sem pedaços misturados. As linhas de dados (`D`, `Q` e `M`) são descartadas quando o buffer da serial está cheio, então o robô nunca fica esperando a USB; o comando `tempo` mostra quantas linhas foram descartadas. A função `entrada_le()` entrega ao debug os caracteres que chegam do Monitor Serial ou do painel.
+Saída de texto e entrada de comandos pela USB e, com `USAR_WIFI 1`, também pelo WiFi. O objeto `Log` substitui o `Serial` em todo o projeto: cada linha sai inteira, o que deixa o painel ler sem pedaços misturados. As linhas de dados (`D`, `Q`, `M` e `J`) são descartadas quando o buffer da serial (ou do socket do WiFi) está cheio, então o robô nunca fica esperando a USB nem a rede; o comando `tempo` mostra quantas linhas foram descartadas. A função `entrada_le()` entrega ao debug os caracteres que chegam do Monitor Serial ou do painel (USB, ou `/cmd` do WiFi, por um anel de 256 bytes). Com `USAR_WIFI 1`, `telemetria_init()` cria a rede e o servidor HTTP da porta 80 (`/stream`, `/cmd`, `/ping`, com CORS liberado e resposta ao `OPTIONS`), `telemetria_passo()` atende a rede a cada 3 ms no máximo e, com `WIFI_DESLIGA_SEM_PAINEL 1`, desliga o rádio na luta sem painel; com 0 as mesmas funções existem e não fazem nada.
 
 ### `debug.h` e `debug.cpp`
 
@@ -825,6 +839,7 @@ Comandos de teste e calibração, os modos contínuos (`ver`, `id`, `borda`) e o
 | `G`, `I`, `C` | geometria, status e calibração de cada ToF | comando `s1`, enviado pelo painel ao conectar |
 | `R` | posição, limiar e calibração de cada sensor de borda | comando `s1` e depois de cada calibração |
 | `B`, `E`, `K`, `X` | corpo do robô, nomes dos estados, alcance e parâmetros do rastreador (a `X` traz também `TOF_ALCANCE_LATERAL_MM` e `TOF_ALCANCE_TRAS_MM`) | comando `s1` |
+| `F` | chaves do `config.h` em uso: `USAR_MOTORES`, `USAR_WIFI`, `AUTO_START`, `USAR_BORDA`, `QTD_TOF`, `GEOMETRIA_BANCADA` e se o rádio está ligado | comando `s1` |
 | `D` | leituras, oponente, estado, saúde, incerteza, existência e rumo | a cada 20 ms |
 | `Q` | borda confirmada, borda crua e mV de cada sensor | a cada 20 ms |
 | `M` | mapa de probabilidade comprimido | a cada 250 ms |
@@ -880,7 +895,11 @@ Os ajustes principais ficam no `config.h`:
 | `BORDA_FRACAO` | 0,35 | posição do limiar calibrado entre o branco e o preto |
 | `BORDA_CONFIRMA_MS` | 3 | tempo mínimo de branco contínuo para confirmar a borda |
 | `USAR_BORDA` e `USAR_MOTORES` | 1 e 0 | liga e desliga cada parte do hardware |
-| `STREAM_MS` | 20 | intervalo dos dados enviados ao painel pela USB |
+| `STREAM_MS` | 20 | intervalo dos dados enviados ao painel (USB e WiFi) |
+| `USAR_WIFI` | 0 | 1 liga o WiFi opcional (rede própria ou roteador, painel sem cabo); 0 não compila nada do rádio (também aceita `-DUSAR_WIFI=1`) |
+| `WIFI_AP_SSID`, `WIFI_AP_SENHA` e `WIFI_AP_CANAL` | "SUMO-ROBO", "sumo1234" e 6 | rede criada pelo ESP32 (senha com no mínimo 8 caracteres) |
+| `WIFI_STA_SSID`, `WIFI_STA_SENHA` e `WIFI_NOME_MDNS` | vazios e "sumo" | roteador a procurar primeiro (vazio usa só a rede própria) e nome `sumo.local` |
+| `WIFI_DESLIGA_SEM_PAINEL` | 1 | 1 desliga o rádio quando a luta começa (ou continua) sem nenhum painel conectado |
 | `MOTOR_RPM_LIVRE`, `MOTOR_V_PARTIDA` e `MOTOR_KA` | 319, 1,5 e 1,25 | modelo do motor (tabela do JGB37-520; o kA precisa de medida) |
 | `BATERIA_V` e `PONTE_QUEDA_V` | 11,1 e 0,2 | tensão que chega no motor com PWM de 100% |
 | `RODA_DIAMETRO_MM` e `BITOLA_MM` | 32 e 132 | roda e distância entre as rodas (a bitola precisa de medida) |
@@ -924,7 +943,7 @@ LAB_III_Grupo_D_UFMG_2026_2/
     antitrava.h / .cpp      empurrão travado pela caixa do rastreador e manobras (experimental)
     motores.h / .cpp        ponte H dupla de 10 A
     cinematica.h / .cpp     cinemática das rodas e modelo do motor
-    telemetria.h / .cpp     Log e entrada de comandos pela USB
+    telemetria.h / .cpp     Log e entrada de comandos pela USB e, com USAR_WIFI 1, pelo WiFi
     debug.h / .cpp          comandos, calibração e stream para o painel
   painel/
     painel_sumo.html        painel completo para abrir no computador (gerado, versionado)
@@ -966,6 +985,10 @@ LAB_III_Grupo_D_UFMG_2026_2/
       teste_autostart.cpp   partida automática (AUTO_START 1), sem botão de início
       teste_arena.cpp       testes estatísticos da localização no dojô
       teste_motores.cpp     PWM da ponte H (API do LEDC dos cores 2.x e 3.x)
+      teste_wifi.cpp        servidor WiFi (USAR_WIFI 1) sobre sockets reais, com o WiFi.h de mentira em stub_wifi/
+    painel/                 painel no navegador (Chromium sem tela) contra um robô de mentira pelo WiFi
+      robo_falso.mjs        servidor que imita /ping, /stream e /cmd do firmware
+      smoke_wifi.mjs        conexão, quadros, comandos em ordem e reconexão do painel versionado
     sim/                    simulador de lutas com o firmware de verdade
       compila.sh            compila o simulador (teste/sim/luta)
       luta.cpp              uma luta: firmware, mundo e oponente, com resultado em CSV e rastro em JSON
@@ -1000,7 +1023,7 @@ A divisão segue o que cada pasta entrega: o firmware que vai para o ESP32, o pa
 
 ## Integração contínua
 
-O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados, e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/unidade/stub`), o `cinematica.cpp`, o `estados.cpp`, o `arena.cpp`, o `chave.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/unidade/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro, a escolha da estratégia pela chave, a fuga em cada combinação de sensores de borda, a localização no dojô nas duas geometrias (erro, coerência da incerteza e descarte) e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x). Um terceiro teste compila o simulador de lutas e roda 288 lutas (3 estratégias, 6 oponentes, claro e escuro, 8 largadas) com pessoas em volta do dojô; ele falha com qualquer queda própria ou com mais de 2 s mirando algo fora do dojô numa luta, e guarda a tabela no resumo da execução e o CSV como artefato. Um quarto teste compila o simulador de combate e roda 48 lutas com o mesmo firmware nos dois robôs (3 estratégias, adversário preto e branco, 1000 e 319 rpm), falhando com qualquer queda própria, compila o mesmo código para WebAssembly e falha se o `site/combate.html` versionado for diferente da página gerada com esse WebAssembly e a bateria do `doc/combate/bateria.json`. Um quinto teste gera o painel de novo a partir do `painel/painel_src.html` e a página da montagem a partir do `config.h` e do `doc/montagem/montagem.json`, falha se o `painel/painel_sumo.html` ou o `site/montagem.html` versionados estiverem diferentes, e confere se as constantes da página do simulador (`site/index.html`) são as mesmas do `config.h`. Um sexto teste instala o MuJoCo 3.16.0, compila o simulador de combate e o empurrão com ele, falha se o MuJoCo não decidir 95% dos 40 empurrões por motor em 3 s, se dois robôs iguais ficarem fora de 30% a 70% de vitórias ou se o robô levantado não perder em 85% dos empurrões, e roda uma bateria de 54 lutas com o firmware, falhando com qualquer queda própria. O workflow `pages.yml` publica as páginas no GitHub Pages a cada push na `main`, com os rastros e o placar das lutas gerados na hora; o combate e a montagem vão como estão no repositório. O GitHub Pages precisa estar ligado uma vez em Settings > Pages, com a fonte GitHub Actions.
+O workflow `.github/workflows/compilacao.yml` roda em todo pull request, inclusive os empilhados sobre outro pull request, e em todo push na `main`. Ele compila o firmware para o ESP32 Dev Module na linha 2.x (2.0.17) e na linha 3.x (3.3.0) do core da Espressif, com a biblioteca VL53L0X 1.3.1, nas versões de 5 e de 7 sensores, com os motores desligados como na bancada e também ligados e, em mais duas compilações, com o WiFi opcional ligado (`USAR_WIFI 1`), e publica o uso de flash e RAM no resumo da execução. Um segundo teste compila no computador, com o g++ e um `Arduino.h` de mentira (`teste/unidade/stub`), o `cinematica.cpp`, o `estados.cpp`, o `arena.cpp`, o `chave.cpp` e o `motores.cpp` do firmware e roda os testes da pasta `teste/unidade/`: os números do modelo, a prioridade para o giro, o limitador, o PWM de -255 na primeira volta da fuga da borda, o giro de recuperação, as trocas de estado com a borda aparecendo no meio do ataque e do giro, a escolha da estratégia pela chave, a fuga em cada combinação de sensores de borda, a localização no dojô nas duas geometrias (erro, coerência da incerteza e descarte) e, nos motores, o duty certo em cada pino IN com o PWM configurado uma vez só (com a API do LEDC dos cores 2.x e 3.x); o servidor WiFi também roda aqui, com o `telemetria.cpp` de verdade falando com um cliente TCP real. Um terceiro teste compila o simulador de lutas e roda 288 lutas (3 estratégias, 6 oponentes, claro e escuro, 8 largadas) com pessoas em volta do dojô; ele falha com qualquer queda própria ou com mais de 2 s mirando algo fora do dojô numa luta, e guarda a tabela no resumo da execução e o CSV como artefato. Um quarto teste compila o simulador de combate e roda 48 lutas com o mesmo firmware nos dois robôs (3 estratégias, adversário preto e branco, 1000 e 319 rpm), falhando com qualquer queda própria, compila o mesmo código para WebAssembly e falha se o `site/combate.html` versionado for diferente da página gerada com esse WebAssembly e a bateria do `doc/combate/bateria.json`. Um quinto teste abre o `painel/painel_sumo.html` num Chrome sem tela, conecta pelo Wi-Fi num robô de mentira e confere os quadros, os comandos e a reconexão. Um sexto teste gera o painel de novo a partir do `painel/painel_src.html` e a página da montagem a partir do `config.h` e do `doc/montagem/montagem.json`, falha se o `painel/painel_sumo.html` ou o `site/montagem.html` versionados estiverem diferentes, e confere se as constantes da página do simulador (`site/index.html`) são as mesmas do `config.h`. Um sétimo teste instala o MuJoCo 3.16.0, compila o simulador de combate e o empurrão com ele, falha se o MuJoCo não decidir 95% dos 40 empurrões por motor em 3 s, se dois robôs iguais ficarem fora de 30% a 70% de vitórias ou se o robô levantado não perder em 85% dos empurrões, e roda uma bateria de 54 lutas com o firmware, falhando com qualquer queda própria. O workflow `pages.yml` publica as páginas no GitHub Pages a cada push na `main`, com os rastros e o placar das lutas gerados na hora; o combate e a montagem vão como estão no repositório. O GitHub Pages precisa estar ligado uma vez em Settings > Pages, com a fonte GitHub Actions.
 
 As mudanças entram na `main` por pull request ligado a uma issue, depois dos testes passarem, sempre com merge commit. Com isso, o botão Revert de cada pull request no GitHub desfaz só aquela mudança, por meio de um pull request novo, sem reescrever o histórico. Quando vários pull requests foram empilhados, um em cima do outro, a reversão segue a ordem contrária à do merge, do mais novo para o mais antigo, porque cada um parte do anterior.
 
