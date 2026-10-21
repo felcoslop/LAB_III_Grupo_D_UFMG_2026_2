@@ -30,6 +30,11 @@ static uint32_t tBordaLimpa = 0;       // última vez em que a borda ainda estav
 static int8_t   ladoBorda = 0;         // lado da borda que disparou o desvio (-1, 0 ou +1)
 static float    alvoGiro = 0;          // tamanho do GIRO_BORDA em graus (positivo é esquerda)
 static bool     pedidoStart = false;   // start pedido pelo comando "go" (debug ou painel)
+#if AUTO_START
+static bool     autoFeito = false;     // a partida automática vale uma vez por ligada (qualquer start já conta)
+static bool     autoEspera = false;    // sensores prontos e contando AUTO_START_ESPERA_MS
+static uint32_t tAutoPronto = 0;       // momento em que os sensores ficaram prontos
+#endif
 static bool     buscaAvanca = false;   // na BUSCA, true indica o avanço curto que muda o ponto de vista
 static uint32_t tBusca = 0;            // início do giro ou do avanço atual da BUSCA
 static Estrategia estrategia = RUSH;   // travada no start
@@ -425,6 +430,18 @@ void estados_passo() {
       else                      cinematica_para();
       // LED aceso fixo indica robô pronto; piscando rápido indica que faltam sensores
       led(P.saude.pronto || (P.t_ms / 100) % 2);
+#if AUTO_START
+      // partida sem botão: com os sensores prontos e o perfil do oponente já aplicado, espera
+      // AUTO_START_ESPERA_MS e pede o start uma única vez por ligada. O pedido só sai quando o start
+      // vai ser aceito, porque um start recusado (sensores faltando, perfil em troca) seria perdido.
+      if (autoFeito || movAtivo || !P.saude.pronto || tof_perfil_escuro() != escuro) autoEspera = false;
+      else if (!autoEspera) { autoEspera = true; tAutoPronto = P.t_ms; }
+      else if (P.t_ms - tAutoPronto >= AUTO_START_ESPERA_MS) {
+        autoEspera = false;
+        pedidoStart = true;
+        Log.println(F("# AUTO_START: contagem de 5 s"));
+      }
+#endif
       if (P.start || pedidoStart) {
         pedidoStart = false;
         movAtivo = false;
@@ -436,6 +453,9 @@ void estados_passo() {
         else {
           if (chave_conflito()) Log.println(F("! chave DIP com mais de uma estrategia ligada: vale a de menor numero"));
           entra(CONTAGEM);
+#if AUTO_START
+          autoFeito = true;                          // botão, "go" ou partida automática: só vale uma vez por ligada
+#endif
         }
       }
       break;

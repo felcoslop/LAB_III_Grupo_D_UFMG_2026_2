@@ -323,6 +323,19 @@ static const CfgBorda BORDA[] = {
 // esquema fica entre o GPIO 0 e o GND, em paralelo com o BOOT. Com o botão apertado na hora de
 // ligar, o ESP32 entra no modo de gravação, então o botão só pode ser usado com o robô ligado.
 #define PINO_START        0      // nível baixo indica botão apertado (INPUT_PULLUP)
+
+// Partida automática, para o robô sem botão de início. Com AUTO_START 1, depois de AUTO_START_ESPERA_MS com
+// os sensores de oponente prontos (pelo menos TOF_MINIMO_PARA_LUTAR funcionando) e o perfil do oponente já
+// aplicado, a ESPERA pede o start sozinha e o robô faz a contagem de T_CONTAGEM_MS e luta, como se o botão
+// tivesse sido apertado. Vale uma vez por ligada: o comando "stop" volta para a ESPERA e o robô fica lá, e o
+// botão BOOT e o comando "go" continuam valendo. Sem a chave DIP ligada, a estratégia é Rush e o oponente é
+// claro. O padrão é 0, para o robô não andar sozinho quando liga na bancada ou na USB (com os motores
+// ativos); para a competição, ponha 1 (ou compile com -DAUTO_START=1). Um fio do GPIO 0 ao GND NÃO serve
+// de start: com o GPIO 0 em LOW na hora de ligar, o ESP32 entra no modo de gravação.
+#ifndef AUTO_START
+#define AUTO_START        0
+#endif
+#define AUTO_START_ESPERA_MS 1000   // sensores prontos há esse tempo antes de pedir o start
 // A chave DIP de 4 vias usa os GPIOs 12, 14, 2 e 15 e liga cada pino no 3V3. Por isso o GPIO 2
 // não serve mais para o LED: com a chave ligada e o pino em LOW, o 3V3 ficaria em curto com o
 // pino. O valor -1 desliga o LED de status. Cuidados no boot: DIP 1 (GPIO 12) desligada na hora

@@ -2,8 +2,8 @@
 # Todo pull request (para a main ou empilhado sobre outro pull request) e todo push na main
 # passam por quatro testes: a compilação do firmware para o ESP32 Dev Module (na linha 2.x e na
 # linha 3.x do core da Espressif, com 5 e com 7 sensores de oponente, com os motores desligados
-# como na bancada e também ligados), os testes da cinemática, da máquina de estados, da
-# localização no dojô e do PWM dos motores rodando no computador, uma bateria de lutas
+# como na bancada e também ligados), os testes da cinemática, da máquina de estados, da partida
+# automática, da localização no dojô e do PWM dos motores rodando no computador, uma bateria de lutas
 # simuladas com o firmware de verdade (nenhuma queda própria e nenhuma perseguição longa de
 # objeto fora do dojô) e a conferência de que o painel/painel_sumo.html, a página do combate
 # (site/combate.html) e a da montagem (site/montagem.html) foram gerados a partir do código
@@ -98,6 +98,12 @@ jobs:
           g++ -std=c++11 -Wall -Wextra -Werror $INC teste/unidade/teste_estados.cpp \
             $FW/estados.cpp $FW/cinematica.cpp $FW/arena.cpp $FW/chave.cpp $FW/antitrava.cpp -o teste_estados
           ./teste_estados
+      # robô sem botão de início: parte sozinho só com os sensores prontos, uma vez por ligada
+      - name: Partida automática (AUTO_START 1)
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror $INC -DAUTO_START=1 teste/unidade/teste_autostart.cpp \
+            $FW/estados.cpp $FW/cinematica.cpp $FW/arena.cpp $FW/chave.cpp $FW/antitrava.cpp -o teste_autostart
+          ./teste_autostart
       # filtro de partículas do dojô nas duas geometrias dos sensores de borda
       - name: Localização no dojô (bancada e robô montado)
         run: |

@@ -94,7 +94,7 @@ Os interruptores são três: a chave DIP (estratégia e perfil), a chave liga e 
 | Borda BTE / BTD (trás) | 32 / 33 | ADC1 |
 | Ponte H IN1 / IN2 | 25 / 26 | motor esquerdo, com o PWM de 1 kHz no próprio IN |
 | Ponte H IN3 / IN4 | 27 / 13 | motor direito |
-| Botão de start | 0 | `INPUT_PULLUP`, nível baixo indica botão apertado; não pode estar apertado na hora de ligar |
+| Botão de start | 0 | `INPUT_PULLUP`, nível baixo indica botão apertado; não pode estar apertado na hora de ligar. Sem o botão, `AUTO_START 1` faz o start sozinho (veja "Teste da máquina de estados") |
 | Chave DIP 1 a 4 | 12 / 14 / 2 / 15 | cada via liga o pino no 3V3 |
 
 A pinagem segue o documento de ligação da placa nova (Lab3-Liga) e o esquema do Fritzing. Todos os sensores ficam no 3V3 do ESP32. As placas clone do VL53L0X puxam SDA e SCL para 2,8 V, nível que o ESP32 entende como 1, e o firmware nunca coloca nível alto no XSHUT: para desligar um sensor o pino vira saída em LOW e, para ligar, vira entrada com o pull-up interno. Os sensores de borda usam os pinos 34, 35, 32 e 33 do ADC1 e precisam do fio na saída A0 dos módulos; no esquema atual o fio sai do D0, que só entrega 0 ou 3,3 V e não separa arranhão de linha.
@@ -652,7 +652,11 @@ Os sensores de borda passam pelo `calborda`. A medida no ar revela reflexo indes
 
 ### Teste da máquina de estados
 
-O comando `go` (ou o botão de start) inicia a contagem de 5 s e depois a luta, com a estratégia e o perfil da chave DIP naquele momento. Na bancada, com `USAR_MOTORES 0`, nenhum pino de motor muda, mas o modo `ver` e o painel mostram o estado atual, a estratégia, o PWM e a velocidade estimada de cada roda. O teste consiste em mover um objeto em volta dos sensores e acompanhar as trocas entre BUSCA, MIRA, FLANCO e ATAQUE. O comando `stop` volta para ESPERA. Antes do start, um ToF que lê menos de 15 mm com o robô parado aparece como OBSTRUIDO no `lista` (fio, lâmina ou poeira na frente da lente), e essa leitura deixa de contar como oponente encostado até o sensor ler normal de novo.
+O comando `go` (ou o botão de start) inicia a contagem de 5 s e depois a luta, com a estratégia e o perfil da chave DIP naquele momento. Na bancada, com `USAR_MOTORES 0`, nenhum pino de motor muda, mas o modo `ver` e o painel mostram o estado atual, a estratégia, o PWM e a velocidade estimada de cada roda. O teste consiste em mover um objeto em volta dos sensores e acompanhar as trocas entre BUSCA, MIRA, FLANCO e ATAQUE. O comando `stop` volta para ESPERA.
+
+Sem o botão de início, sem a chave DIP e sem a chave liga e desliga, o robô parte sozinho ao ligar com `AUTO_START 1` no `config.h` (ou `-DAUTO_START=1`). Depois de `AUTO_START_ESPERA_MS` (1 s) com os sensores de oponente prontos (pelo menos 3 funcionando) e o perfil do oponente já aplicado, a ESPERA pede o start e entra na contagem de 5 s da regra, como se o botão tivesse sido apertado. Só vale uma vez por ligada: depois de um `stop` o robô fica na ESPERA, e o `go` e o botão BOOT continuam funcionando. Sem a chave DIP, os quatro pinos ficam em LOW pelo pull-down interno e valem a estratégia Rush e o oponente claro. O padrão é `AUTO_START 0`, para o robô não andar sozinho quando liga na USB ou na bancada com os motores ativos; com o robô no chão, o tempo entre conectar a bateria e a primeira roda girar é o da inicialização (o `setup` liga os ToF um por um) mais 1 s de espera e 5 s de contagem. Um fio do GPIO 0 ao GND não serve de start, porque o GPIO 0 em LOW na hora de ligar põe o ESP32 em modo de gravação. O `teste/unidade/teste_autostart.cpp` confere no CI que o robô só parte com os sensores prontos, depois do tempo de espera, uma vez por ligada e nunca depois do `stop`.
+
+Antes do start, um ToF que lê menos de 15 mm com o robô parado aparece como OBSTRUIDO no `lista` (fio, lâmina ou poeira na frente da lente), e essa leitura deixa de contar como oponente encostado até o sensor ler normal de novo.
 
 ## Arquitetura
 
@@ -886,6 +890,7 @@ Os ajustes principais ficam no `config.h`:
 | `K_ATAQUE` | 2 | ganho de giro no ataque, menor que o da mira para o robô não perder avanço (ver "Otimização do ataque") |
 | `GIRO_BORDA_DPS`, `ANG_GIRO_BORDA` e `T_GIRO_BORDA_MAX_MS` | 370, 135 e 900 | giro de recuperação na borda (135° só sem localização) e limite de segurança |
 | `T_CONTAGEM_MS` | 5000 | contagem obrigatória antes da luta |
+| `AUTO_START` e `AUTO_START_ESPERA_MS` | 0 e 1000 | 1 faz o start sozinho, depois de 1 s com os sensores prontos, uma vez por ligada (robô sem botão de início) |
 | `T_BUSCA_GIRO_MS` e `T_BUSCA_AVANCO_MS` | 1500 e 250 | tempo girando na busca e tempo do avanço curto |
 | `MODO_DEFENSIVO` | 0 | 1 faz o robô só mirar, sem avançar |
 
@@ -958,6 +963,7 @@ LAB_III_Grupo_D_UFMG_2026_2/
     unidade/                testes no computador (g++), com um Arduino.h de mentira em stub/
       teste_cinematica.cpp  cinemática das rodas
       teste_estados.cpp     máquina de estados com a cinemática, a localização e a chave
+      teste_autostart.cpp   partida automática (AUTO_START 1), sem botão de início
       teste_arena.cpp       testes estatísticos da localização no dojô
       teste_motores.cpp     PWM da ponte H (API do LEDC dos cores 2.x e 3.x)
     sim/                    simulador de lutas com o firmware de verdade
