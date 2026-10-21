@@ -269,8 +269,9 @@ void telemetria_wifi_info() {
 void telemetria_passo() {
   if (!ligado) return;
 #if WIFI_DESLIGA_SEM_PAINEL
-  // a luta começou (saiu da ESPERA) e ninguém está olhando: o rádio não precisa continuar
-  if (estado_atual() != ESPERA && telemetria_paineis() == 0) { telemetria_wifi_desliga("luta iniciada sem painel conectado"); return; }
+  // a luta começou (saiu da ESPERA) e ninguém está olhando: o rádio não precisa continuar. O ajuste "wifi" do painel
+  // (ajuste wifi 1) mantém o rádio ligado na luta, para acompanhar pelo painel mesmo conectando depois do start.
+  if (estado_atual() != ESPERA && telemetria_paineis() == 0 && !ajustes().wifi_luta) { telemetria_wifi_desliga("luta iniciada sem painel conectado"); return; }
 #endif
   uint32_t agora = millis();
   descarrega();

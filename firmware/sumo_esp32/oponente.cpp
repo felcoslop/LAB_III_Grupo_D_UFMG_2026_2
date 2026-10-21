@@ -43,22 +43,22 @@ static portMUX_TYPE      travaEv = portMUX_INITIALIZER_UNLOCKED;
 #define DESTRAVA_EV()
 #endif
 
-static VL53L0X  sensor[N_TOF];        // um objeto da biblioteca Pololu para cada sensor
-static volatile bool ok[N_TOF];       // sensor respondendo
-static volatile int16_t bruto[N_TOF], filtrado[N_TOF];   // leitura crua e leitura corrigida com mediana
-static int16_t  hist[N_TOF][3];       // últimas 3 leituras de cada sensor, para a mediana
-static uint8_t  hIdx[N_TOF];          // posição atual no histórico circular
-static uint32_t tUlt[N_TOF];          // momento da última medida nova
-static volatile uint32_t tColado[N_TOF];   // última medida abaixo de TOF_MIN_MM: algo encostado no sensor
-static bool     obstruido[N_TOF];      // leitura colada já parado antes da luta: fio, lâmina ou poeira na lente
-static volatile uint16_t seq[N_TOF];  // contador de medidas novas
-static uint8_t  errI2C[N_TOF];        // erros de I2C seguidos (sensor que sumiu do barramento)
+static VL53L0X  sensor[TOF_MAX];        // um objeto da biblioteca Pololu para cada sensor
+static volatile bool ok[TOF_MAX];       // sensor respondendo
+static volatile int16_t bruto[TOF_MAX], filtrado[TOF_MAX];   // leitura crua e leitura corrigida com mediana
+static int16_t  hist[TOF_MAX][3];       // últimas 3 leituras de cada sensor, para a mediana
+static uint8_t  hIdx[TOF_MAX];          // posição atual no histórico circular
+static uint32_t tUlt[TOF_MAX];          // momento da última medida nova
+static volatile uint32_t tColado[TOF_MAX];   // última medida abaixo de TOF_MIN_MM: algo encostado no sensor
+static bool     obstruido[TOF_MAX];      // leitura colada já parado antes da luta: fio, lâmina ou poeira na lente
+static volatile uint16_t seq[TOF_MAX];  // contador de medidas novas
+static uint8_t  errI2C[TOF_MAX];        // erros de I2C seguidos (sensor que sumiu do barramento)
 static int8_t   idxCentro = -1;       // índice do sensor central
 
 // calibração: leitura corrigida = ganho * bruto + offset
-static float    calGanho[N_TOF];
-static float    calOffset[N_TOF];
-static bool     calNvs[N_TOF];        // true quando a calibração veio do comando "cal" e está gravada
+static float    calGanho[TOF_MAX];
+static float    calOffset[TOF_MAX];
+static bool     calNvs[TOF_MAX];        // true quando a calibração veio do comando "cal" e está gravada
 static Preferences prefs;             // acesso à memória NVS do ESP32
 
 // estado da fusão (núcleo 1)
@@ -72,9 +72,9 @@ static uint32_t tRhoAnt = 0;
 
 // dados para o rastreador: última medida corrigida de cada sensor, sem a mediana
 // (-1 significa que mediu e não tem nada no alcance; -2 significa sem medida válida)
-static volatile int16_t ultZ[N_TOF];
-static int16_t  alcance[N_TOF];      // maior leitura que ainda fica dentro do raio TOF_ALCANCE_MM em volta do robô
-static uint16_t seqUsado[N_TOF];     // última medida já entregue ao rastreador
+static volatile int16_t ultZ[TOF_MAX];
+static int16_t  alcance[TOF_MAX];      // maior leitura que ainda fica dentro do raio TOF_ALCANCE_MM em volta do robô
+static uint16_t seqUsado[TOF_MAX];     // última medida já entregue ao rastreador
 static bool     usaBayes = false;    // true quando o rastreador conseguiu memória e está ativo
 static uint32_t tPasso = 0;          // momento do último passo do rastreador
 
@@ -230,6 +230,8 @@ uint8_t tof_init() {
   for (uint8_t i = 0; i < N_TOF; i++) alcance[i] = (int16_t)rastreador_alcance_sensor(i);
   // etapa 1: todos desligados, assim só um sensor responde no 0x29 de cada vez
   for (uint8_t i = 0; i < N_TOF; i++) { xshutDesliga(i); ok[i] = false; zeraLeitura(i); }
+  // sensor da tabela fora de uso (TE e TD com 5 em uso): se estiver montado, fica em reset e não atende no 0x29
+  for (uint8_t i = N_TOF; i < TOF_MAX; i++) { xshutDesliga(i); ok[i] = false; zeraLeitura(i); }
   delay(20);
 
   // etapa 2: o laço liga um sensor por vez, inicia no 0x29 e troca o endereço
@@ -394,8 +396,8 @@ static void passoRastreador() {
   tPasso = agora;
   Arena a;
   arena_le(a);
-  int16_t z[N_TOF];
-  bool novo[N_TOF];
+  int16_t z[TOF_MAX];
+  bool novo[TOF_MAX];
   for (uint8_t i = 0; i < N_TOF; i++) {
     novo[i] = ok[i] && seq[i] != seqUsado[i] && ultZ[i] != -2;
     seqUsado[i] = seq[i];
@@ -500,8 +502,8 @@ static void imprimeAvisos() {
 // é exatamente o quanto o robô precisa girar.
 static void fundeSimples(Oponente& op) {
   uint32_t agora = millis();
-  float px[N_TOF], py[N_TOF];
-  int16_t f[N_TOF];
+  float px[TOF_MAX], py[TOF_MAX];
+  int16_t f[TOF_MAX];
   int8_t perto = -1;
   int16_t dPerto = 32767;
 

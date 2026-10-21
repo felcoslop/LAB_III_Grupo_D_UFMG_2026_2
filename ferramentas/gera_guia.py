@@ -34,9 +34,10 @@ BLOCO_ROBO = cfg[cfg.index("\n#else\n", ini):cfg.index('#define GEOMETRIA_NOME  
 LINHA_TOF = r'\{\s*"(\w+)",\s*(\d+),\s*(0x[0-9A-Fa-f]+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+)\s*\}'
 
 def tabela(bloco):
-    if QTD == 5: bloco = re.sub(r"#if QTD_TOF == 7.*?#endif", "", bloco, flags=re.S)
-    return [dict(nome=m[1], xshut=int(m[2]), end=m[3], x=int(m[4]), y=int(m[5]), ang=int(m[6]))
-            for m in re.finditer(LINHA_TOF, bloco)]
+    # a tabela do config.h traz sempre os 7 sensores (a quantidade em uso é um ajuste do painel); o guia de 5 não leva o par de trás
+    t = [dict(nome=m[1], xshut=int(m[2]), end=m[3], x=int(m[4]), y=int(m[5]), ang=int(m[6]))
+         for m in re.finditer(LINHA_TOF, bloco)]
+    return t if QTD == 7 else [x for x in t if x["nome"] not in ("TE", "TD")]
 
 TOF = tabela(BLOCO_ROBO)
 TOF_BANCADA = tabela(BLOCO_BANCADA)
@@ -177,7 +178,7 @@ linhas = [
     ("S", f"4. Cada sensor leva uma etiqueta ({', '.join(s['nome'] for s in TOF)}) e o fio XSHUT da cor indicada: é esse fio que dá o nome ao sensor."),
 ]
 if QTD == 7:
-    linhas.append(("S", "5. Com 7 sensores, o config.h precisa de #define QTD_TOF 7 (o padrão é 5)."))
+    linhas.append(("S", "5. Com 7 sensores, escolha 7 no painel (Configuração do robô, sensores de oponente) ou ponha #define QTD_TOF 7 no config.h."))
 for f, l in linhas:
     txt(18 * mm, y, l, 8 if f == "S" else 9, f); y -= 4.3 * mm
 c.showPage()
@@ -354,7 +355,7 @@ check = [
     ("S", "5. No modo  ver , uma caixa movida em volta muda o ângulo e o estado. Pronto para a máquina de estados."),
 ]
 if QTD == 7:
-    check.insert(9, ("S", "[ ] 9. config.h com #define QTD_TOF 7. Sem isso o firmware usa só os 5 sensores antigos."))
+    check.insert(9, ("S", "[ ] 9. Painel com 7 sensores de oponente (ou #define QTD_TOF 7 no config.h). Sem isso o firmware usa só os 5 sensores antigos."))
 for f, l in check:
     if f == "SB": y -= 1.5 * mm
     txt(14 * mm, y, l, (8.0 if f == "S" else 9.3) if QTD == 7 else (8.2 if f == "S" else 9.5), f)

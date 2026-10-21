@@ -30,11 +30,10 @@ static uint32_t tBordaLimpa = 0;       // última vez em que a borda ainda estav
 static int8_t   ladoBorda = 0;         // lado da borda que disparou o desvio (-1, 0 ou +1)
 static float    alvoGiro = 0;          // tamanho do GIRO_BORDA em graus (positivo é esquerda)
 static bool     pedidoStart = false;   // start pedido pelo comando "go" (debug ou painel)
-#if AUTO_START
 static bool     autoFeito = false;     // a partida automática vale uma vez por ligada (qualquer start já conta)
 static bool     autoEspera = false;    // sensores prontos e contando AUTO_START_ESPERA_MS
 static uint32_t tAutoPronto = 0;       // momento em que os sensores ficaram prontos
-#endif
+static bool     autoArmado = AUTO_START != 0;   // modo autônomo ligado no boot; ligar pelo painel só vale no boot seguinte
 static bool     buscaAvanca = false;   // na BUSCA, true indica o avanço curto que muda o ponto de vista
 static uint32_t tBusca = 0;            // início do giro ou do avanço atual da BUSCA
 static Estrategia estrategia = RUSH;   // travada no start
@@ -128,6 +127,8 @@ void estados_init() {
   digitalWrite(PINO_LED_TRAVA, LOW);
 #endif
   est = ESPERA; tEntrada = millis(); tAntPasso = millis();
+  autoArmado = ajustes().autonomo;     // o painel liga o modo autônomo gravando na NVS, e o robô não larga na hora do clique
+  autoFeito = false; autoEspera = false;   // uma partida automática por ligada
 }
 
 uint8_t estados_travado() {
@@ -258,6 +259,22 @@ static void alinhaPasso() {
   int8_t sinal = (P.op.existe >= 0.5f && P.op.ms_sem_ver < 1500 && fabsf(e) > 1.0f) ? (e > 0 ? 1 : -1)
                                                                                    : (P.op.lado_ultimo != 0 ? P.op.lado_ultimo : 1);
   alinhaComeca(sinal * (float)ALINHA_BUSCA_W_DPS, ALINHA_BUSCA_PULSO_MS);
+}
+
+// Contagem de 5 s com o ajuste "alinha" ligado: o mesmo alinhamento da demonstração (só gira, em pulsos), até a luta
+// começar. Sem o ajuste, a contagem fica parada, como manda o regulamento da CoRA.
+static void contagemAlinha() {
+  if (!alinhaAtivo) {
+    alinhaAtivo = true; alinhaOk = false; alinhaPulso = false; alinhaFase = 1;
+    alinhaT = P.t_ms; alinhaFim = P.t_ms + (uint32_t)T_CONTAGEM_MS + 2000UL;
+    alinhaDentro = 0; alinhaPulsos = 0; alinhaUltSinal = 0; alinhaCruzou = 0; alinhaErro = 0;
+    Log.println(F("# contagem: so gira ate ficar de frente para o oponente (ajuste alinha 0 deixa o robo parado)"));
+  }
+  alinhaPasso();
+}
+static void contagemFim() {
+  alinhaAtivo = false; alinhaOk = false; alinhaFase = 0; alinhaPulso = false;
+  cinematica_para();
 }
 
 // Mira no oponente. O giro é proporcional ao ângulo (K_MIRA graus/s por grau), limitado a
@@ -484,6 +501,16 @@ void estados_passo() {
   tAntPasso = P.t_ms;
   if (dt > 0.05f) dt = 0.05f;
 
+  // Modo autônomo: o botão BOOT (ou o comando go) no meio da luta para o robô e recomeça a contagem de 5 s.
+  if (emLuta() && ajustes().autonomo && (P.start || pedidoStart)) {
+    pedidoStart = false;
+    cinematica_para();
+    Log.println(F("# BOOT: luta interrompida, contagem de 5 s reiniciada"));
+    entra(CONTAGEM);
+    contagemFim();                          // limpa o alinhamento anterior; a contagem refaz o dela
+    t = 0;
+  }
+
   // A borda tem prioridade máxima em qualquer estado de luta (decideFuga). Durante a fuga a
   // borda continua vigiada: uma quina que volta ao branco no meio do giro (ou um empurrão do
   // oponente) leva de novo à fuga.
@@ -536,18 +563,16 @@ void estados_passo() {
       else                      cinematica_para();
       // LED aceso fixo indica robô pronto; piscando rápido indica que faltam sensores
       led(P.saude.pronto || (P.t_ms / 100) % 2);
-#if AUTO_START
-      // partida sem botão: com os sensores prontos e o perfil do oponente já aplicado, espera
-      // AUTO_START_ESPERA_MS e pede o start uma única vez por ligada. O pedido só sai quando o start
-      // vai ser aceito, porque um start recusado (sensores faltando, perfil em troca) seria perdido.
-      if (autoFeito || movAtivo || alinhaAtivo || !P.saude.pronto || tof_perfil_escuro() != escuro) autoEspera = false;
+      // partida sem botão (modo autônomo do painel, ou AUTO_START 1 no config.h): com os sensores prontos e o perfil
+      // do oponente já aplicado, espera AUTO_START_ESPERA_MS e pede o start uma única vez por ligada. O pedido só sai
+      // quando o start vai ser aceito, porque um start recusado (sensores faltando, perfil em troca) seria perdido.
+      if (!ajustes().autonomo || !autoArmado || autoFeito || movAtivo || alinhaAtivo || !P.saude.pronto || tof_perfil_escuro() != escuro) autoEspera = false;
       else if (!autoEspera) { autoEspera = true; tAutoPronto = P.t_ms; }
       else if (P.t_ms - tAutoPronto >= AUTO_START_ESPERA_MS) {
         autoEspera = false;
         pedidoStart = true;
         Log.println(F("# AUTO_START: contagem de 5 s"));
       }
-#endif
       if (P.start || pedidoStart) {
         pedidoStart = false;
         movAtivo = false;
@@ -560,17 +585,23 @@ void estados_passo() {
         else {
           if (chave_conflito()) Log.println(F("! chave DIP com mais de uma estrategia ligada: vale a de menor numero"));
           entra(CONTAGEM);
-#if AUTO_START
           autoFeito = true;                          // botão, "go" ou partida automática: só vale uma vez por ligada
-#endif
         }
       }
       break;
 
-    case CONTAGEM:                                   // regra da CoRA: 5 s parado
-      cinematica_para();
+    case CONTAGEM:                                   // regra da CoRA: 5 s parado (só gira com o ajuste alinha ligado)
+      if (P.start || pedidoStart) {                  // BOOT ou go durante a contagem: os 5 s recomeçam
+        pedidoStart = false;
+        Log.println(F("# BOOT: contagem de 5 s reiniciada"));
+        tEntrada = P.t_ms; t = 0;
+        contagemFim();
+      }
+      if (ajustes().alinha_contagem) contagemAlinha();
+      else                           cinematica_para();
       led((t / 250) % 2);                            // LED piscando devagar durante a contagem
       if (t >= T_CONTAGEM_MS) {
+        contagemFim();
         comecaLuta();
         entra(BUSCA);
         if (P.op.visto) abertura();                   // quem já está à vista recebe a abertura da estratégia

@@ -47,10 +47,10 @@ static uint8_t*  livre = nullptr;   // [célula] 1 quando o oponente cabe ali se
 static float     nLivre = 1;        // quantidade de células livres
 
 static float     Lno[512];                  // tabela sem leitura, indexada por [e/4 + 256*must]
-static float     Lz[N_TOF][256];            // tabela com leitura, montada a cada passo
+static float     Lz[TOF_MAX][256];            // tabela com leitura, montada a cada passo
 static float     ampK[255], invSgK[255];    // por distância esperada 4k mm: pd/(sg*raiz(2pi)) e 1/sg
 static float     grausPorMm[NR];            // quantos graus 1 mm de lado representa no anel r
-static float     alcS[N_TOF];               // alcance de cada sensor
+static float     alcS[TOF_MAX];               // alcance de cada sensor
 static float     wCentro[NB];               // parte de cada direção que cai em ±CENTRO_DEG
 static float     covFrac[NB];               // parte dos anéis de cada direção que algum cone vê
 static float     swp[NB];                   // rascunho da busca (cobertura acumulada durante o giro)
@@ -82,8 +82,8 @@ static portMUX_TYPE trava = portMUX_INITIALIZER_UNLOCKED;
 
 // pacote de medidas de um passo
 struct Entrada {
-  int16_t z[N_TOF];
-  bool    novo[N_TOF];
+  int16_t z[TOF_MAX];
+  bool    novo[TOF_MAX];
   float   angGiro;        // graus girados desde o último passo (quando o giro é conhecido)
   float   dt;
   float   avanco;
@@ -350,9 +350,9 @@ static void predicao(float giro, bool conhecido, float avanco, float dt, const E
 // ==================== etapa 2: correção ====================
 // Cada sensor com medida nova confirma ou desmente cada célula do mapa.
 static void correcao(const int16_t* z, const bool* novo) {
-  const float* tab[N_TOF];
-  const uint8_t* lin[N_TOF];
-  uint8_t sh[N_TOF];
+  const float* tab[TOF_MAX];
+  const uint8_t* lin[TOF_MAX];
+  uint8_t sh[TOF_MAX];
   uint8_t nu = 0;
   float La = 1.0f;                               // chance destas medidas sem oponente nenhum (só reflexo ou ruído)
   // primeiro laço: escolhe a tabela de cada sensor (com leitura ou sem leitura)
