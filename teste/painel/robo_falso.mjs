@@ -23,7 +23,7 @@ export function iniciaRoboFalso(porta = 0) {
   let streamLigado = false, t0 = Date.now(), timer = null, pista = false, seqJ = 0, rng = 12345, alinha = null, tZ = 0;
   const nomes = ["BFE", "BFD", "BTE", "BTD"];
   const aj = {auto: 0, linha: 0, tof: 5, alinha: 0, wifi: 0, leve: 0};
-  let ultD = 0, ultQA = 0;
+  let ultD = 0, ultQA = 0, ultM = 0;
   const bordas = nomes.map((n) => ({lim: 600, preto: 3000, branco: 450, grav: 0, pista: 0}));
   const rand = () => { rng = (rng * 1664525 + 1013904223) >>> 0; return rng / 4294967296; };
   const gauss = () => { let s = 0; for (let k = 0; k < 6; k++) s += rand(); return (s - 3) / 0.7071; };
@@ -83,6 +83,7 @@ export function iniciaRoboFalso(porta = 0) {
       manda("Q,0,0,3000,3000,3000,3000");
       manda("A,0,0,0,1,1,0,0,20,0,0,0,0,0,0");
     }
+    if (agora - ultM >= (aj.leve ? 500 : 250)) { ultM = agora; manda("M,4,2,100,100,01234567"); }    // mapa de probabilidade: 4 Hz no completo, 2 Hz no leve
     if (pista) manda(janela());
     if (alinha) {
       const dt = Date.now() - alinha.t0;

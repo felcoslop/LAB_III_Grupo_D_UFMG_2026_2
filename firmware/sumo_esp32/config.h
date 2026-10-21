@@ -379,14 +379,17 @@ inline int16_t borda_y(uint8_t i) {
 // WIFI_LEVE é o valor de fábrica do "Wi-Fi leve" (comando "ajuste leve 0|1"). Pelo rádio, a telemetria completa leva uns
 // 10 a 13 KB/s (D, Q e A a 50 Hz, mais o mapa M a 4 Hz) e disputa os buffers do lwIP e o ar com cada comando do /cmd; no robô
 // isso deixou o controle remoto e os ajustes lentos. Com o modo leve, só para o rádio (a USB segue completa): a linha D sai
-// a cada WIFI_LEVE_D_MS, a Q e a A a cada WIFI_LEVE_QA_MS e o mapa M não sai; os textos, a Z do alinhamento, as linhas do cabeçalho
-// (G, I, C, R, B, E, K, X, F) e a J da calibração da pista (que só existe enquanto o assistente roda) passam como antes. O
-// painel não precisa de mais que isso para o controle remoto (WASD), os ajustes e a demonstração de alinhamento.
+// a cada WIFI_LEVE_D_MS, a Q e a A a cada WIFI_LEVE_QA_MS e o mapa de probabilidade M a cada WIFI_LEVE_M_MS (0 tira o mapa); os
+// textos, a Z do alinhamento, as linhas do cabeçalho (G, I, C, R, B, E, K, X, F) e a J da calibração da pista (que só existe
+// enquanto o assistente roda) passam como antes. As leituras de todos os sensores seguem em tempo real (10 Hz) e o mapa a 2 Hz
+// (uns 1,6 KB/s a mais, uns 3,6 KB/s no total); ele é uma linha de dados, então é o primeiro a ser descartado quando a rede
+// enche e não atrasa o controle remoto (WASD), os ajustes nem a demonstração de alinhamento.
 #ifndef WIFI_LEVE
 #define WIFI_LEVE 1
 #endif
 #define WIFI_LEVE_D_MS 100
 #define WIFI_LEVE_QA_MS 250
+#define WIFI_LEVE_M_MS  500   // 0 = sem o mapa de probabilidade no modo leve
 inline Ajustes& ajustes() {
   static Ajustes a = { QTD_TOF, AUTO_START != 0, false, false, false, WIFI_LEVE != 0 };
   return a;

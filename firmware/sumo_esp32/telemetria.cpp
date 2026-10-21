@@ -122,14 +122,17 @@ static int manda(Painel& p, const char* b, int n) {
 // A linha ganha o formato do SSE ("data: ...\n\n") e vai para cada painel sem esperar. Linha de
 // dados que não cabe agora é descartada; linha de texto (resultado de comando, aviso) que só coube
 // em parte guarda o resto para a próxima volta, porque perder o meio de uma linha embaralharia o painel.
-// Wi-Fi leve: true quando a linha de dados deste tipo não vai para o rádio agora. O mapa (M) nunca sai; a D sai no máximo
-// uma vez por WIFI_LEVE_D_MS, e a Q e a A uma vez por WIFI_LEVE_QA_MS. As outras linhas de dados (Z do alinhamento e J da
+// Wi-Fi leve: true quando a linha de dados deste tipo não vai para o rádio agora. A D sai no máximo uma vez por WIFI_LEVE_D_MS,
+// a Q e a A uma vez por WIFI_LEVE_QA_MS e o mapa (M) uma vez por WIFI_LEVE_M_MS (0 = nunca). As outras linhas de dados (Z do alinhamento e J da
 // calibração da pista, que só aparecem quando o painel pede) passam como antes.
 static bool leveCorta(char tipo) {
   if (!ajustes().wifi_leve) return false;
-  static uint32_t ultD = 0, ultQ = 0, ultA = 0;
+  static uint32_t ultD = 0, ultQ = 0, ultA = 0, ultM = 0;
   uint32_t t = millis();
-  if (tipo == 'M') return true;
+  if (tipo == 'M') {
+    if (WIFI_LEVE_M_MS <= 0 || t - ultM < (uint32_t)WIFI_LEVE_M_MS) return true;
+    ultM = t; return false;
+  }
   if (tipo == 'D') { if (t - ultD < WIFI_LEVE_D_MS) return true; ultD = t; return false; }
   if (tipo == 'Q') { if (t - ultQ < WIFI_LEVE_QA_MS) return true; ultQ = t; return false; }
   if (tipo == 'A') { if (t - ultA < WIFI_LEVE_QA_MS) return true; ultA = t; return false; }
@@ -283,7 +286,7 @@ void telemetria_wifi_info() {
   IPAddress ip = modoSta ? WiFi.localIP() : WiFi.softAPIP();
   Log.printf("# WiFi: %s | rede \"%s\" | IP %s | %u painel(is) conectado(s) | %s | linhas descartadas %lu\n",
              modoSta ? "roteador" : "rede propria (AP)", modoSta ? WIFI_STA_SSID : WIFI_AP_SSID, ip.toString().c_str(),
-             telemetria_paineis(), ajustes().wifi_leve ? "Wi-Fi leve (D a 100 ms, Q e A a 250 ms, sem mapa)" : "stream completo a 20 ms",
+             telemetria_paineis(), ajustes().wifi_leve ? "Wi-Fi leve (D a 100 ms, Q e A a 250 ms, mapa a 500 ms)" : "stream completo a 20 ms",
              (unsigned long)descartes);
 }
 

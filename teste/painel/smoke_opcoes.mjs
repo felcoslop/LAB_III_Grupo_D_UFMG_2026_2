@@ -89,14 +89,22 @@ await ate(async () => (await marcado(pagina, "wifi")) === 0);
 
 // Wi-Fi leve: o robô corta o stream (D a 10 Hz) e o painel mostra a taxa sem contar perdas
 const taxa = () => pagina.evaluate(() => rede.hz);
+await pagina.evaluate(() => { window.__nM = 0; const o = dadosMapa; dadosMapa = function (p) { window.__nM++; return o(p); }; });      // conta os quadros do mapa
+const contaM = async (ms) => { await pagina.evaluate(() => { window.__nM = 0; }); await espera(ms); return pagina.evaluate(() => window.__nM); };
 confere(await ate(async () => (await taxa()) > 30, 6000), "telemetria completa: o painel recebe mais de 30 quadros por segundo", String(Math.round(await taxa())));
 confere(/perdas/.test(await texto(pagina, "#pRede")), "e a pílula da rede mostra as perdas");
+const mCompleto = await contaM(2000);
+confere(mCompleto >= 6 && mCompleto <= 10, "completa: o mapa chega a 4 por segundo (8 em 2 s)", String(mCompleto));
 robo.recebidos.length = 0;
 await clica(pagina, "leve", 1);
 confere(await ate(() => robo.recebidos.includes("ajuste leve 1")) && await ate(async () => (await marcado(pagina, "leve")) === 1), "Telemetria Leve: manda ajuste leve 1 e marca");
 confere(await ate(async () => { const t = await taxa(); return t >= 6 && t <= 14; }, 6000), "no leve o painel recebe uns 10 quadros por segundo", String(Math.round(await taxa())));
 confere(await ate(async () => /^Wi-Fi leve · \d+ Hz$/.test(await texto(pagina, "#pRede"))), "a pílula mostra Wi-Fi leve e a taxa, sem perdas falsas", await texto(pagina, "#pRede"));
-confere(await ate(async () => /Wi-Fi leve: o painel recebe os dados a 10 Hz/.test(await texto(pagina, "#ajNota"))), "a nota explica o que muda (10 Hz e sem mapa)");
+confere(await ate(async () => /Wi-Fi leve: o painel recebe os dados dos sensores a 10 Hz e o mapa de probabilidade a 2 Hz/.test(await texto(pagina, "#ajNota"))), "a nota explica o que muda (sensores a 10 Hz e mapa a 2 Hz)");
+await espera(600);
+const mLeve = await contaM(2000);
+confere(mLeve >= 2 && mLeve <= 6 && mLeve < mCompleto, "leve: o mapa de probabilidade continua chegando, a 2 por segundo (4 em 2 s)", String(mLeve));
+confere(await pagina.evaluate(() => !!S.mapa && performance.now() - S.mapa.t < 800), "e o mapa na tela está fresco (menos de 0,8 s), sem esmaecer");
 confere(await pagina.evaluate(() => rede.tot === 0 && rede.perd === 0), "e nenhum pacote conta como perdido");
 // o controle remoto e os comandos continuam passando no leve
 robo.recebidos.length = 0;

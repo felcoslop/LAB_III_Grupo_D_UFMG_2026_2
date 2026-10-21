@@ -261,7 +261,8 @@ int main() {
   confere(nQ >= 3 && nQ <= 5, "leve: Q a cada 250 ms no rádio (4 por segundo)", nQ);
   int nA = contaLinhas(p.rx, 'A');
   confere(nA >= 3 && nA <= 5, "leve: A a cada 250 ms no rádio (4 por segundo)", nA);
-  confere(nM == 0, "leve: o mapa M não vai para o rádio", nM);
+  confere(nM >= 1 && nM <= 3, "leve: o mapa M vai para o rádio a cada WIFI_LEVE_M_MS (2 por segundo, metade do completo)", nM);
+  confere(WIFI_LEVE_M_MS > 0 && nM < contaUsb('M'), "leve: o mapa vai com menos frequência que na USB", nM);
   confere(nZ == 10, "leve: a Z do alinhamento passa inteira", nZ);
   confere(nJ == 50, "leve: a J da calibração da pista passa inteira", nJ);
   confere(contaUsb('D') == 50 && contaUsb('Q') == 50 && contaUsb('A') == 50 && contaUsb('M') == 4, "leve: a USB continua completa (D, Q, A e M)", contaUsb('D'));

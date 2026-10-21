@@ -239,7 +239,7 @@ code{font:12px var(--mono);background:#0d1418;padding:0 4px;border-radius:4px}
     <div class="seg" data-aj="alinha"><button data-v="0">Parado</button><button data-v="1">Gira até alinhar</button></div>
     <div class="ajL"><b>Wi-Fi durante a luta</b><small>Com "Fica ligado", o painel acompanha a luta pelo Wi-Fi, mesmo conectando depois do start. Precisa de USAR_WIFI 1 no config.h.</small><small class="ajReg">O regulamento proíbe rádio durante a luta: use só em demonstração e testes.</small></div>
     <div class="seg" data-aj="wifi"><button data-v="0">Desliga ao largar</button><button data-v="1">Fica ligado</button></div>
-    <div class="ajL"><b>Telemetria pelo Wi-Fi</b><small>Com "Leve", o robô manda pelo Wi-Fi só o essencial: leituras a 10 Hz, sem o mapa de probabilidade (uns 2 KB/s em vez de uns 13 KB/s). O rádio do ESP32 sobra para o controle remoto (WASD), os ajustes e o alinhamento com o oponente, com menos atraso. "Completa" manda tudo a 50 Hz. A USB é sempre completa. Vale na hora.</small></div>
+    <div class="ajL"><b>Telemetria pelo Wi-Fi</b><small>Com "Leve", o robô manda pelo Wi-Fi só o essencial: leituras de todos os sensores a 10 Hz e o mapa de probabilidade a 2 Hz (uns 3,6 KB/s em vez de uns 13 KB/s). O rádio do ESP32 sobra para o controle remoto (WASD), os ajustes e o alinhamento com o oponente, com menos atraso. "Completa" manda tudo a 50 Hz. A USB é sempre completa. Vale na hora.</small></div>
     <div class="seg" data-aj="leve"><button data-v="1">Leve</button><button data-v="0">Completa</button></div>
   </div>
   <div class="row"><button id="ajPadrao">Voltar ao padrão de fábrica</button><span class="mut">GEOMETRIA_BANCADA vale sempre 0 (robô montado).</span></div>
@@ -2000,7 +2000,7 @@ function ajUi() {
     if (c.alinhaC) av.push("Contagem girando: lembre de voltar para Parado na competição (regulamento da CoRA).");
     if (c.wifiLuta && c.wifi) av.push("Wi-Fi na luta ligado: o regulamento proíbe rádio durante a luta, use só em demonstração.");
     if (!c.leveOk) av.push("Este firmware ainda não tem o Wi-Fi leve: grave o firmware atual uma vez pela IDE do Arduino.");
-    if (c.leveOk && c.leve && modo === "wifi") av.push("Wi-Fi leve: o painel recebe os dados a 10 Hz e sem o mapa de probabilidade. Para o radar com o mapa e a taxa cheia, escolha Completa ou use a USB.");
+    if (c.leveOk && c.leve && modo === "wifi") av.push("Wi-Fi leve: o painel recebe os dados dos sensores a 10 Hz e o mapa de probabilidade a 2 Hz. Para tudo a 50 Hz (mapa a 4 Hz), escolha Completa ou use a USB.");
   }
   $("ajNota").innerHTML = av.map(t => `<div class="av">${esc(t)}</div>`).join("") +
     (conectado && c && c.opcoes && c.auto ? `<div>Modo autônomo ligado: da próxima vez que o robô for ligado ele espera os sensores, faz a contagem de 5 s e luta sozinho${c.wifi ? "; com o Wi-Fi do robô ainda dá para acompanhar pelo painel." : "."}</div>` : "");
