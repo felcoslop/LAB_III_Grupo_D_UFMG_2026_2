@@ -37,7 +37,7 @@ main{padding:14px 16px;max-width:1600px;margin:0 auto;display:flex;flex-directio
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
 th{color:var(--mut);font-weight:500;font-size:12px}
-td.n{font-family:var(--mono);text-align:right}
+td.n{font-family:var(--mono);text-align:right} th.n{text-align:right}
 .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 #action{border:1px solid var(--warn);background:#2a2410;color:#ffe9a8;border-radius:10px;padding:10px 12px;min-height:44px}
 #action.idle{border-color:var(--line);background:var(--panel2);color:var(--mut)}
@@ -54,6 +54,11 @@ td.n{font-family:var(--mono);text-align:right}
 .barra{height:8px;background:#0d1418;border-radius:4px;position:relative;min-width:90px}
 .barra i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:#8195a3}
 .barra b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--warn)}
+.calpasso{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:8px}
+.calpasso.at{border-color:var(--acc)} .calpasso.ok{border-color:#2d6a4f}
+#calHist{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:8px}
+#calAvisos{margin:8px 0 0;padding-left:18px;color:var(--warn);font-size:13px} #calMsg{margin-top:8px;color:var(--info);font-size:13px}
+.tag a{color:var(--err);text-decoration:none;margin-left:4px}
 #nosupport{display:none;background:#2b1515;border-bottom:1px solid #6a2a2a;padding:8px 16px;color:#f3c0c0}
 </style>
 </head>
@@ -168,7 +173,7 @@ td.n{font-family:var(--mono);text-align:right}
     <button data-cmd="bordazera">Apagar calibração</button>
     <button data-cmd="borda">Leitura no terminal</button>
   </div>
-  <div class="note"><b>Marcando borda no preto?</b> Clique em <b>Diagnosticar e calibrar</b>: ele mede no ar, no preto e no branco e diz a causa (reflexo da protoboard branca, módulo invertido, preto que reflete infravermelho ou fio). O trimpot azul não muda nada: ele só ajusta a saída D0, e o código lê a A0.<br>
+  <div class="note"><b>Marcando borda no preto?</b> Clique em <b>Diagnosticar e calibrar</b>: ele mede no ar, no preto e no branco e diz a causa (reflexo da protoboard branca, módulo invertido, preto que reflete infravermelho ou fio). Para um limiar que vale na pista inteira (arranhões, faixa de 2,5 cm), use a <b>Calibração da pista</b> logo abaixo; o ● no limiar mostra que ele veio dela. O trimpot azul só ajusta a saída D0: com o fio no A0 ele não muda nada; com o fio no D0 o sinal é digital e o trimpot decide.<br>
   Barra: onde está a leitura entre o preto e o branco calibrados; o traço amarelo é o limiar. BORDA só acende depois de branco contínuo por alguns milissegundos (arranhão não conta). Com o robô em luta, borda na frente faz RECUO e borda atrás faz AVANÇO.</div>
 </div>
 <div class="card">
@@ -180,6 +185,44 @@ td.n{font-family:var(--mono);text-align:right}
     <label class="mut"><input type="checkbox" id="auto" checked> rolar</label>
   </div>
 </div>
+</div>
+
+<div class="card" id="cardPista">
+  <h2>Calibração da pista (sensores de linha) <span class="sp"></span><span id="calPill" class="pill">parada</span></h2>
+  <div class="note" style="margin:0 0 6px">Para o robô não ver borda no preto (arranhão, reflexo, sujeira) e não perder a faixa branca de 2,5 cm: o painel mede o preto do dojô e a faixa branca, calcula um limiar com margem dos dois lados para cada sensor e grava no robô (fica na memória e vale depois de desligar). Funciona pela USB e pelo Wi-Fi. O robô precisa estar parado (ESPERA) e o fio do sensor no <b>A0</b> do módulo; no D0 o sinal é digital e o trimpot azul decide.</div>
+  <div class="row" style="margin-top:0">
+    <button id="calIni" class="pri">1. Iniciar calibração</button>
+    <button id="calCancela" disabled>Cancelar</button>
+    <span class="mut" id="calJ"></span>
+  </div>
+  <div class="calpasso" id="calS1">
+    <b>2. Preto</b> <span class="mut">robô sobre o preto, deslocado por todo o interior do dojô, arranhões incluídos</span>
+    <div class="row"><button id="calBtnPreto" disabled>Gravar o preto</button><span class="mut" id="calNPreto"></span></div>
+  </div>
+  <div class="calpasso" id="calS2">
+    <b>3. Faixa branca</b> <span class="mut">dois sensores por vez sobre a faixa, os outros no preto; uma ou mais voltas pelo dojô</span>
+    <div class="row">
+      <select id="calPar" title="par de sensores que fica sobre a faixa neste passe">
+        <option value="tras">traseiros (BTE + BTD)</option><option value="frente">frontais (BFE + BFD)</option>
+        <option value="esq">esquerdos (BFE + BTE)</option><option value="dir">direitos (BFD + BTD)</option><option value="todos">os quatro juntos</option>
+      </select>
+      <button id="calBtnPasse" disabled>Gravar um passe</button><span class="mut" id="calNPasse"></span>
+    </div>
+    <div class="row" id="calPasses"></div>
+  </div>
+  <div class="calpasso" id="calS3">
+    <b>4. Conferir e gravar</b>
+    <div class="row"><input type="range" id="calFrac" min="25" max="75" step="1" value="50" style="width:200px" disabled><span class="mut" id="calFracV"></span></div>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>Sensor</th><th class="n">mV agora</th><th class="n">Janelas preto</th><th class="n">Janelas faixa</th><th class="n">Pior preto</th><th class="n">Pior branco</th><th class="n">Limiar</th><th class="n">Margem br. / pr.</th><th class="n">Preto lido branco</th><th class="n">Faixa perdida</th><th>Nível</th></tr></thead>
+      <tbody id="tbCal"></tbody>
+    </table></div>
+    <ul id="calAvisos"></ul>
+    <div id="calHist"></div>
+    <div class="row"><button id="calGrava" class="pri" disabled>Gravar no robô</button></div>
+    <div id="calMsg"></div>
+  </div>
+  <div class="note">Pior preto = a leitura mais branca que o preto já deu; pior branco = a leitura mais escura que a faixa já deu. O limiar fica no meio (fração 50%). Uma janela tem 20 ms; cada fase pede pelo menos 100 janelas por sensor (2 s). O firmware ainda exige leitura branca por alguns milissegundos seguidos, então trechos curtos de arranhão não contam.</div>
 </div>
 </main>
 
@@ -246,9 +289,10 @@ function linha(l) {
     case "C": S.cal[+p[1]] = {g: +p[2], o: +p[3], nvs: p[4] === "1"}; return;
     case "B": S.corpo = {f:+p[1], t:+p[2], e:+p[3], d:+p[4], h:+p[5], lente:+p[6], nome:p[7] || ""}; $("pGeo").textContent = "geometria: " + S.corpo.nome; cena3d(); return;
     case "E": S.estados = p.slice(1); return;
-    case "R": { const i = +p[1]; S.bg[i] = {n: p[2], x: +p[3], y: +p[4], alt: +p[5], lim: +p[6], preto: +p[7], branco: +p[8], nvs: p[9] === "1", abaixo: p[10] !== "0"};
+    case "R": { const i = +p[1]; S.bg[i] = {n: p[2], x: +p[3], y: +p[4], alt: +p[5], lim: +p[6], preto: +p[7], branco: +p[8], nvs: p[9] === "1", abaixo: p[10] !== "0", pista: p[11] === "1"};
                 if (i === 0) S.bg.length = 1; montaBorda(); cena3d(); return; }
     case "Q": return dadosBorda(p.slice(1).map(Number));
+    case "J": return janelaPista(p.slice(1).map(Number));
     case "K": S.alcance = +p[1] || 600; return;
     case "A": return dadosLuta(p.slice(1).map(Number));
     case "X": S.bayes = p[1] === "1"; S.opLado = +p[2] || 152; S.alcPreto = +p[3] || 550; S.alcLat = +p[5] || 80; S.alcTras = +p[6] || 200; return;
@@ -332,6 +376,254 @@ function dadosMapa(p) {
   mapa3d();
 }
 
+// ============================== CALIBRAÇÃO DA PISTA: CONTA ==============================
+// <CAL_PISTA_MATEMATICA>
+// Bloco só de números (nenhum acesso à página), conferido por teste/painel/teste_calibracao.mjs.
+// Entrada: as janelas de 20 ms do firmware (linha J), com mínimo, máximo e média de cada sensor em mV.
+//   preto  = janelas com o robô sobre o preto do dojô, arranhões incluídos
+//   passes = janelas com um par de sensores sobre a faixa branca, uma ou mais voltas
+// A conta usa a escala "u", em que o branco é sempre a tensão BAIXA (módulo invertido: u = 4095 - mV).
+//   pior preto  = leitura mais branca que o preto já deu (quantil 0,5% dos mínimos das janelas do preto)
+//   pior branco = leitura mais escura que a faixa já deu (quantil 97% dos máximos das janelas sobre a faixa)
+//   limiar      = pior branco + fração x (pior preto - pior branco); com fração 0,5 as duas margens ficam iguais
+// O firmware usa esse limiar no lugar da fração fixa BORDA_FRACAO e mantém a confirmação por tempo.
+const CP = {
+  MIN_JANELAS: 100,        // 2 s de dados por sensor em cada fase (janela de 20 ms)
+  MIN_FOLGA_MV: 150,       // folga mínima entre o pior branco e o pior preto para o limiar ter margem
+  Q_PRETO: 0.005,          // quantil dos mínimos do preto
+  Q_BRANCO: 0.97,          // quantil dos máximos do branco
+  CORTE_FAIXA: 0.4,        // janela do passe com média além de 40% do caminho do branco ao preto não está sobre a faixa
+  MIN_FRACAO_FAIXA: 0.5,   // abaixo disso o painel avisa que o par passou pouco tempo sobre a faixa
+  TRILHO_BAIXO: 150,       // leitura abaixo disso (mV) é 0 V
+  TRILHO_ALTO: 3000,       // leitura acima disso (mV) é 3,3 V
+  MIN_CONTRASTE_MV: 200,   // contraste entre o branco e o preto abaixo disso: nível ruim
+  BOM_CONTRASTE_MV: 300,   // contraste abaixo disso: no máximo aceitável
+  FRACAO_ANTIGA: 0.35,     // fração do firmware sem calibração, usada quando não existe folga
+  LIM_MIN_MV: 50, LIM_MAX_MV: 3300   // faixa que o comando bordalim aceita
+};
+function cpQuantil(a, q) {
+  if (!a.length) return NaN;
+  const b = Array.from(a).sort((x, y) => x - y), p = q * (b.length - 1), i = Math.floor(p), f = p - i;
+  return i + 1 < b.length ? b[i] * (1 - f) + b[i + 1] * f : b[i];
+}
+// Eventos = trechos seguidos de janelas que passam no teste (uma passada por um arranhão conta uma vez só).
+function cpEventos(flags) { let n = 0, ant = false; for (const f of flags) { if (f && !ant) n++; ant = f; } return n; }
+function cpHist(pRaw, bRaw, nb) {
+  let lo = Infinity, hi = -Infinity;
+  for (const v of pRaw.concat(bRaw)) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  if (!(hi > lo)) { lo = Math.max(0, lo - 50); hi = lo + 100; }
+  const p = new Array(nb).fill(0), b = new Array(nb).fill(0), k = v => Math.min(nb - 1, Math.max(0, Math.floor((v - lo) / (hi - lo) * nb)));
+  for (const v of pRaw) p[k(v)]++;
+  for (const v of bRaw) b[k(v)]++;
+  return {lo, hi, nb, p, b};
+}
+// jp = janelas do preto deste sensor {mn[], mx[], md[]}; jb = janelas dos passes em que ele estava no par.
+function cpSensor(jp, jb, frac) {
+  const r = {ok: false, motivo: "", avisos: [], nPreto: jp.md.length, nBranco: jb.md.length, nFaixa: 0, digital: false, nivel: "ruim"};
+  if (r.nPreto < CP.MIN_JANELAS) { r.motivo = `poucos dados no preto (${r.nPreto} janelas, mínimo ${CP.MIN_JANELAS})`; return r; }
+  if (r.nBranco === 0) { r.motivo = "nenhum passe na faixa branca com este sensor no par"; return r; }
+  if (r.nBranco < CP.MIN_JANELAS) { r.motivo = `poucos dados no branco (${r.nBranco} janelas, mínimo ${CP.MIN_JANELAS})`; return r; }
+  // sentido: o branco fica do lado para onde os passes mais se afastam da mediana do preto
+  const Bmed = cpQuantil(jp.md, 0.5), lo = cpQuantil(jb.md, 0.05), hi = cpQuantil(jb.md, 0.95);
+  r.abaixo = (Bmed - lo) >= (hi - Bmed);
+  const raw = v => r.abaixo ? v : 4095 - v;               // a conversão é a mesma nos dois sentidos
+  const un = j => r.abaixo ? {mn: j.mn, mx: j.mx, md: j.md} : {mn: j.mx.map(raw), mx: j.mn.map(raw), md: j.md.map(raw)};
+  const P = un(jp), W = un(jb);
+  const Bu = cpQuantil(P.md, 0.5), Wref = cpQuantil(W.md, 0.1), corte = Wref + CP.CORTE_FAIXA * (Bu - Wref);
+  const na = []; W.md.forEach((m, k) => { if (m <= corte) na.push(k); });
+  r.nFaixa = na.length; r.fracFaixa = na.length / W.md.length;
+  if (na.length < CP.MIN_JANELAS) { r.motivo = `só ${na.length} janelas sobre a faixa (mínimo ${CP.MIN_JANELAS}): refaça o passe com o par sobre a faixa por mais tempo`; return r; }
+  const Wmd = na.map(k => W.md[k]), Wmx = na.map(k => W.mx[k]), Wmn = na.map(k => W.mn[k]);
+  const Wt = cpQuantil(Wmd, 0.5);
+  r.pretoTip = Math.round(raw(Bu)); r.brancoTip = Math.round(raw(Wt)); r.contraste = Bu - Wt;
+  r.BloU = cpQuantil(P.mn, CP.Q_PRETO); r.WhiU = cpQuantil(Wmx, CP.Q_BRANCO);
+  r.folga = r.BloU - r.WhiU;
+  r.separavel = r.folga >= CP.MIN_FOLGA_MV;
+  r.piorPreto = Math.round(raw(r.BloU)); r.piorBranco = Math.round(raw(r.WhiU));
+  const thr = r.separavel ? r.WhiU + frac * r.folga : Wt + CP.FRACAO_ANTIGA * (Bu - Wt);
+  r.thr = thr;
+  const lim = Math.round(raw(thr));
+  r.limiar = Math.min(CP.LIM_MAX_MV, Math.max(CP.LIM_MIN_MV, lim));
+  r.margemBranco = Math.round(thr - r.WhiU); r.margemPreto = Math.round(r.BloU - thr);
+  // o que o firmware veria: janelas do preto com alguma leitura branca (falso positivo; o firmware ainda pede
+  // confirmação por tempo, então é um limite superior) e janelas da faixa sem nenhuma leitura branca (perdida)
+  const fp = P.mn.map(v => v <= thr);
+  r.fpJanelas = fp.filter(Boolean).length; r.fpEventos = cpEventos(fp);
+  r.fnJanelas = Wmn.filter(v => v >= thr).length; r.fnPct = 100 * r.fnJanelas / Wmn.length;
+  const noMeio = v => v > CP.TRILHO_BAIXO && v < CP.TRILHO_ALTO;
+  const rawPreto = jp.md, rawFaixa = Wmd.map(raw);
+  const meio = (rawPreto.filter(noMeio).length + rawFaixa.filter(noMeio).length) / (rawPreto.length + rawFaixa.length);
+  r.digital = !noMeio(Bmed) && !noMeio(raw(Wt)) && meio < 0.1;
+  r.hist = cpHist(P.mn.map(raw), Wmx.map(raw), 40);
+  const av = r.avisos;
+  if (r.digital) av.push("sinal digital (0 V ou 3,3 V): o fio do sensor está no D0 do módulo. Quem decide a borda é o trimpot azul; ligue o fio no A0 para esta calibração valer");
+  if (!r.separavel) av.push(`o pior preto (${r.piorPreto} mV) chega perto do pior branco (${r.piorBranco} mV): arranhão claro ou sujeira lê como branco; limpe ou repinte a pista, ou baixe o sensor`);
+  if (r.contraste < CP.BOM_CONTRASTE_MV) av.push(`contraste fraco (${Math.round(r.contraste)} mV entre o preto e o branco): confira a altura do sensor (3 a 8 mm) e o reflexo da lateral da protoboard`);
+  if (r.fpJanelas) av.push(`${r.fpEventos} trecho(s) do preto ainda leem como branco com este limiar (${r.fpJanelas} janelas): arranhão ou sujeira; a confirmação por tempo do firmware ignora trechos curtos`);
+  if (r.fnPct > 1) av.push(`${r.fnJanelas} janela(s) sobre a faixa nunca leram branco com este limiar: diminua a fração`);
+  if (r.separavel && r.folga < 0.35 * r.contraste) av.push(`folga de ${Math.round(r.folga)} mV entre o pior branco e o pior preto, pequena frente ao contraste de ${Math.round(r.contraste)} mV: arranhões ou sujeira estreitam a margem`);
+  if (r.fracFaixa < CP.MIN_FRACAO_FAIXA) av.push(`o par ficou só ${(100 * r.fracFaixa).toFixed(0)}% do tempo sobre a faixa; vale mais dados com o par centrado na faixa`);
+  if (lim !== r.limiar) av.push(`limiar de ${lim} mV fora do que o comando aceita (${CP.LIM_MIN_MV} a ${CP.LIM_MAX_MV} mV): ajustado para ${r.limiar} mV`);
+  if (!r.separavel || r.contraste < CP.MIN_CONTRASTE_MV) r.nivel = "ruim";
+  else if (r.digital || r.fpJanelas > 0 || r.fnPct > 1 || r.contraste < CP.BOM_CONTRASTE_MV || r.folga < 0.35 * r.contraste) r.nivel = "aceitável";
+  else r.nivel = "boa";
+  r.ok = true;
+  return r;
+}
+// preto: [{mn[], mx[], md[]}] (um valor por sensor em cada janela); passes: [{par: [índices], janelas: [...]}]
+function cpAnalisa(preto, passes, nSens, frac) {
+  const res = [];
+  for (let i = 0; i < nSens; i++) {
+    const jp = {mn: [], mx: [], md: []}, jb = {mn: [], mx: [], md: []};
+    for (const w of preto) { jp.mn.push(w.mn[i]); jp.mx.push(w.mx[i]); jp.md.push(w.md[i]); }
+    for (const ps of passes) if (ps.par.includes(i)) for (const w of ps.janelas) { jb.mn.push(w.mn[i]); jb.mx.push(w.mx[i]); jb.md.push(w.md[i]); }
+    res.push(cpSensor(jp, jb, frac));
+  }
+  return res;
+}
+// </CAL_PISTA_MATEMATICA>
+
+// ============================== CALIBRAÇÃO DA PISTA ==============================
+// Assistente: preto do dojô, depois passes de pares de sensores sobre a faixa branca. O firmware manda as janelas
+// de 20 ms (linha J, comando calpista on); a conta fica no bloco CAL_PISTA_MATEMATICA e o resultado vai ao robô
+// por meio do comando bordalim, que grava o limiar na memória (NVS) e vale depois de desligar.
+const PARES = {tras: ["BTE", "BTD"], frente: ["BFE", "BFD"], esq: ["BFE", "BTE"], dir: ["BFD", "BTD"], todos: ["BFE", "BFD", "BTE", "BTD"]};
+const CAL = {fase: "ocioso", gravando: "", preto: [], passes: [], atual: null, frac: 0.5, res: null, seqAnt: null, perdidas: 0, vivo: [], bmed: [], tJ: 0, nJ: 0, hz: 0, gravado: ""};
+const esc = t => String(t).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+function calZera() { Object.assign(CAL, {gravando: "", preto: [], passes: [], atual: null, res: null, seqAnt: null, perdidas: 0, vivo: [], bmed: [], gravado: ""}); }
+function calIniciar() {
+  if (!demo && !conectado) { log("[painel] conecte ao robô antes de calibrar a pista", "e"); return; }
+  if (!S.bg.length) { log("[painel] sem sensores de borda (USAR_BORDA 0 no config.h)", "e"); return; }
+  calZera(); CAL.fase = "pronto"; CAL.tJ = 0;
+  enviar("calpista on");
+  calUi();
+}
+async function calCancela() {
+  if (CAL.fase === "ocioso") return;
+  CAL.fase = "ocioso"; calZera();
+  if (conectado && !demo) await enviar("calpista off", true);
+  calUi();
+}
+function calPretoBtn() {
+  if (CAL.gravando === "preto") { CAL.gravando = ""; calAnalisa(); }
+  else if (CAL.fase === "pronto" && !CAL.gravando) { CAL.preto = []; CAL.res = null; CAL.gravando = "preto"; }
+  calUi();
+}
+function calPasseBtn() {
+  if (CAL.gravando === "passe") {
+    const a = CAL.atual; CAL.gravando = ""; CAL.atual = null;
+    if (a.janelas.length >= 25) CAL.passes.push(a);
+    else log(`[calibração] passe descartado: só ${a.janelas.length} janelas (menos de 0,5 s)`, "e");
+    calAnalisa();
+  } else if (CAL.fase === "pronto" && !CAL.gravando && CAL.preto.length >= CP.MIN_JANELAS) {
+    const chave = $("calPar").value, idx = PARES[chave].map(n => S.bg.findIndex(g => g.n === n)).filter(i => i >= 0);
+    if (!idx.length) { log("[calibração] esse par não existe neste robô", "e"); return; }
+    CAL.bmed = S.bg.map((g, i) => cpQuantil(CAL.preto.map(w => w.md[i]), 0.5));
+    CAL.atual = {chave, par: idx, janelas: []}; CAL.gravando = "passe";
+  }
+  calUi();
+}
+// J,seq,voltas,min0,max0,med0,min1,max1,med1,...
+function janelaPista(v) {
+  const nb = S.bg.length;
+  if (v.length < 2 + 3 * nb) return;
+  const agora = performance.now();
+  if (CAL.seqAnt !== null && v[0] > CAL.seqAnt + 1) CAL.perdidas += v[0] - CAL.seqAnt - 1;
+  CAL.seqAnt = v[0]; CAL.nJ++;
+  if (agora - CAL.tJ > 1000) { CAL.hz = CAL.nJ * 1000 / Math.max(1, agora - CAL.tJ); CAL.nJ = 0; CAL.tJ = agora; }
+  if (CAL.fase !== "pronto" || !CAL.gravando) { calUiLeve(); return; }
+  const w = {mn: [], mx: [], md: []};
+  for (let i = 0; i < nb; i++) { w.mn.push(v[2 + 3 * i]); w.mx.push(v[3 + 3 * i]); w.md.push(v[4 + 3 * i]); }
+  if (CAL.gravando === "preto") CAL.preto.push(w);
+  else {
+    CAL.atual.janelas.push(w);
+    for (const i of CAL.atual.par) if (Math.abs(w.md[i] - CAL.bmed[i]) > 500) CAL.vivo[i] = (CAL.vivo[i] || 0) + 1;
+  }
+  calUiLeve();
+}
+function calAnalisa() {
+  const nb = S.bg.length;
+  if (CAL.preto.length < CP.MIN_JANELAS || !CAL.passes.length) { CAL.res = null; return; }
+  CAL.res = cpAnalisa(CAL.preto, CAL.passes, nb, CAL.frac);
+  CAL.res.forEach((r, i) => { r.nome = S.bg[i].n; });
+}
+async function calGrava() {
+  if (!CAL.res) return;
+  const ok = CAL.res.filter(r => r.ok);
+  if (!ok.length) return;
+  if (S.estado !== 0) { log("[calibração] pare o robô (stop) antes de gravar: ele precisa estar em ESPERA", "e"); return; }
+  for (const r of ok) await enviar(`bordalim ${r.nome} ${r.limiar} ${r.pretoTip} ${r.brancoTip}`);
+  await enviar("calpista off", true);
+  CAL.fase = "gravado"; CAL.gravando = "";
+  CAL.gravado = ok.map(r => `${r.nome} ${r.limiar} mV`).join(", ");
+  log("[calibração] gravado no robô: " + CAL.gravado, "u");
+  calUi();
+}
+function cpHistSvg(r) {
+  const h = r.hist; if (!h) return "";
+  const W = 240, H = 56, bw = W / h.nb, mx = Math.max(1, ...h.p, ...h.b), x = mv => (mv - h.lo) / (h.hi - h.lo) * W;
+  let s = `<svg viewBox="0 0 ${W} ${H + 14}" width="100%" role="img" aria-label="histograma ${esc(r.nome)}">`;
+  h.p.forEach((c, k) => { if (c) { const a = Math.max(1, H * c / mx); s += `<rect x="${(k * bw).toFixed(1)}" y="${(H - a).toFixed(1)}" width="${(bw - 0.4).toFixed(1)}" height="${a.toFixed(1)}" fill="#8195a3"/>`; } });
+  h.b.forEach((c, k) => { if (c) { const a = Math.max(1, H * c / mx); s += `<rect x="${(k * bw).toFixed(1)}" y="${(H - a).toFixed(1)}" width="${(bw - 0.4).toFixed(1)}" height="${a.toFixed(1)}" fill="#e8eef2" opacity=".85"/>`; } });
+  const xl = Math.max(0, Math.min(W, x(r.limiar)));
+  s += `<line x1="${xl.toFixed(1)}" x2="${xl.toFixed(1)}" y1="0" y2="${H}" stroke="#ffcf40" stroke-width="2"/>`;
+  s += `<text x="0" y="${H + 11}" fill="#8195a3" font-size="10">${Math.round(h.lo)} mV</text><text x="${W}" y="${H + 11}" fill="#8195a3" font-size="10" text-anchor="end">${Math.round(h.hi)} mV</text></svg>`;
+  return s;
+}
+const COR_NIVEL = {"boa": "var(--acc)", "aceitável": "var(--warn)", "ruim": "var(--err)"};
+const mvT = v => (v === undefined || v === null || !isFinite(v)) ? "-" : Math.round(v);
+function calUiLeve() {                                   // chamada a cada janela: só os contadores
+  $("calNPreto").textContent = `${CAL.preto.length} janelas (${(CAL.preto.length * 0.02).toFixed(1)} s)`;
+  $("calNPasse").textContent = CAL.atual ? `${CAL.atual.janelas.length} janelas (${(CAL.atual.janelas.length * 0.02).toFixed(1)} s)` : "";
+  S.bg.forEach((g, i) => { const m = $("calmv" + i); if (m) m.textContent = mvT(S.bmv[i]); });
+  S.bg.forEach((g, i) => { const e = $("calvivo" + i); if (e) e.textContent = CAL.res && CAL.res[i].nBranco ? CAL.res[i].nFaixa : (CAL.vivo[i] || 0); });
+  $("calJ").textContent = CAL.fase === "pronto" ? (CAL.hz ? `janelas: ${CAL.hz.toFixed(0)}/s` + (CAL.perdidas ? ` · perdidas ${CAL.perdidas}` : "") : "aguardando janelas do robô") : "";
+}
+function calUi() {
+  const f = CAL.fase, pronto = f === "pronto", rec = !!CAL.gravando, nb = S.bg.length;
+  const pill = $("calPill");
+  pill.textContent = f === "ocioso" ? "parada" : f === "gravado" ? "gravada" : CAL.gravando === "preto" ? "gravando preto" : CAL.gravando === "passe" ? "gravando passe" : "pronta";
+  pill.className = "pill" + (CAL.gravando ? " bad" : f === "pronto" ? " on" : f === "gravado" ? " on" : "");
+  $("calIni").disabled = rec || (f !== "ocioso" && f !== "gravado");
+  $("calCancela").disabled = f === "ocioso";
+  $("calBtnPreto").disabled = !pronto || CAL.gravando === "passe";
+  $("calBtnPreto").textContent = CAL.gravando === "preto" ? "Parar o preto" : (CAL.preto.length ? "Regravar o preto" : "Gravar o preto");
+  $("calBtnPasse").disabled = !pronto || CAL.gravando === "preto" || (CAL.preto.length < CP.MIN_JANELAS && CAL.gravando !== "passe");
+  $("calBtnPasse").textContent = CAL.gravando === "passe" ? "Fechar o passe" : "Gravar um passe";
+  $("calPar").disabled = !pronto || rec;
+  $("calFrac").disabled = !pronto || rec;
+  $("calS1").className = "calpasso" + (pronto && !CAL.preto.length ? " at" : CAL.preto.length >= CP.MIN_JANELAS && !CAL.gravando ? " ok" : CAL.gravando === "preto" ? " at" : "");
+  $("calS2").className = "calpasso" + (pronto && CAL.preto.length >= CP.MIN_JANELAS && !CAL.passes.length ? " at" : CAL.gravando === "passe" ? " at" : CAL.passes.length ? " ok" : "");
+  $("calPasses").innerHTML = CAL.passes.map((p, k) => `<span class="tag">passe ${k + 1}: ${esc(p.par.map(i => S.bg[i].n).join(" + "))} · ${(p.janelas.length * 0.02).toFixed(1)} s <a href="#" data-del="${k}" title="remover este passe">x</a></span>`).join(" ");
+  $("calPasses").querySelectorAll("[data-del]").forEach(a => a.onclick = e => { e.preventDefault(); CAL.passes.splice(+a.dataset.del, 1); calAnalisa(); calUi(); });
+  // tabela
+  const R = CAL.res;
+  $("tbCal").innerHTML = S.bg.map((g, i) => {
+    const r = R && R[i], mvA = S.bmv[i];
+    const q = r && r.ok ? `<b style="color:${COR_NIVEL[r.nivel]}">${r.nivel}</b>` : (r ? '<span class="mut">sem dados</span>' : "-");
+    return `<tr><td><b>${esc(g.n)}</b></td><td class="n" id="calmv${i}">${mvT(mvA)}</td><td class="n">${CAL.preto.length}</td><td class="n" id="calvivo${i}">${r && r.nBranco ? r.nFaixa : (CAL.vivo[i] || 0)}</td>
+      <td class="n">${r && r.ok ? r.piorPreto : "-"}</td><td class="n">${r && r.ok ? r.piorBranco : "-"}</td>
+      <td class="n"><b>${r && r.ok ? r.limiar : "-"}</b></td><td class="n">${r && r.ok ? r.margemBranco + " / " + r.margemPreto : "-"}</td>
+      <td class="n">${r && r.ok ? r.fpEventos + " (" + r.fpJanelas + ")" : "-"}</td><td class="n">${r && r.ok ? r.fnJanelas : "-"}</td><td>${q}</td></tr>`;
+  }).join("");
+  $("calHist").innerHTML = R && R.some(r => r.ok) ? `<div class="mut" style="font-size:12px;grid-column:1/-1">Histogramas: cinza = leitura mais branca de cada janela do preto · claro = leitura mais escura de cada janela sobre a faixa · amarelo = limiar. Os dois grupos precisam ficar separados, com o amarelo no vão.</div>` +
+    R.filter(r => r.ok).map(r => `<div><div style="font-size:12px"><b>${esc(r.nome)}</b></div>${cpHistSvg(r)}</div>`).join("") : "";
+  const av = [];
+  if (R) R.forEach(r => { if (!r.ok && r.motivo) av.push(`${r.nome}: ${r.motivo}`); else (r.avisos || []).forEach(a => av.push(`${r.nome}: ${a}`)); });
+  if (CAL.perdidas) av.push(`${CAL.perdidas} janela(s) não chegaram ao painel (rede ou serial cheia); não atrapalha a conta, só reduz os dados`);
+  $("calAvisos").innerHTML = av.map(a => `<li>${esc(a)}</li>`).join("");
+  const nOk = R ? R.filter(r => r.ok).length : 0, ruins = R ? R.filter(r => r.ok && r.nivel === "ruim").length : 0;
+  $("calGrava").disabled = !(pronto && !rec && nOk && (conectado || demo));
+  $("calGrava").textContent = ruins ? `Gravar assim mesmo (${nOk} sensor${nOk > 1 ? "es" : ""}, ${ruins} com nível ruim)` : `Gravar no robô (${nOk} sensor${nOk === 1 ? "" : "es"})`;
+  $("calFracV").textContent = `limiar a ${(CAL.frac * 100).toFixed(0)}% do caminho entre o pior branco e o pior preto`;
+  $("calMsg").textContent = f === "gravado" ? `Gravado no robô: ${CAL.gravado}. Confira a coluna Limiar da tabela de borda (●) e teste com o robô na pista.`
+    : (pronto && !CAL.preto.length && !rec) ? "Passo 2: ponha o robô sobre o preto, clique em Gravar o preto e desloque o robô por todo o preto do dojô (arranhões incluídos) por uns 5 s."
+    : (pronto && CAL.preto.length >= CP.MIN_JANELAS && !CAL.passes.length && !rec) ? "Passo 3: escolha um par, ponha esses dois sensores sobre a faixa branca (os outros ficam no preto), clique em Gravar um passe e dê uma ou mais voltas pela faixa. Depois clique em Fechar o passe."
+    : (pronto && CAL.passes.length && !rec) ? "Passo 4: confira a tabela. Faltando sensor (sem dados), grave outro passe com um par que o inclua. Ajuste a fração se precisar e grave no robô."
+    : "";
+  calUiLeve();
+}
+
 // ============================== BORDA ==============================
 function ondeBorda(g) { return (g.x >= 0 ? "frente" : "trás") + " " + (g.y >= 0 ? "esquerda" : "direita"); }
 let actx = null;
@@ -368,6 +660,7 @@ function dadosBorda(n) {
     log("[borda] " + nomes, "e");
   }
   painelBorda();
+  if (CAL.fase !== "ocioso") calUiLeve();
 }
 function painelBorda() {
   const nb = S.bg.length;
@@ -382,7 +675,7 @@ function painelBorda() {
     $("bbar" + i).style.width = mv !== undefined ? (100 * frac(mv)).toFixed(0) + "%" : "0";
     $("bbar" + i).style.background = conf ? "var(--err)" : cru ? "#e8eef2" : "#8195a3";
     $("blim" + i).style.left = (100 * frac(g.lim)).toFixed(0) + "%";
-    $("blm" + i).textContent = g.lim; $("bpr" + i).textContent = g.nvs ? g.preto : "-"; $("bbr" + i).textContent = g.nvs ? g.branco : "-";
+    $("blm" + i).textContent = g.lim + (g.pista ? " ●" : ""); $("blm" + i).title = g.pista ? "limiar da calibração de pista" : ""; $("bpr" + i).textContent = g.nvs ? g.preto : "-"; $("bbr" + i).textContent = g.nvs ? g.branco : "-";
     $("best" + i).innerHTML = conf ? '<b style="color:var(--err)">BORDA!</b>' : cru ? "branco" : '<span class="mut">preto</span>';
   }
   const quem = S.bg.filter((g, i) => S.bmask & (1 << i));
@@ -986,6 +1279,7 @@ async function bombaWifi() {
 }
 function travaCon(sim) { $("selCon").disabled = sim; $("ip").disabled = sim; }
 async function desconectar() {
+  try { await calCancela(); } catch (e) {}
   try { await enviar("s0", true); } catch (e) {}
   if (modo === "wifi") {
     await new Promise(r => setTimeout(r, 150));      // dá tempo de o s0 sair
@@ -1301,6 +1595,8 @@ $("bClear").onclick = () => $("term").innerHTML = "";
 $("bZeraJan").onclick = () => { S.jan = []; painel(); };
 $("cmd").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); enviar($("cmd").value.trim()); $("cmd").value = ""; } });
 document.querySelectorAll("[data-cmd]").forEach(b => b.onclick = () => enviar(b.dataset.cmd));
+$("calIni").onclick = calIniciar; $("calCancela").onclick = calCancela; $("calBtnPreto").onclick = calPretoBtn; $("calBtnPasse").onclick = calPasseBtn; $("calGrava").onclick = calGrava;
+$("calFrac").oninput = () => { CAL.frac = +$("calFrac").value / 100; calAnalisa(); calUi(); };
 document.addEventListener("keydown", e => {
   const ativo = document.activeElement;
   if (ativo && (ativo.tagName === "INPUT" || ativo.tagName === "BUTTON")) return;
@@ -1310,7 +1606,7 @@ document.addEventListener("keydown", e => {
 $("cTopo").onclick = () => vista("topo"); $("cPersp").onclick = () => vista("persp"); $("cLado").onclick = () => vista("lado");
 if ("serial" in navigator) navigator.serial.addEventListener("disconnect", () => { if (conectado && modo === "usb") { log("[painel] cabo USB desconectado", "e"); desconectar(); } });
 
-montaTabela(); montaBorda(); cena3d(); vista("persp"); tam2d(); painel(); painelBorda();
+montaTabela(); montaBorda(); cena3d(); vista("persp"); tam2d(); painel(); painelBorda(); calUi();
 (function loop() { desenha2d(); desenha3d(); requestAnimationFrame(loop); })();
 log("[painel] Pronto. Conecte pela USB (Chrome ou Edge) ou pelo Wi-Fi do robô (firmware com USAR_WIFI 1), ou use o modo demo.", "u");
 </script>

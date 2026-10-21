@@ -25,6 +25,8 @@ inline uint32_t millis() { return relogio_us / 1000; }
 inline void pinMode(int, int) {}
 inline void digitalWrite(int, int) {}
 int digitalRead(int pino);                  // o teste que usa a chave DIP define esta função
+void analogReadResolution(int bits);        // o teste da borda define estas duas funções
+uint32_t analogReadMilliVolts(uint8_t pino);
 
 // Print simplificado: o printf monta o texto e manda caractere por caractere para o write.
 class Print {
