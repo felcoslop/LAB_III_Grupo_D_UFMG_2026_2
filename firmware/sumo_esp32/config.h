@@ -336,6 +336,28 @@ static const CfgBorda BORDA[] = {
 #define AUTO_START        0
 #endif
 #define AUTO_START_ESPERA_MS 1000   // sensores prontos há esse tempo antes de pedir o start
+// Demonstração de alinhamento (comando "alinha on", botão "Alinhar com o oponente" do painel). Com o robô parado em
+// ESPERA ele só gira no eixo, em pulsos curtos separados por pausas em que os ToF medem sem o robô girando, até o
+// oponente ficar a no máximo ALINHA_TOL_DEG do centro, e então fica parado e alinhado (a linha Z do painel mostra
+// ALINHADO). Não anda para a frente nem para trás e a linha (borda) é ignorada: em ESPERA ela só encerra os testes
+// mov e pwm. Sem ver o oponente (ele está de lado ou atrás, onde os ToF da frente não alcançam) gira em pulsos de
+// busca, no último lado visto. Termina sozinho depois do tempo pedido, ao sair da ESPERA ou com "alinha off", e
+// funciona com AUTO_START 0 ou 1 (com AUTO_START 1 o start automático fica suspenso enquanto o alinhamento roda).
+#define ALINHA_TOL_DEG        3.0f   // alinhado: oponente visto a no máximo isso do centro do robô
+#define ALINHA_SEGURA_MS      250    // dentro da tolerância por esse tempo (as pausas contam) para valer como alinhado
+#define ALINHA_SAI_FATOR      1.7f   // alinhado só se desfaz com erro acima de ALINHA_TOL_DEG vezes isso (histerese)
+#define ALINHA_PERDE_MS       600    // alinhado, sem ver o oponente por esse tempo: volta a procurar
+#define ALINHA_K_DPS_GRAU     5.0f   // giro do pulso de acerto: graus/s para cada grau de erro
+#define ALINHA_W_MIN_DPS      70     // giro mínimo do pulso (abaixo disso as rodas não vencem o atrito)
+#define ALINHA_W_MAX_DPS      180    // giro máximo do pulso de acerto
+#define ALINHA_FRACAO_PULSO   0.7f   // cada pulso gira essa fração do erro (o resto fica para o próximo, sem passar do ponto)
+#define ALINHA_PULSO_MIN_MS   40
+#define ALINHA_PULSO_MAX_MS   220
+#define ALINHA_PAUSA_MS       160    // parado entre pulsos, para os ToF medirem
+#define ALINHA_BUSCA_W_DPS    130    // giro do pulso de busca (oponente fora da vista)
+#define ALINHA_BUSCA_PULSO_MS 230    // 30 graus por pulso, menos que o campo dos três ToF da frente
+#define ALINHA_TEMPO_PADRAO_S 60     // "alinha on" sem tempo
+#define ALINHA_TEMPO_MAX_S    600
 // A chave DIP de 4 vias usa os GPIOs 12, 14, 2 e 15 e liga cada pino no 3V3. Por isso o GPIO 2
 // não serve mais para o LED: com a chave ligada e o pino em LOW, o 3V3 ficaria em curto com o
 // pino. O valor -1 desliga o LED de status. Cuidados no boot: DIP 1 (GPIO 12) desligada na hora

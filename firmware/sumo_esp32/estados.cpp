@@ -61,6 +61,18 @@ static bool     movBruto = false;      // true no teste pwm: PWM direto, sem pas
 static float    movV = 0, movW = 0;
 static int16_t  movE = 0, movD = 0;
 static uint32_t movFim = 0, movIni = 0;
+static bool     movIgnoraBorda = false; // controle remoto: a linha branca não encerra o mov/pwm
+static bool     movQuieto = false;      // sem as linhas "# mov" e "# pwm" no terminal
+// demonstração de alinhamento (comando "alinha"), só em ESPERA
+static bool     alinhaAtivo = false;
+static bool     alinhaOk = false;       // alinhado (parado, dentro da tolerância)
+static uint8_t  alinhaFase = 0;         // 0 desligado, 1 buscando, 2 virando, 3 alinhado (o que o painel mostra)
+static bool     alinhaPulso = false;    // true durante o pulso, false durante a pausa de medida
+static uint32_t alinhaFim = 0, alinhaT = 0, alinhaDentro = 0;
+static uint16_t alinhaDur = 0, alinhaPulsos = 0;
+static float    alinhaW = 0, alinhaErro = 0;
+static int8_t   alinhaUltSinal = 0;     // sentido do pulso de acerto anterior
+static uint8_t  alinhaCruzou = 0;       // pulsos de acerto seguidos que passaram do ponto
 
 static const char* NOMES[N_ESTADOS] = {"ESPERA", "CONTAGEM", "BUSCA", "MIRA", "ATAQUE", "FLANCO", "ATAQUE_RE",
                                        "DESTRAVA", "RECUO", "GIRO_BORDA", "AVANCO_BORDA", "SAIDA_LATERAL", "LEQUE"};
@@ -126,35 +138,127 @@ uint8_t estados_travado() {
   return tEmpurra && P.t_ms - tEmpurra >= T_TRAVA_MS ? 1 : 0;
 }
 void estados_iniciar() { pedidoStart = true; }
-void estados_parar()   { entra(ESPERA); movAtivo = false; cinematica_para(); }
+void estados_parar()   { entra(ESPERA); movAtivo = false; alinhaAtivo = false; alinhaOk = false; alinhaFase = 0; cinematica_para(); }
 
 // Movimento de teste: o robô parado em ESPERA anda com avanço v e giro w por ms milissegundos e
 // no fim o terminal mostra o que a cinemática estimou. A distância medida com a régua e o giro
 // medido no chão, comparados com a estimativa, acertam o modelo (comando cin e config.h).
 // Qualquer borda vista para o teste na hora.
-void estados_teste_mov(float v_mms, float w_dps, uint16_t ms) {
+void estados_teste_mov(float v_mms, float w_dps, uint16_t ms, uint8_t flags) {
   if (est != ESPERA) { Log.println(F("! mov so funciona com o robo parado (ESPERA)")); return; }
+  estados_alinha(false, 0);
   movV = v_mms; movW = w_dps; movIni = millis(); movFim = movIni + (ms > 3000 ? 3000 : ms);
   cinematica_zera_odometria();
   movBruto = false;
+  movIgnoraBorda = flags & TESTE_IGNORA_BORDA; movQuieto = flags & TESTE_QUIETO;
   movAtivo = true;
-  Log.printf("# mov: %.0f mm/s e %.0f graus/s por %u ms\n", movV, movW, (unsigned)(movFim - movIni));
+  if (!movQuieto) Log.printf("# mov: %.0f mm/s e %.0f graus/s por %u ms%s\n", movV, movW, (unsigned)(movFim - movIni),
+                             movIgnoraBorda ? " (linha ignorada)" : "");
 }
 
 // Teste de PWM direto, usado para conferir os fios: cada roda recebe a porcentagem pedida
 // (-100 a 100, positivo é para a frente) por ms milissegundos, sem cinemática nem rampa.
-void estados_teste_pwm(int8_t esq_pct, int8_t dir_pct, uint16_t ms) {
+void estados_teste_pwm(int8_t esq_pct, int8_t dir_pct, uint16_t ms, uint8_t flags) {
   if (est != ESPERA) { Log.println(F("! pwm so funciona com o robo parado (ESPERA)")); return; }
+  estados_alinha(false, 0);
   esq_pct = constrain(esq_pct, -100, 100); dir_pct = constrain(dir_pct, -100, 100);
   movE = esq_pct * 255 / 100; movD = dir_pct * 255 / 100;
   movIni = millis(); movFim = movIni + (ms > 3000 ? 3000 : ms);
   movBruto = true;
+  movIgnoraBorda = flags & TESTE_IGNORA_BORDA; movQuieto = flags & TESTE_QUIETO;
   movAtivo = true;
-  Log.printf("# pwm: esquerda %d%% (%d) e direita %d%% (%d) por %u ms\n", esq_pct, movE, dir_pct, movD,
-             (unsigned)(movFim - movIni));
+  if (!movQuieto) Log.printf("# pwm: esquerda %d%% (%d) e direita %d%% (%d) por %u ms%s\n", esq_pct, movE, dir_pct, movD,
+                             (unsigned)(movFim - movIni), movIgnoraBorda ? " (linha ignorada)" : "");
 }
 
 bool estados_teste_ativo() { return movAtivo; }
+
+// ---- demonstração de alinhamento (config.h ALINHA_*) ----
+void estados_alinha(bool liga, uint16_t segundos) {
+  if (!liga) {
+    if (alinhaAtivo) Log.println(F("# alinha: desligado"));
+    alinhaAtivo = false; alinhaOk = false; alinhaFase = 0; alinhaPulso = false;
+    if (est == ESPERA) cinematica_para();
+    return;
+  }
+  if (est != ESPERA) { Log.println(F("! alinha so funciona com o robo parado (ESPERA)")); return; }
+  if (!segundos) segundos = ALINHA_TEMPO_PADRAO_S;
+  if (segundos > ALINHA_TEMPO_MAX_S) segundos = ALINHA_TEMPO_MAX_S;
+  movAtivo = false;
+  alinhaAtivo = true; alinhaOk = false; alinhaPulso = false; alinhaFase = 1;
+  alinhaT = millis(); alinhaFim = alinhaT + (uint32_t)segundos * 1000UL;
+  alinhaDentro = 0; alinhaPulsos = 0; alinhaUltSinal = 0; alinhaCruzou = 0; alinhaErro = 0;
+  Log.printf("# alinha: ligado por %u s (so gira, nao anda, linha ignorada); alinha off para parar\n", (unsigned)segundos);
+}
+bool     estados_alinha_ativo() { return alinhaAtivo; }
+uint8_t  estados_alinha_fase()  { return alinhaAtivo ? alinhaFase : 0; }
+float    estados_alinha_erro()  { return alinhaErro; }
+uint16_t estados_alinha_pulsos() { return alinhaPulsos; }
+uint16_t estados_alinha_restante_s() {
+  if (!alinhaAtivo || (int32_t)(alinhaFim - millis()) <= 0) return 0;
+  return (uint16_t)((alinhaFim - millis() + 999) / 1000);
+}
+
+// Um passo do alinhamento, chamado a cada volta do loop em ESPERA. Só comanda giro (v = 0).
+static void alinhaComeca(float w, uint16_t dur) {
+  alinhaW = w; alinhaDur = dur; alinhaPulso = true; alinhaT = P.t_ms; alinhaPulsos++;
+}
+static void alinhaPasso() {
+  if ((int32_t)(P.t_ms - alinhaFim) >= 0) {
+    alinhaAtivo = false; alinhaOk = false; alinhaFase = 0; alinhaPulso = false;
+    cinematica_para();
+    Log.println(F("# alinha: tempo esgotado"));
+    return;
+  }
+  const bool ve = P.op.visto;
+  const float e = P.op.angulo;
+  if (ve) alinhaErro = e;
+  if (alinhaPulso) {
+    // o pulso acaba no tempo, ou na hora quando o oponente já está no centro ou o giro passou dele
+    bool fim = P.t_ms - alinhaT >= alinhaDur;
+    if (ve && (fabsf(e) <= ALINHA_TOL_DEG || (alinhaW > 0 ? e < 0 : e > 0))) fim = true;
+    if (!fim) { cinematica_comanda(0, alinhaW); return; }
+    alinhaPulso = false; alinhaT = P.t_ms;
+  }
+  cinematica_para();                                   // pausa: parado, os ToF medem sem o robô girando
+  if (P.t_ms - alinhaT < ALINHA_PAUSA_MS) { alinhaFase = alinhaOk ? 3 : (ve ? 2 : 1); return; }
+
+  if (alinhaOk) {                                      // alinhado: só sai com folga (histerese) ou oponente sumido
+    bool saiu = ve ? fabsf(e) > ALINHA_TOL_DEG * ALINHA_SAI_FATOR : P.op.ms_sem_ver > ALINHA_PERDE_MS;
+    if (!saiu) { alinhaFase = 3; return; }
+    alinhaOk = false; alinhaDentro = 0; alinhaCruzou = 0; alinhaUltSinal = 0;
+    Log.println(F("# alinha: o oponente saiu do alinhamento, voltando a girar"));
+  }
+  if (ve && fabsf(e) <= ALINHA_TOL_DEG) {              // dentro da tolerância: confirma por ALINHA_SEGURA_MS
+    if (!alinhaDentro) alinhaDentro = P.t_ms | 1;
+    if (P.t_ms - alinhaDentro >= ALINHA_SEGURA_MS) {
+      alinhaOk = true; alinhaFase = 3;
+      Log.printf("# alinha: ALINHADO (erro %.1f graus, oponente a %d mm, %u pulsos)\n", e, (int)P.op.dist_mm, (unsigned)alinhaPulsos);
+    } else alinhaFase = 2;
+    return;
+  }
+  alinhaDentro = 0;
+  if (ve) {                                            // acerto: pulso proporcional ao erro, sem passar do ponto
+    int8_t sinal = e > 0 ? 1 : -1;
+    if (alinhaUltSinal != 0 && sinal != alinhaUltSinal) alinhaCruzou++; else alinhaCruzou = 0;
+    alinhaUltSinal = sinal;
+    if (alinhaCruzou >= 2 && fabsf(e) <= 2.5f * ALINHA_TOL_DEG) {   // as rodas não acertam mais fino que isso
+      alinhaOk = true; alinhaFase = 3;
+      Log.printf("# alinha: ALINHADO no melhor que as rodas acertam (erro %.1f graus, %u pulsos)\n", e, (unsigned)alinhaPulsos);
+      return;
+    }
+    float aw = constrain(ALINHA_K_DPS_GRAU * fabsf(e), (float)ALINHA_W_MIN_DPS, (float)ALINHA_W_MAX_DPS);
+    int dur = (int)(1000.0f * ALINHA_FRACAO_PULSO * fabsf(e) / aw);
+    alinhaComeca(sinal * aw, (uint16_t)constrain(dur, (int)ALINHA_PULSO_MIN_MS, (int)ALINHA_PULSO_MAX_MS));
+    alinhaFase = 2;
+    return;
+  }
+  // sem ver o oponente: busca em pulsos. Com a estimativa do rastreador ainda boa, gira para ela; senão, para o último lado visto.
+  alinhaFase = 1; alinhaUltSinal = 0; alinhaCruzou = 0;
+  int8_t sinal = (P.op.existe >= 0.5f && P.op.ms_sem_ver < 1500 && fabsf(e) > 1.0f) ? (e > 0 ? 1 : -1)
+                                                                                   : (P.op.lado_ultimo != 0 ? P.op.lado_ultimo : 1);
+  alinhaComeca(sinal * (float)ALINHA_BUSCA_W_DPS, ALINHA_BUSCA_PULSO_MS);
+}
 
 // Mira no oponente. O giro é proporcional ao ângulo (K_MIRA graus/s por grau), limitado a
 // GIRO_MIRA_MAX_DPS. Até ANG_MIRA_CURVA o robô também avança, com v = VEL_MAX.cos(ângulo), e o
@@ -419,14 +523,16 @@ void estados_passo() {
       estrategia = chave_estrategia();
       escuro = chave_escuro();
       tof_perfil(escuro);
-      if (movAtivo && (P.borda.detectada || P.t_ms >= movFim)) {
+      if (movAtivo && ((P.borda.detectada && !movIgnoraBorda) || P.t_ms >= movFim)) {
         movAtivo = false;
-        if (movBruto) Log.printf("# pwm: fim%s em %u ms\n", P.borda.detectada ? " (BORDA)" : "", (unsigned)(P.t_ms - movIni));
-        else          Log.printf("# mov: fim%s em %u ms | estimado %.0f mm e %.0f graus\n", P.borda.detectada ? " (BORDA)" : "",
-                                 (unsigned)(P.t_ms - movIni), cinematica_dist(), cinematica_giro());
+        if (movQuieto) { /* controle remoto: nenhuma linha no terminal */ }
+        else if (movBruto) Log.printf("# pwm: fim%s em %u ms\n", P.borda.detectada && !movIgnoraBorda ? " (BORDA)" : "", (unsigned)(P.t_ms - movIni));
+        else               Log.printf("# mov: fim%s em %u ms | estimado %.0f mm e %.0f graus\n", P.borda.detectada && !movIgnoraBorda ? " (BORDA)" : "",
+                                      (unsigned)(P.t_ms - movIni), cinematica_dist(), cinematica_giro());
       }
       if (movAtivo && movBruto) motores(movE, movD);
       else if (movAtivo)        cinematica_comanda(movV, movW);
+      else if (alinhaAtivo)     alinhaPasso();            // demo: só gira até alinhar (a linha não é consultada)
       else                      cinematica_para();
       // LED aceso fixo indica robô pronto; piscando rápido indica que faltam sensores
       led(P.saude.pronto || (P.t_ms / 100) % 2);
@@ -434,7 +540,7 @@ void estados_passo() {
       // partida sem botão: com os sensores prontos e o perfil do oponente já aplicado, espera
       // AUTO_START_ESPERA_MS e pede o start uma única vez por ligada. O pedido só sai quando o start
       // vai ser aceito, porque um start recusado (sensores faltando, perfil em troca) seria perdido.
-      if (autoFeito || movAtivo || !P.saude.pronto || tof_perfil_escuro() != escuro) autoEspera = false;
+      if (autoFeito || movAtivo || alinhaAtivo || !P.saude.pronto || tof_perfil_escuro() != escuro) autoEspera = false;
       else if (!autoEspera) { autoEspera = true; tAutoPronto = P.t_ms; }
       else if (P.t_ms - tAutoPronto >= AUTO_START_ESPERA_MS) {
         autoEspera = false;
@@ -445,6 +551,7 @@ void estados_passo() {
       if (P.start || pedidoStart) {
         pedidoStart = false;
         movAtivo = false;
+        alinhaAtivo = false; alinhaOk = false; alinhaFase = 0;
         if (!P.saude.pronto)
           Log.printf("! NAO INICIA: so %u de %u sensores de oponente OK (minimo %d). Rode 'lista'.\n",
                      P.saude.tof_ok, P.saude.tof_total, TOF_MINIMO_PARA_LUTAR);

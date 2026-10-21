@@ -49,8 +49,9 @@ static void ajuda() {
   Log.println(F("# init               tenta religar sensores que falharam (robo parado)"));
   Log.println(F("# tempo              duracao do ciclo (atual e pior caso)"));
   Log.println(F("# cin                modelo das rodas: velocidade, giro, feed-forward e parada"));
-  Log.println(F("# mov V W MS         teste parado: V mm/s e W graus/s por MS ms (ate 3000)"));
-  Log.println(F("# pwm E D MS         teste dos fios: E% e D% de PWM (-100 a 100) por MS ms"));
+  Log.println(F("# mov V W MS [F]     teste parado: V mm/s e W graus/s por MS ms (ate 3000); F: 1 ignora a linha, 2 sem texto, 3 os dois"));
+  Log.println(F("# pwm E D MS [F]     teste dos fios: E% e D% de PWM (-100 a 100) por MS ms; F como no mov"));
+  Log.println(F("# alinha on [S]      demo: so gira em pulsos ate alinhar com o oponente (S segundos, padrao 60); alinha off para"));
   Log.println(F("# estrategia rush|flank|fan|chave   escolhe a estrategia (chave = segue a DIP)"));
   Log.println(F("# perfil claro|escuro|chave         perfil do oponente (chave = segue a DIP 4)"));
   Log.println(F("# arena              localizacao no dojo: centro, incerteza e espaco livre"));
@@ -465,6 +466,8 @@ static void bordaLim(const char* arg) {
 //     sigma*10,confianca*100,existe*100,rumoModo,rumoAng*10,buscaGanho*100
 //     (cx e cy são o centro do oponente; rumoModo: 0 nada, 1 atacar, 2 mirar, 3 provável, 4 procurar)
 //   Q,bordaConfirmada,bordaCru,mv0..mv3
+//   Z,fase,erro*10,segundos,pulsos   demo de alinhamento: fase 0 desligado, 1 buscando, 2 virando, 3 alinhado
+//     (erro é o ângulo até o oponente, positivo à esquerda; só com o comando alinha ligado)
 //   J,seq,voltas,min0,max0,med0,min1,max1,med1,...   janela dos sensores de borda em mV, só com calpista ligado
 //     (seq conta as janelas enviadas, então um salto mostra janela perdida; voltas é quantas leituras entraram)
 //   A,estrategia,escuro,dip,arenaValida,arenaConfiavel,cx,cy,sigma,aproximacao,contato,descartes,
@@ -545,6 +548,20 @@ static void streamDados() {
   }
 #endif
   bool ativa = estado_atual() != ESPERA;
+  // demo de alinhamento (comando alinha): fase (0 desligado, 1 buscando, 2 virando, 3 alinhado), erro em décimos de grau,
+  // segundos restantes e pulsos; a cada 100 ms e quando a fase muda, e uma vez com fase 0 depois de desligar
+  {
+    static uint8_t faseAntZ = 0;
+    static uint32_t tZ = 0;
+    uint8_t fz = estados_alinha_fase();
+    uint32_t agora = millis();
+    if ((fz || faseAntZ) && (fz != faseAntZ || agora - tZ >= 100)) {
+      tZ = agora;
+      Log.printf("Z,%u,%d,%u,%u\n", (unsigned)fz, (int)lroundf(estados_alinha_erro() * 10), (unsigned)estados_alinha_restante_s(),
+                 (unsigned)estados_alinha_pulsos());
+    }
+    faseAntZ = fz;
+  }
   Log.printf("A,%u,%u,%u,%u,%u,%d,%d,%d,%d,%u,%u,%u,%u,%d\n", (unsigned)(ativa ? estados_estrategia() : chave_estrategia()),
              (ativa ? estados_escuro() : chave_escuro()) ? 1 : 0, chave_bits(), P.arena.valida ? 1 : 0, P.arena.confiavel ? 1 : 0,
              (int)lroundf(P.arena.cx), (int)lroundf(P.arena.cy), (int)lroundf(P.arena.sigma), (int)lroundf(P.op.aproximacao),
@@ -643,15 +660,32 @@ static void executa(char* c) {
     }
   }
   else if (!strncmp(c, "mov ", 4)) {
-    float v = 0, w = 0; int ms = 0;
-    if (sscanf(c + 4, "%f %f %d", &v, &w, &ms) == 3 && ms > 0) estados_teste_mov(v, w, (uint16_t)(ms > 3000 ? 3000 : ms));
-    else Log.println(F("! uso: mov V W MS   (ex.: mov 300 0 1000 ou mov 0 360 1000)"));
+    float v = 0, w = 0; int ms = 0, fl = 0;
+    int n = sscanf(c + 4, "%f %f %d %d", &v, &w, &ms, &fl);
+    if (n >= 3 && ms > 0) estados_teste_mov(v, w, (uint16_t)(ms > 3000 ? 3000 : ms), (uint8_t)(fl & 3));
+    else Log.println(F("! uso: mov V W MS [F]   (ex.: mov 300 0 1000 ou mov 0 360 1000; F: 1 ignora a linha, 2 sem texto)"));
   }
   else if (!strncmp(c, "pwm ", 4)) {
-    int e = 0, d = 0, ms = 0;
-    if (sscanf(c + 4, "%d %d %d", &e, &d, &ms) == 3 && ms > 0)
-      estados_teste_pwm((int8_t)constrain(e, -100, 100), (int8_t)constrain(d, -100, 100), (uint16_t)(ms > 3000 ? 3000 : ms));
-    else Log.println(F("! uso: pwm E D MS   (ex.: pwm 30 0 1000 so a roda esquerda para a frente)"));
+    int e = 0, d = 0, ms = 0, fl = 0;
+    int n = sscanf(c + 4, "%d %d %d %d", &e, &d, &ms, &fl);
+    if (n >= 3 && ms > 0)
+      estados_teste_pwm((int8_t)constrain(e, -100, 100), (int8_t)constrain(d, -100, 100), (uint16_t)(ms > 3000 ? 3000 : ms), (uint8_t)(fl & 3));
+    else Log.println(F("! uso: pwm E D MS [F]   (ex.: pwm 30 0 1000 so a roda esquerda para a frente; F como no mov)"));
+  }
+  else if (!strcmp(c, "alinha") || !strncmp(c, "alinha ", 7)) {
+    char acao[8] = ""; int seg = 0;
+    int n = c[6] == ' ' ? sscanf(c + 7, "%7s %d", acao, &seg) : 0;
+    if (n >= 1 && (!strcmp(acao, "on") || !strcmp(acao, "1"))) {
+#if !USAR_MOTORES
+      Log.println(F("! USAR_MOTORES esta 0 em config.h: o alinha nao move as rodas. Ponha 1 e grave de novo."));
+#endif
+      estados_alinha(true, (uint16_t)constrain(seg, 0, ALINHA_TEMPO_MAX_S));
+    }
+    else if (n >= 1 && (!strcmp(acao, "off") || !strcmp(acao, "0"))) estados_alinha(false, 0);
+    else if (n == 0 || n == -1) Log.printf("# alinha %s | fase %u, erro %.1f graus, %u s, %u pulsos (uso: alinha on [S] | alinha off)\n",
+                                           estados_alinha_ativo() ? "LIGADO" : "desligado", (unsigned)estados_alinha_fase(),
+                                           estados_alinha_erro(), (unsigned)estados_alinha_restante_s(), (unsigned)estados_alinha_pulsos());
+    else Log.println(F("! uso: alinha on [S] | alinha off"));
   }
 #if ANTI_TRAVA
   else if (!strcmp(c, "trava") || !strncmp(c, "trava ", 6)) {

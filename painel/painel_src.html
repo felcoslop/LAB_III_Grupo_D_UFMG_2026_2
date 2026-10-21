@@ -59,6 +59,19 @@ td.n{font-family:var(--mono);text-align:right} th.n{text-align:right}
 #calHist{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:8px}
 #calAvisos{margin:8px 0 0;padding-left:18px;color:var(--warn);font-size:13px} #calMsg{margin-top:8px;color:var(--info);font-size:13px}
 .tag a{color:var(--err);text-decoration:none;margin-left:4px}
+.alStatus{font:700 22px var(--mono);text-align:center;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--mut)}
+.alStatus.busca{color:var(--warn);border-color:var(--warn)} .alStatus.vira{color:var(--info);border-color:var(--info)} .alStatus.ok{color:#06210f;background:var(--acc);border-color:var(--acc)}
+.alGauge{height:12px;margin-top:8px;border-radius:6px;background:linear-gradient(90deg,#24323c 0,#24323c 46%,#15402f 46%,#15402f 54%,#24323c 54%);position:relative}
+.alGauge b{position:absolute;left:50%;top:-4px;bottom:-4px;width:2px;background:var(--mut)}
+.alGauge i{position:absolute;top:-3px;width:10px;height:18px;margin-left:-5px;border-radius:3px;background:var(--err);display:none}
+.wsSetas{display:grid;grid-template-columns:repeat(3,64px);gap:6px;margin:10px 0;justify-content:center}
+.wsSetas button{height:56px;font-size:22px;padding:0;line-height:1;user-select:none;touch-action:none}
+.wsSetas button small{display:block;font:10px var(--mono);color:var(--mut)}
+.wsSetas button.ativa{background:#15402f;border-color:var(--acc)}
+button[aria-pressed=true]{border-color:var(--acc);color:var(--acc)}
+.wsSl{display:block;margin-top:6px;font-size:13px} .wsSl span{display:flex;justify-content:space-between;color:var(--mut)} .wsSl input{width:100%}
+#tbCfg td{white-space:normal} #tbCfg .ok{color:var(--acc)} #tbCfg .no{color:var(--warn);font-weight:700}
+code{font:12px var(--mono);background:#0d1418;padding:0 4px;border-radius:4px}
 #nosupport{display:none;background:#2b1515;border-bottom:1px solid #6a2a2a;padding:8px 16px;color:#f3c0c0}
 </style>
 </head>
@@ -157,6 +170,63 @@ td.n{font-family:var(--mono);text-align:right} th.n{text-align:right}
     </div>
     <div class="note">Calibrar = 2 pontos (50 mm e 300 mm, da face do chip). Fica gravado no ESP32 e vale mesmo depois de desligar.</div>
   </div>
+</div>
+
+<div class="grid2" id="rowDemo">
+  <div class="card" id="cardAlinha">
+    <h2>Demonstração: alinhar com o oponente <span class="sp"></span><span id="alPill" class="pill">desligado</span></h2>
+    <div id="alStatus" class="alStatus">DESLIGADO</div>
+    <div class="alGauge" title="ângulo do oponente em relação à frente do robô (-45° a +45°)"><i id="alMarca"></i><b></b></div>
+    <div class="kv" style="margin-top:8px">
+      <span class="mut">Oponente agora</span><b id="alOp">-</b>
+      <span class="mut">Erro na última decisão</span><b id="alErro">-</b>
+      <span class="mut">Pulsos de giro / tempo restante</span><b id="alPulsos">-</b>
+    </div>
+    <div class="row">
+      <button id="alLiga" class="pri">Alinhar com o oponente</button>
+      <button id="alPara" class="danger">Parar</button>
+      <label class="mut">por <input id="alSeg" type="number" value="90" min="5" max="600" style="width:70px"> s</label>
+    </div>
+    <div class="note" id="alAviso"></div>
+    <div class="note">Com o robô parado (ESPERA), sem botão de início nem chave: o robô <b>só gira no eixo</b>, em pulsos curtos com pausas para os ToF medirem, até o oponente ficar a menos de 3° da frente, e fica parado e alinhado. Não anda para a frente nem para trás e a linha (borda) é ignorada. Com o oponente de costas ou de lado, gira em pulsos de busca até um ToF da frente enxergar. Se o oponente andar, o robô volta a girar. Para sozinho no tempo escolhido, ao apertar <b>go</b> ou <b>stop</b>. Precisa de <b>USAR_MOTORES 1</b> no <code>config.h</code>.</div>
+  </div>
+  <div class="card" id="cardWasd">
+    <h2>Controle remoto (WASD) <span class="sp"></span><span id="wsPill" class="pill">teclado desligado</span></h2>
+    <div class="row" style="margin-top:0">
+      <button id="wsLiga" class="pri">Ligar o teclado</button>
+      <button id="wsParar" class="danger">PARAR <kbd>espaço</kbd></button>
+      <label class="mut"><input type="checkbox" id="wsIgn" checked> ignorar a linha (borda)</label>
+      <label class="mut"><input type="checkbox" id="wsInv"> inverter o giro</label>
+    </div>
+    <div class="wsSetas" id="wsSetas">
+      <button data-k="fe" title="frente e esquerda">↖</button><button data-k="f" title="W · frente">↑<small>W</small></button><button data-k="fd" title="frente e direita">↗</button>
+      <button data-k="e" title="A · gira para a esquerda">←<small>A</small></button><button data-k="x" id="wsX" title="parar">■</button><button data-k="d" title="D · gira para a direita">→<small>D</small></button>
+      <button data-k="te" title="ré e esquerda">↙</button><button data-k="t" title="S · ré">↓<small>S</small></button><button data-k="td" title="ré e direita">↘</button>
+    </div>
+    <div class="row">
+      <span class="mut">modo:</span>
+      <button id="wsCin" aria-pressed="true">Cinemática (mov)</button><button id="wsPwm" aria-pressed="false">PWM direto (pwm)</button>
+    </div>
+    <div id="wsParCin">
+      <label class="wsSl"><span>Velocidade <b id="wsVV">150 mm/s</b></span><input type="range" id="wsV" min="50" max="450" step="10" value="150"></label>
+      <label class="wsSl"><span>Giro no lugar <b id="wsWV">120 °/s</b></span><input type="range" id="wsW" min="30" max="360" step="10" value="120"></label>
+    </div>
+    <div id="wsParPwm" hidden>
+      <label class="wsSl"><span>PWM por roda <b id="wsPV">35 %</b></span><input type="range" id="wsP" min="10" max="100" step="5" value="35"></label>
+    </div>
+    <div class="note"><b>Ligar o teclado</b> libera <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> (ou as setas; duas juntas fazem a diagonal) e <kbd>espaço</kbd> para parar; os botões acima valem para mouse e celular. O robô só anda enquanto a tecla ou o botão estiver apertado: cada pacote dura 0,25 s e, ao soltar, o painel manda parar. Com "ignorar a linha" o controle vale mesmo com o sensor de borda marcando (o robô pode cair do dojô, então prenda ou apoie). Só funciona com o robô em ESPERA; funciona pela USB e pelo Wi-Fi.</div>
+  </div>
+</div>
+
+<div class="card" id="cardCfg">
+  <h2>Configuração do robô (config.h) <span class="sp"></span>
+    <label class="mut" style="text-transform:none;letter-spacing:0"><input type="radio" name="cfgPerfil" value="demo" checked> demonstração</label>
+    <label class="mut" style="text-transform:none;letter-spacing:0"><input type="radio" name="cfgPerfil" value="comp"> competição autônoma</label></h2>
+  <div style="overflow-x:auto"><table>
+    <thead><tr><th>Chave do config.h</th><th class="n">No robô agora</th><th class="n">Recomendado</th><th>Situação</th><th>Para quê</th></tr></thead>
+    <tbody id="tbCfg"></tbody>
+  </table></div>
+  <div class="note" id="cfgNota"></div>
 </div>
 
 <div class="grid2">
@@ -293,6 +363,7 @@ function linha(l) {
                 if (i === 0) S.bg.length = 1; montaBorda(); cena3d(); return; }
     case "Q": return dadosBorda(p.slice(1).map(Number));
     case "J": return janelaPista(p.slice(1).map(Number));
+    case "Z": return zAlinha(p.slice(1).map(Number));
     case "K": S.alcance = +p[1] || 600; return;
     case "A": return dadosLuta(p.slice(1).map(Number));
     case "X": S.bayes = p[1] === "1"; S.opLado = +p[2] || 152; S.alcPreto = +p[3] || 550; S.alcLat = +p[5] || 80; S.alcTras = +p[6] || 200; return;
@@ -311,6 +382,7 @@ function cfgFirmware(v) {
   log(`[painel] firmware: USAR_MOTORES ${+S.cfg.motores} · USAR_WIFI ${+S.cfg.wifi} · AUTO_START ${+S.cfg.auto} · USAR_BORDA ${+S.cfg.borda} · QTD_TOF ${S.cfg.tof} · GEOMETRIA_BANCADA ${+S.cfg.bancada}`, "u");
   if (S.cfg.auto) log("[painel] AUTO_START 1: o robô começa a lutar sozinho depois de ligar. Para testes parado, ponha AUTO_START 0 no config.h.", "e");
   if (!S.cfg.motores) log("[painel] USAR_MOTORES 0: os comandos de movimento não acionam as rodas. Ponha USAR_MOTORES 1 no config.h para testar com motores.", "u");
+  cfgUi(); alUi();
 }
 function dados(n) {
   const k = N();
@@ -623,6 +695,170 @@ function calUi() {
     : "";
   calUiLeve();
 }
+
+// ============================== DEMONSTRAÇÃO: ALINHAR COM O OPONENTE ==============================
+// O firmware (estados_alinha, config.h ALINHA_*) gira o robô em pulsos até o oponente ficar centrado e manda a linha
+//   Z,fase,erro*10,segundos,pulsos     (fase: 0 desligado, 1 buscando, 2 virando, 3 alinhado)
+const AL = {fase: 0, erro: 0, resta: 0, pulsos: 0, t: 0};
+function zAlinha(v) {
+  if (v.length < 4) return;
+  AL.fase = v[0]; AL.erro = v[1] / 10; AL.resta = v[2]; AL.pulsos = v[3]; AL.t = performance.now();
+  alUi();
+}
+const sgn1 = x => (x >= 0 ? "+" : "-") + Math.abs(x).toFixed(1).replace(".", ",") + "°";
+function alUi() {
+  const vivo = AL.fase > 0 && (performance.now() - AL.t < 2500);
+  const f = vivo ? AL.fase : 0, st = $("alStatus");
+  st.className = "alStatus" + (f === 1 ? " busca" : f === 2 ? " vira" : f === 3 ? " ok" : "");
+  st.textContent = f === 1 ? "PROCURANDO O OPONENTE" : f === 2 ? "VIRANDO · erro " + sgn1(AL.erro) : f === 3 ? "ALINHADO · " + sgn1(AL.erro) : (AL.fase > 0 ? "SEM DADOS DO ROBÔ" : "DESLIGADO");
+  const pl = $("alPill"); pl.textContent = f === 3 ? "alinhado" : f ? "girando" : "desligado"; pl.className = "pill" + (f === 3 ? " on" : f ? " demo" : "");
+  const t = S.tgt, m = $("alMarca");
+  if (t && t.visto && (performance.now() - S.tD < 1000)) { m.style.display = "block"; m.style.left = (50 - Math.max(-45, Math.min(45, t.ang)) / 90 * 100).toFixed(1) + "%"; $("alOp").textContent = "visto a " + sgn1(t.ang) + " · " + (t.dist > 0 ? t.dist + " mm" : "-"); }
+  else { m.style.display = "none"; $("alOp").textContent = "não visto"; }
+  $("alErro").textContent = f ? sgn1(AL.erro) : "-";
+  $("alPulsos").textContent = f ? AL.pulsos + " pulsos · " + AL.resta + " s" : "-";
+  const av = [];
+  if (S.cfg && !S.cfg.motores) av.push("USAR_MOTORES 0 no firmware: as rodas não giram. Ponha USAR_MOTORES 1 no config.h e grave de novo.");
+  if (S.cfg && S.cfg.auto) av.push("AUTO_START 1: o robô pode largar sozinho para a luta. Para a demonstração, ponha AUTO_START 0 no config.h.");
+  if (S.estado > 0) av.push("O robô está em " + (S.estados[S.estado] || "luta") + ": o alinhamento só funciona em ESPERA. Envie stop.");
+  $("alAviso").textContent = av.join(" ");
+  $("alAviso").style.color = av.length ? "var(--warn)" : "";
+  $("alLiga").disabled = !(conectado || demo); $("alPara").disabled = !(conectado || demo);
+}
+function alLiga() {
+  if (!conectado) { log("[painel] conecte ao robô (USB ou Wi-Fi) para alinhar com o oponente", "e"); return; }
+  if (S.cfg && !S.cfg.motores) { log("[painel] USAR_MOTORES 0 no firmware: o robô não vai girar. Ponha 1 no config.h.", "e"); return; }
+  if (S.estado > 0) { log("[painel] o robô não está em ESPERA: envie stop antes de alinhar", "e"); return; }
+  const s = Math.max(5, Math.min(600, Math.round(+$("alSeg").value || 90)));
+  enviar("alinha on " + s);
+}
+async function alCancela() {
+  if (conectado && AL.fase > 0) await enviar("alinha off", true);
+  AL.fase = 0; alUi();
+}
+
+// ============================== CONTROLE REMOTO (WASD) ==============================
+// Mesmo comportamento da página site/controle_motores.html, dentro do painel, pela USB ou pelo Wi-Fi: um pacote mov
+// (ou pwm) de 0,25 s a cada 0,12 s enquanto a tecla está apertada, e parar ao soltar. O 4º número do comando é o
+// flag do firmware (1 ignora a linha, 2 não escreve "# mov" no terminal), então o controle vale com a linha marcando.
+const WS = {on: false, teclas: new Set(), timer: null, andando: false, modo: "cin", avisou: false};
+const WS_MAPA = {w: "f", arrowup: "f", s: "t", arrowdown: "t", a: "e", arrowleft: "e", d: "d", arrowright: "d"};
+const wsFlags = () => ($("wsIgn").checked ? 1 : 0) + 2;
+function wsComando() {
+  const t = WS.teclas, f = t.has("f") ? 1 : t.has("t") ? -1 : 0;
+  let g = (t.has("e") ? 1 : 0) - (t.has("d") ? 1 : 0);                    // positivo = esquerda
+  if ($("wsInv").checked) g = -g;
+  if (!f && !g) return null;
+  if (WS.modo === "cin") {
+    const v = f * +$("wsV").value, w = g * +$("wsW").value;
+    return `mov ${Math.round(v)} ${Math.round(f && g ? w * 0.6 : w)} 250 ${wsFlags()}`;      // diagonal: giro mais suave
+  }
+  const p = +$("wsP").value;
+  let e = f * p, d = f * p;
+  if (g) { if (f) { e = f * p * (g > 0 ? 0.35 : 1); d = f * p * (g > 0 ? 1 : 0.35); } else { e = -g * p; d = g * p; } }
+  return `pwm ${Math.round(e)} ${Math.round(d)} 250 ${wsFlags()}`;
+}
+function wsMarca() {
+  const m = {f: WS.teclas.has("f"), t: WS.teclas.has("t"), e: WS.teclas.has("e"), d: WS.teclas.has("d")};
+  const at = {f: m.f && !m.e && !m.d, t: m.t && !m.e && !m.d, e: m.e && !m.f && !m.t, d: m.d && !m.f && !m.t, fe: m.f && m.e, fd: m.f && m.d, te: m.t && m.e, td: m.t && m.d};
+  document.querySelectorAll("#wsSetas button[data-k]").forEach(b => b.classList.toggle("ativa", !!at[b.dataset.k]));
+}
+async function wsPasso() {
+  const c = wsComando(); if (!c) return;
+  if (!conectado) {
+    if (!WS.avisou) { WS.avisou = true; log("[painel] conecte ao robô (USB ou Wi-Fi) para usar o controle remoto", "e"); }
+    WS.teclas.clear(); wsAtualiza(); return;
+  }
+  if (S.estado > 0) { if (!WS.avisou) { WS.avisou = true; log("[painel] o robô está em luta, não em ESPERA: envie stop para usar o controle remoto", "e"); } return; }
+  WS.avisou = false; WS.andando = true;
+  await enviar(c, true);
+}
+function wsAtualiza() {
+  wsMarca();
+  if (wsComando()) { if (!WS.timer) { wsPasso(); WS.timer = setInterval(wsPasso, 120); } }
+  else if (WS.timer) {
+    clearInterval(WS.timer); WS.timer = null;
+    if (WS.andando && conectado) { WS.andando = false; enviar(`mov 0 0 60 ${wsFlags()}`, true); }     // parada sem texto; o pacote anterior já expira em 0,25 s
+  }
+}
+async function wsParar(explicito) {
+  WS.teclas.clear(); wsMarca();
+  if (WS.timer) { clearInterval(WS.timer); WS.timer = null; }
+  const andava = WS.andando; WS.andando = false;
+  if ((andava || explicito) && conectado) await enviar("stop", !explicito);
+}
+function wsUi() {
+  const p = $("wsPill"); p.textContent = WS.on ? "teclado LIGADO" : "teclado desligado"; p.className = "pill" + (WS.on ? " bad" : "");
+  $("wsLiga").textContent = WS.on ? "Desligar o teclado" : "Ligar o teclado";
+  $("wsCin").setAttribute("aria-pressed", WS.modo === "cin"); $("wsPwm").setAttribute("aria-pressed", WS.modo === "pwm");
+  $("wsParCin").hidden = WS.modo !== "cin"; $("wsParPwm").hidden = WS.modo !== "pwm";
+}
+async function wsDesliga() { WS.on = false; await wsParar(false); wsUi(); }
+function wsDigitando(ev) {
+  const e = ev.target; if (!e || !e.tagName) return false;
+  return e.tagName === "TEXTAREA" || e.tagName === "SELECT" || (e.tagName === "INPUT" && !["checkbox", "radio", "button"].includes(e.type));
+}
+addEventListener("keydown", ev => {
+  if (!WS.on || wsDigitando(ev) || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  const k = ev.key.toLowerCase();
+  if (k === " ") { ev.preventDefault(); wsParar(true); return; }
+  const d = WS_MAPA[k]; if (!d) return;
+  ev.preventDefault();
+  if (!ev.repeat) { WS.teclas.add(d); wsAtualiza(); }
+});
+addEventListener("keyup", ev => {
+  if (!WS.on || wsDigitando(ev)) return;
+  if (ev.key === " ") { ev.preventDefault(); return; }                       // o espaço não aperta o botão focado
+  const d = WS_MAPA[ev.key.toLowerCase()]; if (d) { WS.teclas.delete(d); wsAtualiza(); }
+});
+addEventListener("blur", () => wsParar(false));
+document.addEventListener("visibilitychange", () => { if (document.hidden) wsParar(false); });
+const WS_DIRS = {f: ["f"], t: ["t"], e: ["e"], d: ["d"], fe: ["f", "e"], fd: ["f", "d"], te: ["t", "e"], td: ["t", "d"]};
+document.querySelectorAll("#wsSetas button[data-k]").forEach(b => {
+  if (b.dataset.k === "x") { b.onclick = () => wsParar(true); return; }
+  const ds = WS_DIRS[b.dataset.k];
+  b.addEventListener("pointerdown", ev => { b.setPointerCapture(ev.pointerId); ds.forEach(x => WS.teclas.add(x)); wsAtualiza(); });
+  const solta = () => { ds.forEach(x => WS.teclas.delete(x)); wsAtualiza(); };
+  b.addEventListener("pointerup", solta); b.addEventListener("pointercancel", solta);
+});
+$("wsLiga").onclick = () => { if (WS.on) wsDesliga(); else { WS.on = true; WS.avisou = false; wsUi(); if (document.activeElement) document.activeElement.blur(); } };
+$("wsParar").onclick = () => wsParar(true);
+$("wsCin").onclick = () => { WS.modo = "cin"; wsParar(false); wsUi(); };
+$("wsPwm").onclick = () => { WS.modo = "pwm"; wsParar(false); wsUi(); };
+$("wsV").oninput = () => $("wsVV").textContent = $("wsV").value + " mm/s";
+$("wsW").oninput = () => $("wsWV").textContent = $("wsW").value + " °/s";
+$("wsP").oninput = () => $("wsPV").textContent = $("wsP").value + " %";
+document.querySelectorAll("#cardWasd input[type=range]").forEach(r => r.addEventListener("change", () => r.blur()));   // o foco no controle deslizante prenderia as setas
+$("alLiga").onclick = alLiga; $("alPara").onclick = () => enviar("alinha off");
+setInterval(alUi, 500);
+
+// ============================== GUIA DA CONFIGURAÇÃO (config.h) ==============================
+// A linha F do firmware diz o que está compilado no robô. A tabela compara com o que cada situação pede e diz o que mudar.
+function cfgUi() {
+  const tb = $("tbCfg"), nota = $("cfgNota"); if (!tb) return;
+  const perfil = document.querySelector("input[name=cfgPerfil]:checked").value, c = S.cfg;
+  if (!c) { tb.innerHTML = '<tr><td colspan="5" class="mut">Conecte ao robô: o firmware informa o que o config.h tem (linha F).</td></tr>'; nota.textContent = ""; return; }
+  const dem = perfil === "demo", usb = modo === "usb";
+  // [chave, valor atual, ideal, valores aceitáveis, para quê]
+  const L = [
+    ["USAR_MOTORES", +c.motores, 1, [1], "1 liga as rodas. Com 0 o robô não anda: mov, pwm, alinha e o WASD não acionam os motores (modo da bancada sem bateria)."],
+    ["USAR_WIFI", +c.wifi, dem ? 1 : 0, dem ? (usb ? [0, 1] : [1]) : [0, 1], dem ? "1 para o painel falar com o robô sem cabo. Pela USB pode ficar 0." : "0 deixa o robô como o de competição, sem o rádio. Com 1 o rádio ainda desliga sozinho ao começar a luta sem painel conectado."],
+    ["AUTO_START", +c.auto, dem ? 0 : 1, [dem ? 0 : 1], dem ? "0 para o robô ficar parado em ESPERA até você mandar (alinha, WASD, go). Com 1 ele largaria sozinho para a luta depois de ligar." : "1 para largar sozinho, sem botão de início, depois de ligar a bateria (contagem de 5 s e luta). Fica 0 enquanto testa no PC."],
+    ["USAR_BORDA", +c.borda, 1, [1], "1 liga os sensores de linha (borda). Obrigatório para lutar no dojô."],
+    ["QTD_TOF", c.tof, c.tof, [5, 7], "quantidade de sensores de oponente ligados: 5 (FE, FC, FD, LE, LD) ou 7. Precisa ser igual ao que está montado."],
+    ["GEOMETRIA_BANCADA", +c.bancada, +c.bancada, [0, 1], "0 = posições dos sensores do robô montado (o do dojô); 1 = as da bancada. Deve refletir como o robô está montado agora."],
+  ];
+  tb.innerHTML = L.map(([k, v, ideal, ok, para]) => {
+    const bom = ok.includes(v), s = bom ? '<span class="ok">✔ certo</span>' : `<span class="no">mudar para ${ideal}</span>`;
+    return `<tr><td><code>${k}</code></td><td class="n">${v}</td><td class="n">${ok.length > 1 && bom ? ok.join(" ou ") : ideal}</td><td>${s}</td><td>${esc(para)}</td></tr>`;
+  }).join("") + `<tr><td><code>TOF_ALCANCE_LATERAL_MM</code></td><td class="n">${S.alcLat}</td><td class="n">80</td><td><span class="mut">informativo</span></td><td>alcance dos ToF laterais (LE e LD). O alinhamento não depende dele: o robô gira até um ToF da frente enxergar.</td></tr>
+    <tr><td>rádio Wi-Fi agora</td><td class="n">${c.radio ? "ligado" : "desligado"}</td><td class="n">-</td><td><span class="mut">informativo</span></td><td>desliga sozinho ao sair da ESPERA sem painel conectado (WIFI_DESLIGA_SEM_PAINEL 1); o comando <code>wifi off</code> desliga na hora.</td></tr>`;
+  const errado = L.filter(([k, v, i, ok]) => !ok.includes(v)).map(l => l[0]);
+  nota.innerHTML = (errado.length ? `<b style="color:var(--warn)">Ajuste no config.h: ${errado.join(", ")}.</b> ` : '<b style="color:var(--acc)">A configuração do robô serve para esta situação.</b> ') +
+    (dem ? "Demonstração: o robô fica em ESPERA e quem manda é o painel (alinhar com o oponente, WASD, calibração). Depois de mudar o config.h, grave de novo pela IDE do Arduino."
+         : "Competição autônoma: grave com AUTO_START 1 (e USAR_WIFI 0), desligue o cabo e ligue a bateria; o robô espera os sensores ficarem prontos, faz a contagem de 5 s e luta sozinho. Antes, rode a calibração da pista e confira a borda.");
+}
+document.querySelectorAll("input[name=cfgPerfil]").forEach(r => r.onchange = cfgUi);
 
 // ============================== BORDA ==============================
 function ondeBorda(g) { return (g.x >= 0 ? "frente" : "trás") + " " + (g.y >= 0 ? "esquerda" : "direita"); }
@@ -1262,6 +1498,7 @@ async function conectarWifi() {
 // Fila de comandos do Wi-Fi: um de cada vez e na ordem; um mov ou pwm que ainda não saiu é trocado pelo mais novo.
 function enviaWifi(t) {
   const mov = /^(mov|pwm) /;
+  if (t === "stop") wifiFila = wifiFila.filter(x => !mov.test(x));      // o stop passa na frente de movimentos que ainda não saíram
   if (mov.test(t) && wifiFila.length && mov.test(wifiFila[wifiFila.length - 1])) wifiFila[wifiFila.length - 1] = t;
   else wifiFila.push(t);
   bombaWifi();
@@ -1280,6 +1517,8 @@ async function bombaWifi() {
 function travaCon(sim) { $("selCon").disabled = sim; $("ip").disabled = sim; }
 async function desconectar() {
   try { await calCancela(); } catch (e) {}
+  try { await alCancela(); } catch (e) {}
+  try { await wsDesliga(); } catch (e) {}
   try { await enviar("s0", true); } catch (e) {}
   if (modo === "wifi") {
     await new Promise(r => setTimeout(r, 150));      // dá tempo de o s0 sair
@@ -1606,7 +1845,7 @@ document.addEventListener("keydown", e => {
 $("cTopo").onclick = () => vista("topo"); $("cPersp").onclick = () => vista("persp"); $("cLado").onclick = () => vista("lado");
 if ("serial" in navigator) navigator.serial.addEventListener("disconnect", () => { if (conectado && modo === "usb") { log("[painel] cabo USB desconectado", "e"); desconectar(); } });
 
-montaTabela(); montaBorda(); cena3d(); vista("persp"); tam2d(); painel(); painelBorda(); calUi();
+montaTabela(); montaBorda(); cena3d(); vista("persp"); tam2d(); painel(); painelBorda(); calUi(); alUi(); wsUi(); cfgUi();
 (function loop() { desenha2d(); desenha3d(); requestAnimationFrame(loop); })();
 log("[painel] Pronto. Conecte pela USB (Chrome ou Edge) ou pelo Wi-Fi do robô (firmware com USAR_WIFI 1), ou use o modo demo.", "u");
 </script>

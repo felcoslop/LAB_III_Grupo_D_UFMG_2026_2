@@ -7,12 +7,14 @@
 // Calibração de pista: com "calpista on" o robô de mentira manda uma linha J (janela de 20 ms) por quadro, com as
 // leituras da "cena" (servidor.cena) e do "perfil" (servidor.perfil); "bordalim NOME LIM PRETO BRANCO" muda o
 // limiar e reenvia o cabeçalho, como o debug.cpp.
+// Demonstração de alinhamento: "alinha on S" manda linhas Z (busca, virando, alinhado, em 0,7 s) e "alinha off" fecha com a
+// fase 0, como o estados.cpp; "servidor.estado" é o estado da máquina que vai nos quadros D (0 é ESPERA).
 import http from "node:http";
 
 export function iniciaRoboFalso(porta = 0) {
   const recebidos = [];
   const fluxos = new Set();
-  let streamLigado = false, t0 = Date.now(), timer = null, pista = false, seqJ = 0, rng = 12345;
+  let streamLigado = false, t0 = Date.now(), timer = null, pista = false, seqJ = 0, rng = 12345, alinha = null, tZ = 0;
   const nomes = ["BFE", "BFD", "BTE", "BTD"];
   const bordas = nomes.map((n) => ({lim: 600, preto: 3000, branco: 450, grav: 0, pista: 0}));
   const rand = () => { rng = (rng * 1664525 + 1013904223) >>> 0; return rng / 4294967296; };
@@ -61,10 +63,20 @@ export function iniciaRoboFalso(porta = 0) {
   };
   const quadro = () => {
     const ms = Date.now() - t0;
-    manda(`D,300,310,-1,-1,-1,300,310,-1,-1,-1,1,150,300,2,3,290,80,3,1,0,31,${ms},20,90,100,2,150,0`);
+    manda(`D,300,310,-1,-1,-1,300,310,-1,-1,-1,1,150,300,2,3,290,80,3,1,${servidor.estado},31,${ms},20,90,100,2,150,0`);
     manda("Q,0,0,3000,3000,3000,3000");
     manda("A,0,0,0,1,1,0,0,20,0,0,0,0,0,0");
     if (pista) manda(janela());
+    if (alinha) {
+      const dt = Date.now() - alinha.t0;
+      if (dt >= alinha.fim) { manda("# alinha: tempo esgotado"); manda("Z,0,0,0," + alinha.pulsos); alinha = null; }
+      else if (Date.now() - tZ >= 100) {
+        tZ = Date.now();
+        const fase = dt < 300 ? 1 : dt < 700 ? 2 : 3, erro = fase === 1 ? 0 : fase === 2 ? 125 - Math.round((dt - 300) * 0.25) : 12;
+        alinha.pulsos = Math.floor(dt / 160);
+        manda(`Z,${fase},${erro},${Math.max(0, Math.ceil((alinha.fim - dt) / 1000))},${alinha.pulsos}`);
+      }
+    }
   };
 
   const srv = http.createServer((req, res) => {
@@ -76,6 +88,13 @@ export function iniciaRoboFalso(porta = 0) {
       recebidos.push(c);
       if (c === "s1") { streamLigado = true; cabecalho(servidor.cfg); }
       if (c === "s0") streamLigado = false;
+      const al = /^alinha on(?: (\d+))?$/.exec(c);
+      if (al) {
+        if (servidor.estado !== 0) manda("! alinha so funciona com o robo parado (ESPERA)");
+        else { const s = +(al[1] || 60); alinha = {t0: Date.now(), fim: s * 1000, pulsos: 0}; manda(`# alinha: ligado por ${s} s (so gira, nao anda, linha ignorada); alinha off para parar`); }
+      }
+      if (c === "alinha off" && alinha) { alinha = null; manda("# alinha: desligado"); manda("Z,0,0,0,0"); }
+      if (c === "stop" || c === "go") { if (alinha) { alinha = null; manda("Z,0,0,0,0"); } }
       if (c === "calpista on") { pista = true; manda("# calpista ON: linhas J com minimo, maximo e media de cada sensor de borda"); }
       if (c === "calpista off") { pista = false; manda("# calpista OFF"); }
       const bl = /^bordalim (\w+) (\d+)(?: (\d+) (\d+))?$/.exec(c);
@@ -100,7 +119,7 @@ export function iniciaRoboFalso(porta = 0) {
     res.writeHead(404, cors); res.end("nao existe");
   });
   const servidor = {
-    recebidos, cfg: {}, srv, bordas,
+    recebidos, cfg: {}, srv, bordas, estado: 0,
     cena: {faixa: []},
     perfil: {pretoMv: 2800, brancoMv: 300, ruidoMv: 40, arranhaoProb: 0, arranhaoMv: 1700, sujeiraProb: 0, sujeiraMv: 900, invertido: false, digital: false},
     pistaLigada: () => pista,
