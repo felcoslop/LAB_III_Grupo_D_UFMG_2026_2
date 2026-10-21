@@ -17,9 +17,9 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.dirname(AQUI)
 cfg = open(os.path.join(RAIZ, "firmware", "sumo_esp32", "config.h"), encoding="utf-8").read()
 bloco = cfg[cfg.index("#if GEOMETRIA_BANCADA\n//"):cfg.index("\n#else\n")]
-bloco = re.sub(r"#if QTD_TOF == 7.*?#endif", "", bloco, flags=re.S)       # este gabarito é o de 5 sensores
 TOF = [dict(nome=m[1], xshut=int(m[2]), x=int(m[4]), y=int(m[5]), ang=int(m[6]))
        for m in re.finditer(r'\{\s*"(\w+)",\s*(\d+),\s*(0x[0-9A-Fa-f]+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+)\s*\}', bloco)]
+TOF = [t for t in TOF if t["nome"] not in ("TE", "TD")]       # este gabarito é o de 5 sensores (a tabela do config.h traz os 7)
 assert len(TOF) == 5
 i2 = cfg.index("#if GEOMETRIA_BANCADA", cfg.index("struct CfgBorda"))
 blocoB = cfg[i2:cfg.index("#else", i2)]

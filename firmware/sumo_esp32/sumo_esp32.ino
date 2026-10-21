@@ -20,6 +20,7 @@
 #include "cinematica.h"
 #include "estados.h"
 #include "debug.h"
+#include "ajustes.h"
 
 void setup() {
   motores_init();          // os motores são configurados primeiro para o robô nascer parado
@@ -27,6 +28,7 @@ void setup() {
   Serial.setTxBufferSize(4096);   // buffer de 4 KB na serial: um print grande não segura o loop
   Serial.begin(SERIAL_BAUD);
   delay(300);
+  ajustes_carrega();       // opções do painel gravadas na NVS (quantidade de ToF, modo autônomo...), antes de qualquer módulo
   Log.println(F("\n# ===== ROBO SUMO | ESP32 ====="));
   telemetria_init();       // com USAR_WIFI 1 a rede (SUMO-ROBO) e o servidor do painel começam aqui; com 0 não faz nada
   percepcao_init();        // inicialização do I2C, dos ToF, da borda e do botão (percepcao.cpp)

@@ -16,6 +16,7 @@
 #include "arena.h"
 #include "chave.h"
 #include "antitrava.h"   // ANTI_TRAVA
+#include "ajustes.h"
 #include <Wire.h>
 #include <strings.h>   // strcasecmp
 
@@ -52,6 +53,7 @@ static void ajuda() {
   Log.println(F("# mov V W MS [F]     teste parado: V mm/s e W graus/s por MS ms (ate 3000); F: 1 ignora a linha, 2 sem texto, 3 os dois"));
   Log.println(F("# pwm E D MS [F]     teste dos fios: E% e D% de PWM (-100 a 100) por MS ms; F como no mov"));
   Log.println(F("# alinha on [S]      demo: so gira em pulsos ate alinhar com o oponente (S segundos, padrao 60); alinha off para"));
+  Log.println(F("# ajuste             opcoes do painel gravadas no robo: auto, linha, tof, alinha, wifi (ajuste NOME VALOR | ajuste padrao)"));
   Log.println(F("# estrategia rush|flank|fan|chave   escolhe a estrategia (chave = segue a DIP)"));
   Log.println(F("# perfil claro|escuro|chave         perfil do oponente (chave = segue a DIP 4)"));
   Log.println(F("# arena              localizacao no dojo: centro, incerteza e espaco livre"));
@@ -83,7 +85,7 @@ static void lista() {
 #if USAR_BORDA
   Log.println(F("# borda  GPIO   x    y   limiar  preto  branco  cal"));
   for (uint8_t i = 0; i < N_BORDA; i++)
-    Log.printf("# %-4s   %2d  %4d %4d  %5u  %5u  %5u   %s\n", BORDA[i].nome, BORDA[i].pino, BORDA[i].x, BORDA[i].y,
+    Log.printf("# %-4s   %2d  %4d %4d  %5u  %5u  %5u   %s\n", BORDA[i].nome, BORDA[i].pino, borda_x(i), borda_y(i),
                borda_limiar(i), borda_cal_preto(i), borda_cal_branco(i),
                borda_cal_gravada(i) ? (borda_cal_limiar_gravado(i) ? "pista" : "ESP32") : "padrao");
   for (uint8_t i = 0; i < N_BORDA; i++)
@@ -460,7 +462,8 @@ static void bordaLim(const char* arg) {
 //   E,nome0,nome1,...           nomes dos estados
 //   K,alcance,map...            mantido para ser compatível com o radar antigo
 //   X,bayes,ladoOponente,alcancePreto,massaMin     parâmetros do rastreador
-//   F,usarMotores,usarWifi,autoStart,usarBorda,qtdTof,bancada,wifiLigado   chaves do config.h em uso
+//   F,usarMotores,usarWifi,autoStart,usarBorda,qtdTof,bancada,wifiLigado,linhaLateral,alinhaContagem,wifiLuta
+//     (chaves do config.h compiladas no firmware e, de autoStart em diante, as opções do painel gravadas na NVS: ajustes.h)
 // Dados enviados a cada STREAM_MS:
 //   D,mm0..mmN,bruto0..brutoN,visto,ang*10,dist,conf,mascara,cx,cy,acao,lado,estado,saude,millis,
 //     sigma*10,confianca*100,existe*100,rumoModo,rumoAng*10,buscaGanho*100
@@ -483,7 +486,7 @@ static void streamCabecalho() {
   }
 #if USAR_BORDA
   for (uint8_t i = 0; i < N_BORDA; i++)
-    Log.printf("R,%u,%s,%d,%d,%.1f,%u,%u,%u,%u,%u,%u\n", i, BORDA[i].nome, BORDA[i].x, BORDA[i].y, BORDA_ALTURA_MM,
+    Log.printf("R,%u,%s,%d,%d,%.1f,%u,%u,%u,%u,%u,%u\n", i, BORDA[i].nome, borda_x(i), borda_y(i), BORDA_ALTURA_MM,
                borda_limiar(i), borda_cal_preto(i), borda_cal_branco(i), borda_cal_gravada(i) ? 1 : 0, borda_branco_abaixo(i) ? 1 : 0,
                borda_cal_limiar_gravado(i) ? 1 : 0);
 #endif
@@ -497,8 +500,9 @@ static void streamCabecalho() {
   Log.printf(",%d,%d,0,0\n", TOF_TIMING_US > 25000 ? 1 : 0, MODO_DEFENSIVO);
   Log.printf("X,%d,%d,%d,%.2f,%d,%d\n", oponente_bayes() ? 1 : 0, OPONENTE_LADO_MM, ALCANCE_PRETO_MM, FUSAO_MASSA_MIN,
                 TOF_ALCANCE_LATERAL_MM, TOF_ALCANCE_TRAS_MM);
-  Log.printf("F,%d,%d,%d,%d,%d,%d,%d\n", USAR_MOTORES, USAR_WIFI, AUTO_START, USAR_BORDA, QTD_TOF, GEOMETRIA_BANCADA,
-             telemetria_wifi_ligado() ? 1 : 0);
+  const Ajustes& aj = ajustes();
+  Log.printf("F,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", USAR_MOTORES, USAR_WIFI, aj.autonomo ? 1 : 0, USAR_BORDA, (int)aj.tof, GEOMETRIA_BANCADA,
+             telemetria_wifi_ligado() ? 1 : 0, aj.borda_lateral ? 1 : 0, aj.alinha_contagem ? 1 : 0, aj.wifi_luta ? 1 : 0);
 }
 
 // Linha M com o mapa de probabilidade comprimido pelo rastreador.cpp.
@@ -595,6 +599,39 @@ static void cin() {
   Log.printf("# aquecimento estimado dos motores: %.0f K acima do ambiente (limite de %.0f%% do PWM a partir de %.0f K)%s\n",
                 cinematica_aquecimento_k(), MOTOR_PWM_QUENTE * 100, MOTOR_QUENTE_K,
                 cinematica_limite_termico() ? " | LIMITE LIGADO" : "");
+}
+
+// Opções do painel gravadas na NVS (ajustes.h). Só mudam com o robô parado. Mudar a quantidade de ToF reinicia o robô.
+static uint32_t tReinicia = 0;       // diferente de zero: reinicia o ESP32 nesse instante (depois de gravar a quantidade de ToF)
+
+static void ajustesImprime() {
+  const Ajustes& a = ajustes();
+  Log.printf("# ajustes (gravados no robo): auto %d | linha %d (%s) | tof %u | alinha %d | wifi %d%s\n", a.autonomo ? 1 : 0,
+             a.borda_lateral ? 1 : 0, a.borda_lateral ? "colados de lado" : "como no CAD", (unsigned)a.tof, a.alinha_contagem ? 1 : 0,
+             a.wifi_luta ? 1 : 0, ajustes_gravado() ? "" : " | valores de fabrica");
+}
+
+static void ajuste(const char* arg) {
+  while (*arg == ' ') arg++;
+  if (!*arg) { ajustesImprime(); return; }
+  if (estado_atual() != ESPERA) { Log.println(F("! pare o robo antes (stop): as opcoes so mudam em ESPERA")); return; }
+  int8_t r = AJUSTE_OK;
+  char nome[10] = ""; int v = -1;
+  if (!strcmp(arg, "padrao")) { r = ajustes_padrao(); Log.println(F("# ajustes: valores de fabrica")); }
+  else {
+    if (sscanf(arg, "%9s %d", nome, &v) != 2 || (r = ajustes_define(nome, v)) == AJUSTE_INVALIDO) {
+      Log.println(F("! uso: ajuste auto|linha|alinha|wifi 0|1 | ajuste tof 5|7 | ajuste padrao | ajuste (mostra)"));
+      return;
+    }
+    if (!strcmp(nome, "auto"))
+      Log.println(v ? F("# modo autonomo gravado: vale quando o robo for ligado de novo (para largar agora, use go)")
+                    : F("# modo autonomo desligado: o robo fica em ESPERA ate mandarem"));
+  }
+  if (r == AJUSTE_REINICIA) {
+    Log.println(F("# tof gravado: o robo reinicia em 1 s para configurar os sensores"));
+    tReinicia = millis() + 1000;
+  } else ajustesImprime();
+  streamCabecalho();                  // F e R com as opcoes novas (o painel redesenha os sensores de linha)
 }
 
 // Interpretação de uma linha de comando. Uma cópia com as letras originais é guardada para os
@@ -695,6 +732,7 @@ static void executa(char* c) {
     Log.printf("# manobra do empurrao travado: %u %s\n", antitrava_manobra(), antitrava_nome(antitrava_manobra()));
   }
 #endif
+  else if (!strcmp(c, "ajuste") || !strncmp(c, "ajuste ", 7)) ajuste(c + (c[6] ? 7 : 6));
   else if (!strcmp(c, "go"))     { estados_iniciar(); Log.println(F("# start: contagem de 5 s")); }
   else if (!strcmp(c, "stop"))   { estados_parar();   Log.println(F("# parado")); }
   else if (!strcmp(c, "s1") || !strcmp(c, "geo") || !strcmp(c, "cfg")) { modoStream = modoStream || !strcmp(c, "s1"); streamCabecalho(); }
@@ -704,7 +742,7 @@ static void executa(char* c) {
   else Log.printf("! comando desconhecido: %s (digite help)\n", c);
 }
 
-void debug_init() { ajuda(); lista(); }   // no boot aparecem os comandos e a tabela de sensores
+void debug_init() { ajuda(); lista(); ajustesImprime(); }   // no boot aparecem os comandos, a tabela de sensores e as opções do painel
 
 // O loop do sumo_esp32.ino chama esta função em toda volta. Primeiro o laço junta os caracteres
 // até formar uma linha e executa o comando; depois os modos contínuos ligados são impressos,
@@ -718,6 +756,7 @@ void debug_passo() {
     } else if (nLinha < sizeof(linha) - 1) linha[nLinha++] = ch;
   }
   uint32_t t = millis();
+  if (tReinicia && (int32_t)(t - tReinicia) >= 0) { Serial.flush(); delay(50); ESP.restart(); }
   if (modoVer    && t - tVer    >= 200) { tVer = t;    imprimeVer(); }
   if (modoId     && t - tId     >= 50)  { tId = t;     imprimeId(); }
   if (modoBorda  && t - tBorda  >= 200) { tBorda = t;  imprimeBorda(); }

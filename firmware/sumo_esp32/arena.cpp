@@ -75,7 +75,7 @@ static bool sorteiaInicio(float& x, float& y, bool opVisto, float ox, float oy) 
     x = d * cosf(a); y = d * sinf(a);
     bool ok = true;
     for (uint8_t j = 0; j < N_BORDA && ok; j++)
-      if (hypotf(BORDA[j].x - x, BORDA[j].y - y) > R_FAIXA - 10) ok = false;
+      if (hypotf(borda_x(j) - x, borda_y(j) - y) > R_FAIXA - 10) ok = false;
     // Regra da CoRA: os dois robôs começam em metades opostas, atrás das linhas Shikiri. O
     // centro então fica entre os dois: projetado na linha até o oponente, a pelo menos uns 12 cm
     // de cada robô. A folga de 6 cm cobre o erro da estimativa do oponente.
@@ -205,7 +205,7 @@ static void correcao(uint16_t cru, uint16_t confirmado) {
     for (uint8_t j = 0; j < N_BORDA; j++) {
       bool branco = (confirmado >> j) & 1, preto = !((cru >> j) & 1);
       if (!branco && !preto) continue;
-      float ex = BORDA[j].x - px[k], ey = BORDA[j].y - py[k];
+      float ex = borda_x(j) - px[k], ey = borda_y(j) - py[k];
       float r2 = ex * ex + ey * ey;
       bool naFaixa = r2 >= rFaixaIn2 && r2 <= rFaixaOut2;
       bool antes = (ultBranco >> j) & 1;

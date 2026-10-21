@@ -41,10 +41,10 @@ confere(await ate(async () => (await texto(pagina, "#status")) === "Wi-Fi conect
 confere(await ate(() => pagina.evaluate(() => S.cfg && S.estado === 0)), "recebe a linha F e o estado ESPERA");
 
 // ---- guia da configuração ----
-confere(await ate(async () => (await texto(pagina, "#tbCfg")).includes("AUTO_START")), "guia lista as chaves do config.h");
-confere((await pagina.locator("#tbCfg .no").count()) === 0 && /serve para esta situação/.test(await texto(pagina, "#cfgNota")), "demonstração com AUTO_START 0, motores 1, Wi-Fi 1: nada a mudar");
+confere(await ate(async () => (await texto(pagina, "#tbCfg")).includes("USAR_MOTORES")), "guia lista as chaves do config.h");
+confere((await pagina.locator("#tbCfg .no").count()) === 0 && /serve para esta situação/.test(await texto(pagina, "#cfgNota")), "demonstração com motores 1 e Wi-Fi 1: nada a mudar no config.h");
 await pagina.check("input[name=cfgPerfil][value=comp]");
-confere(/mudar para 1/.test(await texto(pagina, "#tbCfg")) && /AUTO_START/.test(await texto(pagina, "#cfgNota")), "competição autônoma: pede AUTO_START 1", (await texto(pagina, "#cfgNota")).slice(0, 80));
+confere(/Modo autônomo/.test(await texto(pagina, "#cfgNota")) && /Competição autônoma/.test(await texto(pagina, "#cfgNota")), "competição autônoma: manda ligar o Modo autônomo nas Opções do robô", (await texto(pagina, "#cfgNota")).slice(0, 80));
 await pagina.check("input[name=cfgPerfil][value=demo]");
 
 // ---- alinhar com o oponente ----
@@ -164,12 +164,12 @@ await pagina.keyboard.down("w"); await espera(300); await pagina.keyboard.up("w"
 confere(!temMov(/^mov /) && /luta/.test(await texto(pagina, "#term")), "robô em luta: o WASD não manda movimento e avisa no terminal");
 robo.estado = 0; await ate(() => pagina.evaluate(() => S.estado === 0));
 
-// ---- configuração com AUTO_START 1: avisos na demonstração ----
+// ---- modo autônomo ligado e motores desligados: avisos na demonstração ----
 robo.cfg = { auto: 1, motores: 0 };
 robo.recebidos.length = 0;
 robo.derrubaFluxos();
-confere(await ate(async () => /AUTO_START/.test(await texto(pagina, "#alAviso")) && /USAR_MOTORES 0/.test(await texto(pagina, "#alAviso")), 8000), "AUTO_START 1 e USAR_MOTORES 0: o cartão de alinhar avisa dos dois");
-confere(/mudar para 0/.test(await texto(pagina, "#tbCfg")) && /mudar para 1/.test(await texto(pagina, "#tbCfg")), "e o guia diz o que mudar");
+confere(await ate(async () => /Modo autônomo ligado/.test(await texto(pagina, "#alAviso")) && /USAR_MOTORES 0/.test(await texto(pagina, "#alAviso")), 8000), "modo autônomo ligado e USAR_MOTORES 0: o cartão de alinhar avisa dos dois");
+confere(/mudar para 1/.test(await texto(pagina, "#tbCfg")), "e o guia diz o que mudar no config.h");
 await pagina.click("#alLiga");
 await espera(250);
 confere(!robo.recebidos.some((c) => c.startsWith("alinha on")), "com USAR_MOTORES 0 o painel não manda alinhar");

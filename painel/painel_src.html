@@ -70,6 +70,14 @@ td.n{font-family:var(--mono);text-align:right} th.n{text-align:right}
 .wsSetas button.ativa{background:#15402f;border-color:var(--acc)}
 button[aria-pressed=true]{border-color:var(--acc);color:var(--acc)}
 .wsSl{display:block;margin-top:6px;font-size:13px} .wsSl span{display:flex;justify-content:space-between;color:var(--mut)} .wsSl input{width:100%}
+#cardAj .ajGrade{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px 16px;align-items:center}
+#cardAj .ajL b{font-size:13px} #cardAj .ajL small{display:block;margin-top:2px;font-size:12px;color:var(--mut)}
+#cardAj .ajL small.ajReg{color:var(--warn)}
+.seg{display:inline-flex} .seg button{border-radius:0;margin:0} .seg button+button{margin-left:-1px}
+.seg button:first-child{border-radius:6px 0 0 6px} .seg button:last-child{border-radius:0 6px 6px 0}
+.seg button[aria-pressed=true]{background:#15402f} .seg button:disabled{opacity:.55;cursor:not-allowed}
+#ajNota b{font-weight:600} #ajNota .av{color:var(--warn)}
+@media (max-width:700px){#cardAj .ajGrade{grid-template-columns:minmax(0,1fr)}}
 #tbCfg td{white-space:normal} #tbCfg .ok{color:var(--acc)} #tbCfg .no{color:var(--warn);font-weight:700}
 code{font:12px var(--mono);background:#0d1418;padding:0 4px;border-radius:4px}
 #nosupport{display:none;background:#2b1515;border-bottom:1px solid #6a2a2a;padding:8px 16px;color:#f3c0c0}
@@ -218,8 +226,26 @@ code{font:12px var(--mono);background:#0d1418;padding:0 4px;border-radius:4px}
   </div>
 </div>
 
+<div class="card" id="cardAj">
+  <h2>Opções do robô <span class="sp"></span><span class="mut" style="text-transform:none;letter-spacing:0;font-weight:400">gravadas na memória do robô, sem regravar o firmware</span><span class="pill" id="ajPill">sem robô</span></h2>
+  <div class="ajGrade" id="ajGrade">
+    <div class="ajL"><b>Modo autônomo</b><small>Liga o AUTO_START: ao ligar a bateria o robô espera os sensores ficarem prontos, faz a contagem de 5 s e luta sozinho, com os sensores de linha ativos desde o primeiro instante. Vale na próxima vez que o robô for ligado (não larga na hora do clique; para largar agora, use Iniciar).</small></div>
+    <div class="seg" data-aj="auto"><button data-v="0">Desligado</button><button data-v="1">Ligado</button></div>
+    <div class="ajL"><b>Sensores de linha da frente (BFE e BFD)</b><small>Como estão colados agora: no encaixe do CAD, virados para a frente, ou provisoriamente de lado, 90° anti-horário do encaixe. Muda onde o painel e a localização no dojô consideram esses dois sensores.</small></div>
+    <div class="seg" data-aj="linha"><button data-v="0">Como no CAD</button><button data-v="1">De lado (90°)</button></div>
+    <div class="ajL"><b>Sensores de oponente (ToF)</b><small>Quantos estão ligados: 5 (FE, FC, FD, LE e LD) ou 7 (com TE e TD atrás). Ao mudar, o robô reinicia sozinho em 1 s e o painel volta a conectar.</small></div>
+    <div class="seg" data-aj="tof"><button data-v="5">5 sensores</button><button data-v="7">7 sensores</button></div>
+    <div class="ajL"><b>Contagem de 5 s</b><small>Com "Gira até alinhar", o robô só gira em pulsos, sem andar, até ficar de frente para o oponente, e o botão BOOT da placa reinicia a contagem (também no meio da luta, com o modo autônomo ligado).</small><small class="ajReg">O regulamento da CoRA manda o robô ficar parado nesses 5 s: deixe em "Parado" na competição.</small></div>
+    <div class="seg" data-aj="alinha"><button data-v="0">Parado</button><button data-v="1">Gira até alinhar</button></div>
+    <div class="ajL"><b>Wi-Fi durante a luta</b><small>Com "Fica ligado", o painel acompanha a luta pelo Wi-Fi, mesmo conectando depois do start. Precisa de USAR_WIFI 1 no config.h.</small><small class="ajReg">O regulamento proíbe rádio durante a luta: use só em demonstração e testes.</small></div>
+    <div class="seg" data-aj="wifi"><button data-v="0">Desliga ao largar</button><button data-v="1">Fica ligado</button></div>
+  </div>
+  <div class="row"><button id="ajPadrao">Voltar ao padrão de fábrica</button><span class="mut">GEOMETRIA_BANCADA vale sempre 0 (robô montado).</span></div>
+  <div class="note" id="ajNota"></div>
+</div>
+
 <div class="card" id="cardCfg">
-  <h2>Configuração do robô (config.h) <span class="sp"></span>
+  <h2>Chaves do config.h (compiladas no firmware) <span class="sp"></span>
     <label class="mut" style="text-transform:none;letter-spacing:0"><input type="radio" name="cfgPerfil" value="demo" checked> demonstração</label>
     <label class="mut" style="text-transform:none;letter-spacing:0"><input type="radio" name="cfgPerfil" value="comp"> competição autônoma</label></h2>
   <div style="overflow-x:auto"><table>
@@ -354,7 +380,7 @@ function linha(l) {
   const p = l.split(",");
   switch (p[0]) {
     case "D": return dados(p.slice(1).map(Number));
-    case "G": { const i = +p[1]; S.geo[i] = {n: p[2], x: +p[3], y: +p[4], a: +p[5]}; S.geo.length = Math.max(S.geo.length, i + 1); montaTabela(); cena3d(); return; }
+    case "G": { const i = +p[1]; if (i === 0) S.geo.length = 0; S.geo[i] = {n: p[2], x: +p[3], y: +p[4], a: +p[5]}; S.geo.length = Math.max(S.geo.length, i + 1); montaTabela(); cena3d(); return; }
     case "I": S.ok[+p[1]] = p[2] === "1"; return;
     case "C": S.cal[+p[1]] = {g: +p[2], o: +p[3], nvs: p[4] === "1"}; return;
     case "B": S.corpo = {f:+p[1], t:+p[2], e:+p[3], d:+p[4], h:+p[5], lente:+p[6], nome:p[7] || ""}; $("pGeo").textContent = "geometria: " + S.corpo.nome; cena3d(); return;
@@ -373,16 +399,19 @@ function linha(l) {
   }
   if (l.startsWith("> ")) { log(l, "a"); acao(l.slice(2)); }
   else if (l.startsWith("! ")) { log(l, "e"); if (/cancelad|esgotado|nada foi gravado|Nada gravado/.test(l)) acao(null); }
-  else if (l.startsWith("# ")) { log(l, "i"); if (/CALIBRADO/.test(l)) acao(null); }
+  else if (l.startsWith("# ")) { log(l, "i"); if (/CALIBRADO/.test(l)) acao(null); if (/o robo reinicia em 1 s/.test(l)) ajReinicia = true; if (/ROBO SUMO \| ESP32/.test(l)) roboReiniciou(); }
   else log(l);
 }
-// F,usarMotores,usarWifi,autoStart,usarBorda,qtdTof,bancada,wifiLigado: chaves do config.h que o firmware está usando
+// F,usarMotores,usarWifi,autoStart,usarBorda,qtdTof,bancada,wifiLigado,linhaLateral,alinhaContagem,wifiLuta
+// Os quatro primeiros e a bancada são chaves do config.h compiladas no firmware; autoStart, qtdTof, linhaLateral, alinhaContagem e wifiLuta são
+// as opções do painel gravadas na memória do robô (ajustes.cpp). Firmware antigo manda só os 7 primeiros campos.
 function cfgFirmware(v) {
-  S.cfg = {motores: v[0] === "1", wifi: v[1] === "1", auto: v[2] === "1", borda: v[3] === "1", tof: +v[4], bancada: v[5] === "1", radio: v[6] === "1"};
-  log(`[painel] firmware: USAR_MOTORES ${+S.cfg.motores} · USAR_WIFI ${+S.cfg.wifi} · AUTO_START ${+S.cfg.auto} · USAR_BORDA ${+S.cfg.borda} · QTD_TOF ${S.cfg.tof} · GEOMETRIA_BANCADA ${+S.cfg.bancada}`, "u");
-  if (S.cfg.auto) log("[painel] AUTO_START 1: o robô começa a lutar sozinho depois de ligar. Para testes parado, ponha AUTO_START 0 no config.h.", "e");
+  S.cfg = {motores: v[0] === "1", wifi: v[1] === "1", auto: v[2] === "1", borda: v[3] === "1", tof: +v[4], bancada: v[5] === "1", radio: v[6] === "1",
+           linha: v[7] === "1", alinhaC: v[8] === "1", wifiLuta: v[9] === "1", opcoes: v.length >= 10};
+  log(`[painel] firmware: USAR_MOTORES ${+S.cfg.motores} · USAR_WIFI ${+S.cfg.wifi} · USAR_BORDA ${+S.cfg.borda} · opções gravadas: modo autônomo ${+S.cfg.auto}, ${S.cfg.tof} ToF, linha da frente ${S.cfg.linha ? "de lado" : "como no CAD"}, contagem ${S.cfg.alinhaC ? "gira até alinhar" : "parada"}, Wi-Fi na luta ${S.cfg.wifiLuta ? "ligado" : "desliga ao largar"}`, "u");
+  if (S.cfg.auto) log("[painel] Modo autônomo ligado: quando o robô for ligado, ele faz a contagem de 5 s e luta sozinho. Para demonstração parada, desligue em Opções do robô.", "e");
   if (!S.cfg.motores) log("[painel] USAR_MOTORES 0: os comandos de movimento não acionam as rodas. Ponha USAR_MOTORES 1 no config.h para testar com motores.", "u");
-  cfgUi(); alUi();
+  cfgUi(); alUi(); ajUi();
 }
 function dados(n) {
   const k = N();
@@ -719,7 +748,7 @@ function alUi() {
   $("alPulsos").textContent = f ? AL.pulsos + " pulsos · " + AL.resta + " s" : "-";
   const av = [];
   if (S.cfg && !S.cfg.motores) av.push("USAR_MOTORES 0 no firmware: as rodas não giram. Ponha USAR_MOTORES 1 no config.h e grave de novo.");
-  if (S.cfg && S.cfg.auto) av.push("AUTO_START 1: o robô pode largar sozinho para a luta. Para a demonstração, ponha AUTO_START 0 no config.h.");
+  if (S.cfg && S.cfg.auto) av.push("Modo autônomo ligado: ao ligar de novo, o robô larga sozinho para a luta. Para a demonstração, desligue em Opções do robô.");
   if (S.estado > 0) av.push("O robô está em " + (S.estados[S.estado] || "luta") + ": o alinhamento só funciona em ESPERA. Envie stop.");
   $("alAviso").textContent = av.join(" ");
   $("alAviso").style.color = av.length ? "var(--warn)" : "";
@@ -832,6 +861,49 @@ document.querySelectorAll("#cardWasd input[type=range]").forEach(r => r.addEvent
 $("alLiga").onclick = alLiga; $("alPara").onclick = () => enviar("alinha off");
 setInterval(alUi, 500);
 
+// ============================== OPÇÕES DO ROBÔ (gravadas na memória do robô) ==============================
+// O firmware (ajustes.cpp) guarda na NVS cinco opções: auto, linha, tof, alinha e wifi. O comando é "ajuste NOME VALOR" (só em ESPERA)
+// e o robô responde reenviando o cabeçalho, de onde a linha F traz o valor em uso. Mudar a quantidade de ToF reinicia o robô.
+const AJ_CAMPO = {auto: "auto", linha: "linha", tof: "tof", alinha: "alinhaC", wifi: "wifiLuta"};
+let ajReinicia = false;                // o painel pediu uma troca de ToF: o robô reinicia e o cabeçalho precisa ser pedido de novo
+function ajValor(nome) { const c = S.cfg; return c ? (nome === "tof" ? c.tof : +c[AJ_CAMPO[nome]]) : null; }
+function ajUi() {
+  const c = S.cfg, parado = !(S.estado > 0), pode = conectado && !!c && c.opcoes && parado;
+  document.querySelectorAll("#cardAj .seg").forEach(g => g.querySelectorAll("button").forEach(b => {
+    b.setAttribute("aria-pressed", String(c ? ajValor(g.dataset.aj) === +b.dataset.v : false));
+    b.disabled = !pode;
+  }));
+  $("ajPadrao").disabled = !pode;
+  const pl = $("ajPill");
+  pl.textContent = !conectado ? "sem robô" : (c && c.opcoes ? "no robô" : "firmware sem opções"); pl.className = "pill" + (conectado && c && c.opcoes ? " on" : "");
+  const av = [];
+  if (!conectado) av.push("Conecte ao robô (USB ou Wi-Fi) para ver e mudar as opções.");
+  else if (c && !c.opcoes) av.push("Este firmware é anterior às opções do painel: grave o firmware atual uma vez pela IDE do Arduino.");
+  else if (!parado) av.push("O robô está em " + (S.estados[S.estado] || "luta") + ": as opções só mudam em ESPERA. Envie stop.");
+  if (conectado && c && c.opcoes) {
+    if (c.wifiLuta && !c.wifi) av.push("Wi-Fi na luta: o firmware está com USAR_WIFI 0, então não existe rádio. Ponha USAR_WIFI 1 no config.h e grave uma vez.");
+    if (c.alinhaC) av.push("Contagem girando: lembre de voltar para Parado na competição (regulamento da CoRA).");
+    if (c.wifiLuta && c.wifi) av.push("Wi-Fi na luta ligado: o regulamento proíbe rádio durante a luta, use só em demonstração.");
+  }
+  $("ajNota").innerHTML = av.map(t => `<div class="av">${esc(t)}</div>`).join("") +
+    (conectado && c && c.opcoes && c.auto ? `<div>Modo autônomo ligado: da próxima vez que o robô for ligado ele espera os sensores, faz a contagem de 5 s e luta sozinho${c.wifi ? "; com o Wi-Fi do robô ainda dá para acompanhar pelo painel." : "."}</div>` : "");
+}
+function ajEscolhe(nome, v) {
+  if (!conectado) { log("[painel] conecte ao robô para mudar as opções", "e"); return; }
+  if (S.estado > 0) { log("[painel] o robô não está em ESPERA: envie stop antes de mudar as opções", "e"); return; }
+  if (ajValor(nome) === v) return;
+  if (nome === "tof") log("[painel] trocando a quantidade de ToF: o robô vai reiniciar em 1 s", "u");
+  enviar(`ajuste ${nome} ${v}`);
+}
+function roboReiniciou() {
+  if (!ajReinicia || modo !== "usb") return;       // pelo Wi-Fi o EventSource reconecta sozinho e o onopen pede o cabeçalho
+  ajReinicia = false;
+  setTimeout(() => { if (conectado) enviar("s1", true); }, 1800);
+}
+document.querySelectorAll("#cardAj .seg button").forEach(b => b.onclick = () => ajEscolhe(b.parentElement.dataset.aj, +b.dataset.v));
+$("ajPadrao").onclick = () => { if (conectado && !(S.estado > 0)) enviar("ajuste padrao"); };
+setInterval(ajUi, 700);
+
 // ============================== GUIA DA CONFIGURAÇÃO (config.h) ==============================
 // A linha F do firmware diz o que está compilado no robô. A tabela compara com o que cada situação pede e diz o que mudar.
 function cfgUi() {
@@ -843,20 +915,17 @@ function cfgUi() {
   const L = [
     ["USAR_MOTORES", +c.motores, 1, [1], "1 liga as rodas. Com 0 o robô não anda: mov, pwm, alinha e o WASD não acionam os motores (modo da bancada sem bateria)."],
     ["USAR_WIFI", +c.wifi, dem ? 1 : 0, dem ? (usb ? [0, 1] : [1]) : [0, 1], dem ? "1 para o painel falar com o robô sem cabo. Pela USB pode ficar 0." : "0 deixa o robô como o de competição, sem o rádio. Com 1 o rádio ainda desliga sozinho ao começar a luta sem painel conectado."],
-    ["AUTO_START", +c.auto, dem ? 0 : 1, [dem ? 0 : 1], dem ? "0 para o robô ficar parado em ESPERA até você mandar (alinha, WASD, go). Com 1 ele largaria sozinho para a luta depois de ligar." : "1 para largar sozinho, sem botão de início, depois de ligar a bateria (contagem de 5 s e luta). Fica 0 enquanto testa no PC."],
     ["USAR_BORDA", +c.borda, 1, [1], "1 liga os sensores de linha (borda). Obrigatório para lutar no dojô."],
-    ["QTD_TOF", c.tof, c.tof, [5, 7], "quantidade de sensores de oponente ligados: 5 (FE, FC, FD, LE, LD) ou 7. Precisa ser igual ao que está montado."],
-    ["GEOMETRIA_BANCADA", +c.bancada, +c.bancada, [0, 1], "0 = posições dos sensores do robô montado (o do dojô); 1 = as da bancada. Deve refletir como o robô está montado agora."],
   ];
   tb.innerHTML = L.map(([k, v, ideal, ok, para]) => {
     const bom = ok.includes(v), s = bom ? '<span class="ok">✔ certo</span>' : `<span class="no">mudar para ${ideal}</span>`;
     return `<tr><td><code>${k}</code></td><td class="n">${v}</td><td class="n">${ok.length > 1 && bom ? ok.join(" ou ") : ideal}</td><td>${s}</td><td>${esc(para)}</td></tr>`;
   }).join("") + `<tr><td><code>TOF_ALCANCE_LATERAL_MM</code></td><td class="n">${S.alcLat}</td><td class="n">80</td><td><span class="mut">informativo</span></td><td>alcance dos ToF laterais (LE e LD). O alinhamento não depende dele: o robô gira até um ToF da frente enxergar.</td></tr>
-    <tr><td>rádio Wi-Fi agora</td><td class="n">${c.radio ? "ligado" : "desligado"}</td><td class="n">-</td><td><span class="mut">informativo</span></td><td>desliga sozinho ao sair da ESPERA sem painel conectado (WIFI_DESLIGA_SEM_PAINEL 1); o comando <code>wifi off</code> desliga na hora.</td></tr>`;
+    <tr><td>rádio Wi-Fi agora</td><td class="n">${c.radio ? "ligado" : "desligado"}</td><td class="n">-</td><td><span class="mut">informativo</span></td><td>desliga sozinho ao sair da ESPERA sem painel conectado (WIFI_DESLIGA_SEM_PAINEL 1), a não ser com a opção Wi-Fi durante a luta em "Fica ligado"; o comando <code>wifi off</code> desliga na hora.</td></tr>`;
   const errado = L.filter(([k, v, i, ok]) => !ok.includes(v)).map(l => l[0]);
   nota.innerHTML = (errado.length ? `<b style="color:var(--warn)">Ajuste no config.h: ${errado.join(", ")}.</b> ` : '<b style="color:var(--acc)">A configuração do robô serve para esta situação.</b> ') +
-    (dem ? "Demonstração: o robô fica em ESPERA e quem manda é o painel (alinhar com o oponente, WASD, calibração). Depois de mudar o config.h, grave de novo pela IDE do Arduino."
-         : "Competição autônoma: grave com AUTO_START 1 (e USAR_WIFI 0), desligue o cabo e ligue a bateria; o robô espera os sensores ficarem prontos, faz a contagem de 5 s e luta sozinho. Antes, rode a calibração da pista e confira a borda.");
+    (dem ? "Demonstração: o robô fica em ESPERA e quem manda é o painel (alinhar com o oponente, WASD, calibração), com o Modo autônomo desligado nas Opções do robô. Depois de mudar uma chave do config.h, grave de novo pela IDE do Arduino."
+         : "Competição autônoma: grave com USAR_WIFI 0, ligue o Modo autônomo nas Opções do robô (sem regravar), deixe a contagem Parada e o Wi-Fi desligando ao largar, desligue o cabo e ligue a bateria; o robô espera os sensores ficarem prontos, faz a contagem de 5 s e luta sozinho. Antes, rode a calibração da pista e confira a borda.");
 }
 document.querySelectorAll("input[name=cfgPerfil]").forEach(r => r.onchange = cfgUi);
 
@@ -1845,7 +1914,7 @@ document.addEventListener("keydown", e => {
 $("cTopo").onclick = () => vista("topo"); $("cPersp").onclick = () => vista("persp"); $("cLado").onclick = () => vista("lado");
 if ("serial" in navigator) navigator.serial.addEventListener("disconnect", () => { if (conectado && modo === "usb") { log("[painel] cabo USB desconectado", "e"); desconectar(); } });
 
-montaTabela(); montaBorda(); cena3d(); vista("persp"); tam2d(); painel(); painelBorda(); calUi(); alUi(); wsUi(); cfgUi();
+montaTabela(); montaBorda(); cena3d(); vista("persp"); tam2d(); painel(); painelBorda(); calUi(); alUi(); wsUi(); cfgUi(); ajUi();
 (function loop() { desenha2d(); desenha3d(); requestAnimationFrame(loop); })();
 log("[painel] Pronto. Conecte pela USB (Chrome ou Edge) ou pelo Wi-Fi do robô (firmware com USAR_WIFI 1), ou use o modo demo.", "u");
 </script>

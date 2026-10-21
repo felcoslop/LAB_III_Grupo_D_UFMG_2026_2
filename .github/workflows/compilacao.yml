@@ -4,9 +4,11 @@
 # linha 3.x do core da Espressif, com 5 e com 7 sensores de oponente, com os motores desligados
 # como na bancada e também ligados, e com o WiFi opcional ligado), os testes da cinemática, da
 # máquina de estados, da partida automática, do servidor WiFi, da calibração da borda, do alinhamento
-# com o oponente (demonstração), da localização no dojô e do PWM dos motores rodando no computador, o
-# painel num navegador de verdade (Chromium sem tela) contra um robô de mentira (conexão pelo WiFi,
-# assistente de calibração da pista, alinhar, controle WASD e guia da configuração), a conta da
+# com o oponente (demonstração), das opções gravadas na memória do robô (modo autônomo, linha da
+# frente de lado, 5 ou 7 sensores, contagem e WiFi na luta), da contagem de 5 s com o botão BOOT, da
+# localização no dojô e do PWM dos motores rodando no computador, o painel num navegador de verdade
+# (Chromium sem tela) contra um robô de mentira (conexão pelo WiFi, assistente de calibração da pista,
+# alinhar, controle WASD, guia da configuração e opções do robô), a conta da
 # calibração da pista, uma bateria de lutas
 # simuladas com o firmware de verdade (nenhuma queda própria e nenhuma perseguição longa de
 # objeto fora do dojô) e a conferência de que o painel/painel_sumo.html, a página do combate
@@ -122,6 +124,17 @@ jobs:
           g++ -std=c++11 -Wall -Wextra -Werror $INC teste/unidade/teste_alinha.cpp \
             $FW/estados.cpp $FW/cinematica.cpp $FW/arena.cpp $FW/chave.cpp $FW/antitrava.cpp -o teste_alinha
           ./teste_alinha
+      # opções do robô gravadas na NVS (comando ajuste do painel): valores aceitos, persistência e reinício do ToF
+      - name: Opções do robô (ajustes na memória)
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror $INC teste/unidade/teste_ajustes.cpp $FW/ajustes.cpp -o teste_ajustes
+          ./teste_ajustes
+      # contagem de 5 s: BOOT reinicia (também no meio da luta no modo autônomo), gira sem andar e só luta depois
+      - name: Contagem de 5 s (BOOT, alinhar girando e modo autônomo)
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror $INC teste/unidade/teste_contagem.cpp \
+            $FW/estados.cpp $FW/cinematica.cpp $FW/arena.cpp $FW/chave.cpp $FW/antitrava.cpp -o teste_contagem
+          ./teste_contagem
       # borda: limiar explícito da calibração de pista, janelas de mínimo e máximo, gravação na NVS de mentira
       - name: Borda (limiar de pista e janelas)
         run: |
@@ -260,12 +273,12 @@ jobs:
         run: npm install --no-save --no-package-lock --prefix teste/painel playwright-core@1.56.1
       # a saída de cada teste vai também para anotações (::error::) e para o resumo do job, para a causa de uma
       # falha aparecer sem abrir o log
-      - name: Painel no navegador (conexão, calibração e demonstração)
+      - name: Painel no navegador (conexão, calibração, demonstração e opções)
         run: |
           export CHROME_PATH="$(command -v google-chrome)"
           echo "Chrome: $CHROME_PATH $("$CHROME_PATH" --version 2>&1 | head -1)"
           falhou=0
-          for t in smoke_wifi smoke_calibracao smoke_demo; do
+          for t in smoke_wifi smoke_calibracao smoke_demo smoke_opcoes; do
             set +e
             node "teste/painel/$t.mjs" > "saida_$t.txt" 2>&1
             codigo=$?

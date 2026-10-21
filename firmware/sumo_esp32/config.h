@@ -35,10 +35,12 @@ struct CfgToF {
   int16_t     offset_mm;
 };
 
-// 1 escolhe a geometria da bancada (protoboard 165 x 54,7 mm), 0 escolhe o robô montado (STL)
+// GEOMETRIA_BANCADA vale 0: o robô montado (STL do chassi) é a única geometria em uso. O valor 1 (bancada,
+// protoboard 165 x 54,7 mm) sobrou só porque os geradores dos gabaritos em doc/pdf/ leem a tabela da bancada
+// abaixo; não grave o robô com 1. O painel não mostra mais essa chave.
 // O valor também pode vir da compilação (-DGEOMETRIA_BANCADA=0), como o simulador de luta faz.
 #ifndef GEOMETRIA_BANCADA
-#define GEOMETRIA_BANCADA 1
+#define GEOMETRIA_BANCADA 0
 #endif
 
 // Quantidade de sensores de oponente: 5 (montagem original) ou 7, com um par a mais atrás do eixo
@@ -50,7 +52,11 @@ struct CfgToF {
 // sem piorar a precisão na frente (detalhes no README e no guia de 7 sensores).
 // O par novo fica no fim da tabela para os 5 sensores antigos manterem o mesmo endereço, cor no
 // painel e calibração gravada.
-// O valor também pode vir da compilação (-DQTD_TOF=7), como o CI faz.
+// QTD_TOF é só o valor de fábrica: a quantidade em uso (N_TOF) é uma das opções do painel, gravada na memória
+// do robô (comando "ajuste tof 5|7", ajustes.cpp), então trocar de 5 para 7 não pede regravar o firmware. As
+// tabelas abaixo trazem sempre os sete sensores; com 5, os dois últimos (TE e TD) ficam fora de tudo e o XSHUT
+// deles é mantido em LOW, para um sensor montado e desligado não atender no endereço padrão.
+// O valor de fábrica também pode vir da compilação (-DQTD_TOF=7), como o CI faz.
 // Com 7 sensores, o I2C a 100 kHz fica ocupado boa parte do tempo; na placa definitiva, com
 // fios curtos, o I2C_CLOCK_HZ pode subir para 400000.
 #ifndef QTD_TOF
@@ -59,6 +65,17 @@ struct CfgToF {
 #if QTD_TOF != 5 && QTD_TOF != 7
 #error "QTD_TOF precisa ser 5 ou 7"
 #endif
+
+// Opções que o painel muda sem recompilar (ajustes.cpp grava na NVS e lê no boot). O valor de fábrica de cada
+// uma vem das chaves deste arquivo (QTD_TOF, AUTO_START); as outras começam desligadas.
+struct Ajustes {
+  uint8_t tof;               // sensores de oponente em uso: 5 ou 7
+  bool    autonomo;          // partida automática depois de ligar (AUTO_START)
+  bool    borda_lateral;     // BFE e BFD colados de lado, 90 graus do encaixe do CAD (BORDA_LATERAL_*)
+  bool    alinha_contagem;   // durante a contagem de 5 s o robô só gira até ficar de frente para o oponente
+  bool    wifi_luta;         // o rádio fica ligado depois do start, mesmo sem painel conectado
+};
+inline Ajustes& ajustes();
 
 #if GEOMETRIA_BANCADA
 // Protoboard 165 x 54,7 x 10,2 mm com a linha 63 na frente; a origem é o centro dela.
@@ -78,10 +95,8 @@ static const CfgToF TOF[] = {
   {  "LD",    5,    0x34,     -2,  -30,  -90,    0  },   // meio da lateral direita
   // XSHUT conforme a pinagem da placa nova (Lab3-Liga). O GPIO 5 é pino de boot e precisa estar
   // em nível alto no boot, que é o nível do XSHUT com o sensor ligado (pull-up do módulo).
-#if QTD_TOF == 7
-  {  "TE",   16,    0x35,    -80,   25,  160,    0  },   // quina traseira esquerda (prevista)
-  {  "TD",    4,    0x36,    -80,  -25, -160,    0  },   // quina traseira direita (prevista)
-#endif
+  {  "TE",   16,    0x35,    -80,   25,  160,    0  },   // quina traseira esquerda (prevista), só com 7 sensores
+  {  "TD",    4,    0x36,    -80,  -25, -160,    0  },   // quina traseira direita (prevista), só com 7 sensores
 };
 // contorno do corpo em mm a partir da origem e altura das lentes, usados pelo painel
 #define CORPO_FRENTE_MM   82.5f
@@ -116,10 +131,8 @@ static const CfgToF TOF[] = {
   {  "FC",   19,    0x32,     83,     0,    0,    0  },   // face da frente, meio, decide o ataque
   {  "FD",   18,    0x33,     77,   -34,  -17,    0  },   // face da frente, lado direito
   {  "LD",    5,    0x34,     46,   -70,  -90,    0  },   // lateral direita, à frente do eixo
-#if QTD_TOF == 7
-  {  "TE",   16,    0x35,    -30,    66,  160,    0  },   // atrás da roda esquerda, para trás
-  {  "TD",    4,    0x36,    -30,   -66, -160,    0  },   // atrás da roda direita, para trás
-#endif
+  {  "TE",   16,    0x35,    -30,    66,  160,    0  },   // atrás da roda esquerda, para trás (só com 7 sensores)
+  {  "TD",    4,    0x36,    -30,   -66, -160,    0  },   // atrás da roda direita, para trás (só com 7 sensores)
 };
 #define CORPO_FRENTE_MM   118.0f   // ponta da rampa
 #define CORPO_TRAS_MM     34.0f    // face de trás da base
@@ -129,7 +142,8 @@ static const CfgToF TOF[] = {
 #define LENTE_ALTURA_MM   24.0f    // lentes da frente e das laterais; as do TE e do TD ficam a 29 e 30 mm
 #define GEOMETRIA_NOME    "ROBO"
 #endif
-#define N_TOF  (sizeof(TOF) / sizeof(TOF[0]))   // quantidade de ToF, no máximo 16
+#define TOF_MAX (sizeof(TOF) / sizeof(TOF[0]))  // sensores da tabela (7); tamanho dos vetores por sensor
+#define N_TOF   (ajustes().tof)                 // sensores em uso agora (5 ou 7), escolhidos no painel
 
 #define TOF_TIMING_US     20000   // 20 ms por medida no perfil de oponente claro (o escuro usa 33 ms)
 #define DOHYO_DIAMETRO_MM 770     // dojô da CoRA: 77 cm, a faixa branca faz parte dele
@@ -254,6 +268,22 @@ static const CfgBorda BORDA[] = {
 #endif
 #define N_BORDA  (sizeof(BORDA) / sizeof(BORDA[0]))
 
+// Sensores de linha da frente (BFE e BFD) colados de lado: provisoriamente o grupo colou os dois com cola quente
+// virados para as laterais, 90 graus anti-horário do encaixe do CAD (o par infravermelho, que no CAD fica na ponta
+// da frente da placa, passa para a ponta de fora). O painel escolhe entre as duas posições (comando "ajuste linha
+// 0|1"). A posição abaixo é uma estimativa: placa de 38 mm girada 90 graus em torno do centro dela, com o par
+// infravermelho a 19 mm do centro, e vale para os dois lados (o y muda de sinal). Só a localização no dojô (arena.cpp)
+// e o desenho do painel usam esses números; a fuga da borda continua decidida por lado e frente. Meça a posição
+// colada e corrija aqui se a diferença passar de uns 5 mm.
+#define BORDA_LATERAL_X_MM  77
+#define BORDA_LATERAL_Y_MM  81
+inline int16_t borda_x(uint8_t i) {
+  return (ajustes().borda_lateral && BORDA[i].frente) ? (int16_t)BORDA_LATERAL_X_MM : BORDA[i].x;
+}
+inline int16_t borda_y(uint8_t i) {
+  return (ajustes().borda_lateral && BORDA[i].frente) ? (int16_t)(-BORDA[i].lado * BORDA_LATERAL_Y_MM) : BORDA[i].y;
+}
+
 // Limiar fixo usado enquanto não existe calibração ("calborda"). No TCRT5000 o branco lê
 // tensão baixa. Medida na bancada (01/10, sensores a 3 mm do chão, 3,3 V): preto entre 1070
 // e 1530 mV e branco perto de 260 mV. O valor antigo de 1500 mV caía dentro do preto.
@@ -336,6 +366,19 @@ static const CfgBorda BORDA[] = {
 #define AUTO_START        0
 #endif
 #define AUTO_START_ESPERA_MS 1000   // sensores prontos há esse tempo antes de pedir o start
+// AUTO_START é o valor de fábrica do "modo autônomo" do painel (comando "ajuste auto 0|1", gravado na NVS): o painel liga e
+// desliga sem regravar o firmware, e a escolha vale a partir da próxima vez que o robô ligar (não larga na hora do clique).
+// Os outros três ajustes do painel começam desligados:
+//   borda_lateral    BFE e BFD colados de lado, no lugar do encaixe do CAD (posição BORDA_LATERAL_* abaixo)
+//   alinha_contagem  na contagem de 5 s o robô só gira em pulsos até ficar de frente para o oponente, e o botão BOOT
+//                    reinicia a contagem (também no meio da luta, com o modo autônomo ligado). ATENÇÃO: o regulamento
+//                    da CoRA manda o robô ficar parado nos 5 s; use na demonstração e desmarque na competição.
+//   wifi_luta        o rádio continua ligado depois do start sem painel conectado, para acompanhar a luta pelo Wi-Fi
+//                    (o regulamento proíbe rádio durante a luta; só para demonstração e testes)
+inline Ajustes& ajustes() {
+  static Ajustes a = { QTD_TOF, AUTO_START != 0, false, false, false };
+  return a;
+}
 // Demonstração de alinhamento (comando "alinha on", botão "Alinhar com o oponente" do painel). Com o robô parado em
 // ESPERA ele só gira no eixo, em pulsos curtos separados por pausas em que os ToF medem sem o robô girando, até o
 // oponente ficar a no máximo ALINHA_TOL_DEG do centro, e então fica parado e alinhado (a linha Z do painel mostra
