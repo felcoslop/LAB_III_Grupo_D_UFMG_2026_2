@@ -50,6 +50,8 @@ confere(await ate(() => robo.recebidos.includes("s1")), "pede o cabeçalho (s1) 
 confere(await ate(() => pagina.evaluate(() => S.geo.length === 5 && S.bg.length === 4)), "recebe a geometria dos 5 ToF e dos 4 sensores de borda");
 confere(await ate(() => pagina.evaluate(() => S.tgt && S.tgt.visto === true && S.tgt.ang === 15)), "os quadros D chegam e viram oponente a 15 graus");
 confere(await ate(async () => /^Wi-Fi · \d+ Hz/.test(await pagina.textContent("#pRede"))), "o indicador de dados mostra Wi-Fi e a taxa");
+// a taxa é calculada uma vez por segundo, e a primeira janela pega só parte de um segundo de quadros: espera uma janela inteira
+await ate(() => pagina.evaluate(() => rede.hz > 20), 5000);
 const hz = await pagina.evaluate(() => rede.hz);
 confere(hz > 20, "taxa de quadros perto de 50 Hz", hz.toFixed(0) + " Hz");
 confere(await pagina.evaluate(() => S.cfg && S.cfg.motores && S.cfg.wifi && !S.cfg.auto && S.cfg.tof === 5), "a linha F (config.h do firmware) é lida");
