@@ -53,7 +53,7 @@ static void ajuda() {
   Log.println(F("# mov V W MS [F]     teste parado: V mm/s e W graus/s por MS ms (ate 3000); F: 1 ignora a linha, 2 sem texto, 3 os dois"));
   Log.println(F("# pwm E D MS [F]     teste dos fios: E% e D% de PWM (-100 a 100) por MS ms; F como no mov"));
   Log.println(F("# alinha on [S]      demo: so gira em pulsos ate alinhar com o oponente (S segundos, padrao 60); alinha off para"));
-  Log.println(F("# ajuste             opcoes do painel gravadas no robo: auto, linha, tof, alinha, wifi (ajuste NOME VALOR | ajuste padrao)"));
+  Log.println(F("# ajuste             opcoes do painel gravadas no robo: auto, linha, tof, alinha, wifi, leve (ajuste NOME VALOR | ajuste padrao)"));
   Log.println(F("# estrategia rush|flank|fan|chave   escolhe a estrategia (chave = segue a DIP)"));
   Log.println(F("# perfil claro|escuro|chave         perfil do oponente (chave = segue a DIP 4)"));
   Log.println(F("# arena              localizacao no dojo: centro, incerteza e espaco livre"));
@@ -462,7 +462,7 @@ static void bordaLim(const char* arg) {
 //   E,nome0,nome1,...           nomes dos estados
 //   K,alcance,map...            mantido para ser compatível com o radar antigo
 //   X,bayes,ladoOponente,alcancePreto,massaMin     parâmetros do rastreador
-//   F,usarMotores,usarWifi,autoStart,usarBorda,qtdTof,bancada,wifiLigado,linhaLateral,alinhaContagem,wifiLuta
+//   F,usarMotores,usarWifi,autoStart,usarBorda,qtdTof,bancada,wifiLigado,linhaLateral,alinhaContagem,wifiLuta,wifiLeve
 //     (chaves do config.h compiladas no firmware e, de autoStart em diante, as opções do painel gravadas na NVS: ajustes.h)
 // Dados enviados a cada STREAM_MS:
 //   D,mm0..mmN,bruto0..brutoN,visto,ang*10,dist,conf,mascara,cx,cy,acao,lado,estado,saude,millis,
@@ -501,8 +501,8 @@ static void streamCabecalho() {
   Log.printf("X,%d,%d,%d,%.2f,%d,%d\n", oponente_bayes() ? 1 : 0, OPONENTE_LADO_MM, ALCANCE_PRETO_MM, FUSAO_MASSA_MIN,
                 TOF_ALCANCE_LATERAL_MM, TOF_ALCANCE_TRAS_MM);
   const Ajustes& aj = ajustes();
-  Log.printf("F,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", USAR_MOTORES, USAR_WIFI, aj.autonomo ? 1 : 0, USAR_BORDA, (int)aj.tof, GEOMETRIA_BANCADA,
-             telemetria_wifi_ligado() ? 1 : 0, aj.borda_lateral ? 1 : 0, aj.alinha_contagem ? 1 : 0, aj.wifi_luta ? 1 : 0);
+  Log.printf("F,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", USAR_MOTORES, USAR_WIFI, aj.autonomo ? 1 : 0, USAR_BORDA, (int)aj.tof, GEOMETRIA_BANCADA,
+             telemetria_wifi_ligado() ? 1 : 0, aj.borda_lateral ? 1 : 0, aj.alinha_contagem ? 1 : 0, aj.wifi_luta ? 1 : 0, aj.wifi_leve ? 1 : 0);
 }
 
 // Linha M com o mapa de probabilidade comprimido pelo rastreador.cpp.
@@ -606,9 +606,9 @@ static uint32_t tReinicia = 0;       // diferente de zero: reinicia o ESP32 ness
 
 static void ajustesImprime() {
   const Ajustes& a = ajustes();
-  Log.printf("# ajustes (gravados no robo): auto %d | linha %d (%s) | tof %u | alinha %d | wifi %d%s\n", a.autonomo ? 1 : 0,
+  Log.printf("# ajustes (gravados no robo): auto %d | linha %d (%s) | tof %u | alinha %d | wifi %d | leve %d%s\n", a.autonomo ? 1 : 0,
              a.borda_lateral ? 1 : 0, a.borda_lateral ? "colados de lado" : "como no CAD", (unsigned)a.tof, a.alinha_contagem ? 1 : 0,
-             a.wifi_luta ? 1 : 0, ajustes_gravado() ? "" : " | valores de fabrica");
+             a.wifi_luta ? 1 : 0, a.wifi_leve ? 1 : 0, ajustes_gravado() ? "" : " | valores de fabrica");
 }
 
 static void ajuste(const char* arg) {
@@ -620,7 +620,7 @@ static void ajuste(const char* arg) {
   if (!strcmp(arg, "padrao")) { r = ajustes_padrao(); Log.println(F("# ajustes: valores de fabrica")); }
   else {
     if (sscanf(arg, "%9s %d", nome, &v) != 2 || (r = ajustes_define(nome, v)) == AJUSTE_INVALIDO) {
-      Log.println(F("! uso: ajuste auto|linha|alinha|wifi 0|1 | ajuste tof 5|7 | ajuste padrao | ajuste (mostra)"));
+      Log.println(F("! uso: ajuste auto|linha|alinha|wifi|leve 0|1 | ajuste tof 5|7 | ajuste padrao | ajuste (mostra)"));
       return;
     }
     if (!strcmp(nome, "auto"))

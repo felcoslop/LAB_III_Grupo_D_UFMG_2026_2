@@ -239,6 +239,8 @@ code{font:12px var(--mono);background:#0d1418;padding:0 4px;border-radius:4px}
     <div class="seg" data-aj="alinha"><button data-v="0">Parado</button><button data-v="1">Gira até alinhar</button></div>
     <div class="ajL"><b>Wi-Fi durante a luta</b><small>Com "Fica ligado", o painel acompanha a luta pelo Wi-Fi, mesmo conectando depois do start. Precisa de USAR_WIFI 1 no config.h.</small><small class="ajReg">O regulamento proíbe rádio durante a luta: use só em demonstração e testes.</small></div>
     <div class="seg" data-aj="wifi"><button data-v="0">Desliga ao largar</button><button data-v="1">Fica ligado</button></div>
+    <div class="ajL"><b>Telemetria pelo Wi-Fi</b><small>Com "Leve", o robô manda pelo Wi-Fi só o essencial: leituras a 10 Hz, sem o mapa de probabilidade (uns 2 KB/s em vez de uns 13 KB/s). O rádio do ESP32 sobra para o controle remoto (WASD), os ajustes e o alinhamento com o oponente, com menos atraso. "Completa" manda tudo a 50 Hz. A USB é sempre completa. Vale na hora.</small></div>
+    <div class="seg" data-aj="leve"><button data-v="1">Leve</button><button data-v="0">Completa</button></div>
   </div>
   <div class="row"><button id="ajPadrao">Voltar ao padrão de fábrica</button><span class="mut">GEOMETRIA_BANCADA vale sempre 0 (robô montado).</span></div>
   <div class="note" id="ajNota"></div>
@@ -1511,13 +1513,14 @@ function linha(l) {
   else if (l.startsWith("# ")) { log(l, "i"); if (/CALIBRADO/.test(l)) acao(null); if (/o robo reinicia em 1 s/.test(l)) ajReinicia = true; if (/ROBO SUMO \| ESP32/.test(l)) roboReiniciou(); }
   else log(l);
 }
-// F,usarMotores,usarWifi,autoStart,usarBorda,qtdTof,bancada,wifiLigado,linhaLateral,alinhaContagem,wifiLuta
-// Os quatro primeiros e a bancada são chaves do config.h compiladas no firmware; autoStart, qtdTof, linhaLateral, alinhaContagem e wifiLuta são
-// as opções do painel gravadas na memória do robô (ajustes.cpp). Firmware antigo manda só os 7 primeiros campos.
+// F,usarMotores,usarWifi,autoStart,usarBorda,qtdTof,bancada,wifiLigado,linhaLateral,alinhaContagem,wifiLuta,wifiLeve
+// Os quatro primeiros e a bancada são chaves do config.h compiladas no firmware; autoStart, qtdTof, linhaLateral, alinhaContagem, wifiLuta e wifiLeve são
+// as opções do painel gravadas na memória do robô (ajustes.cpp). Firmware antigo manda só os 7 primeiros campos (sem opções) ou os 10 primeiros (sem Wi-Fi leve).
+const wifiLeve = () => modo === "wifi" && !!S.cfg && !!S.cfg.leveOk && !!S.cfg.leve;     // o corte do robô só vale no rádio; a USB é completa
 function cfgFirmware(v) {
   S.cfg = {motores: v[0] === "1", wifi: v[1] === "1", auto: v[2] === "1", borda: v[3] === "1", tof: +v[4], bancada: v[5] === "1", radio: v[6] === "1",
-           linha: v[7] === "1", alinhaC: v[8] === "1", wifiLuta: v[9] === "1", opcoes: v.length >= 10};
-  log(`[painel] firmware: USAR_MOTORES ${+S.cfg.motores} · USAR_WIFI ${+S.cfg.wifi} · USAR_BORDA ${+S.cfg.borda} · opções gravadas: modo autônomo ${+S.cfg.auto}, ${S.cfg.tof} ToF, linha da frente ${S.cfg.linha ? "de lado" : "como no CAD"}, contagem ${S.cfg.alinhaC ? "gira até alinhar" : "parada"}, Wi-Fi na luta ${S.cfg.wifiLuta ? "ligado" : "desliga ao largar"}`, "u");
+           linha: v[7] === "1", alinhaC: v[8] === "1", wifiLuta: v[9] === "1", leve: v[10] === "1", opcoes: v.length >= 10, leveOk: v.length >= 11};
+  log(`[painel] firmware: USAR_MOTORES ${+S.cfg.motores} · USAR_WIFI ${+S.cfg.wifi} · USAR_BORDA ${+S.cfg.borda} · opções gravadas: modo autônomo ${+S.cfg.auto}, ${S.cfg.tof} ToF, linha da frente ${S.cfg.linha ? "de lado" : "como no CAD"}, contagem ${S.cfg.alinhaC ? "gira até alinhar" : "parada"}, Wi-Fi na luta ${S.cfg.wifiLuta ? "ligado" : "desliga ao largar"}, telemetria do Wi-Fi ${S.cfg.leveOk ? (S.cfg.leve ? "leve" : "completa") : "completa (firmware sem a opção)"}`, "u");
   if (S.cfg.auto) log("[painel] Modo autônomo ligado: quando o robô for ligado, ele faz a contagem de 5 s e luta sozinho. Para demonstração parada, desligue em Opções do robô.", "e");
   if (!S.cfg.motores) log("[painel] USAR_MOTORES 0: os comandos de movimento não acionam as rodas. Ponha USAR_MOTORES 1 no config.h para testar com motores.", "u");
   cfgUi(); alUi(); ajUi();
@@ -1535,11 +1538,12 @@ function dados(n) {
   if (n.length > b + 9) S.estado = n[b + 9];
   if (n.length > b + 10) { S.saude = n[b + 10]; for (let i = 0; i < k; i++) S.ok[i] = !!(S.saude & (1 << i)); }
   S.tD = performance.now();
-  if (n.length > b + 11) {                       // relógio do ESP32: detecta pacotes perdidos
+  if (n.length > b + 11 && !wifiLeve()) {        // relógio do ESP32: detecta pacotes perdidos (no Wi-Fi leve o robô só manda 1 de cada 5 de propósito)
     const te = n[b + 11];
     if (rede.espAnt !== null) { const gap = te - rede.espAnt; if (gap > 0 && gap < 2000) { const esp = Math.max(1, Math.round(gap / 20)); rede.tot += esp; rede.perd += esp - 1; } }
     rede.espAnt = te;
   }
+  if (wifiLeve()) rede.espAnt = null;
   rede.n++;
   for (let i = 0; i < k; i++) {
     S.jan[i] = S.jan[i] || [];
@@ -1971,16 +1975,16 @@ $("alLiga").onclick = alLiga; $("alPara").onclick = () => enviar("alinha off");
 setInterval(alUi, 500);
 
 // ============================== OPÇÕES DO ROBÔ (gravadas na memória do robô) ==============================
-// O firmware (ajustes.cpp) guarda na NVS cinco opções: auto, linha, tof, alinha e wifi. O comando é "ajuste NOME VALOR" (só em ESPERA)
+// O firmware (ajustes.cpp) guarda na NVS seis opções: auto, linha, tof, alinha, wifi e leve. O comando é "ajuste NOME VALOR" (só em ESPERA)
 // e o robô responde reenviando o cabeçalho, de onde a linha F traz o valor em uso. Mudar a quantidade de ToF reinicia o robô.
-const AJ_CAMPO = {auto: "auto", linha: "linha", tof: "tof", alinha: "alinhaC", wifi: "wifiLuta"};
+const AJ_CAMPO = {auto: "auto", linha: "linha", tof: "tof", alinha: "alinhaC", wifi: "wifiLuta", leve: "leve"};
 let ajReinicia = false;                // o painel pediu uma troca de ToF: o robô reinicia e o cabeçalho precisa ser pedido de novo
 function ajValor(nome) { const c = S.cfg; return c ? (nome === "tof" ? c.tof : +c[AJ_CAMPO[nome]]) : null; }
 function ajUi() {
   const c = S.cfg, parado = !(S.estado > 0), pode = conectado && !!c && c.opcoes && parado;
   document.querySelectorAll("#cardAj .seg").forEach(g => g.querySelectorAll("button").forEach(b => {
     b.setAttribute("aria-pressed", String(c ? ajValor(g.dataset.aj) === +b.dataset.v : false));
-    b.disabled = !pode;
+    b.disabled = !pode || (g.dataset.aj === "leve" && !c.leveOk);       // firmware sem o Wi-Fi leve: a linha F não traz o campo
   }));
   $("ajPadrao").disabled = !pode;
   const pl = $("ajPill");
@@ -1993,6 +1997,8 @@ function ajUi() {
     if (c.wifiLuta && !c.wifi) av.push("Wi-Fi na luta: o firmware está com USAR_WIFI 0, então não existe rádio. Ponha USAR_WIFI 1 no config.h e grave uma vez.");
     if (c.alinhaC) av.push("Contagem girando: lembre de voltar para Parado na competição (regulamento da CoRA).");
     if (c.wifiLuta && c.wifi) av.push("Wi-Fi na luta ligado: o regulamento proíbe rádio durante a luta, use só em demonstração.");
+    if (!c.leveOk) av.push("Este firmware ainda não tem o Wi-Fi leve: grave o firmware atual uma vez pela IDE do Arduino.");
+    if (c.leveOk && c.leve && modo === "wifi") av.push("Wi-Fi leve: o painel recebe os dados a 10 Hz e sem o mapa de probabilidade. Para o radar com o mapa e a taxa cheia, escolha Completa ou use a USB.");
   }
   $("ajNota").innerHTML = av.map(t => `<div class="av">${esc(t)}</div>`).join("") +
     (conectado && c && c.opcoes && c.auto ? `<div>Modo autônomo ligado: da próxima vez que o robô for ligado ele espera os sensores, faz a contagem de 5 s e luta sozinho${c.wifi ? "; com o Wi-Fi do robô ainda dá para acompanhar pelo painel." : "."}</div>` : "");
@@ -2725,6 +2731,11 @@ setInterval(() => {                                    // taxa de pacotes e perd
   rede.hz = rede.n / dt; rede.n = 0; rede.t0 = agora;
   if (!conectado) return;
   const perd = rede.tot ? 100 * rede.perd / rede.tot : 0; rede.tot = 0; rede.perd = 0;
+  if (wifiLeve()) {                                      // leve: 10 Hz de propósito, sem conta de perdas
+    $("pRede").textContent = `Wi-Fi leve · ${rede.hz.toFixed(0)} Hz`;
+    $("pRede").className = "pill " + (rede.hz >= 6 ? "on" : rede.hz > 2 ? "demo" : "bad");
+    return;
+  }
   $("pRede").textContent = `${modo === "wifi" ? "Wi-Fi" : "USB"} · ${rede.hz.toFixed(0)} Hz · perdas ${perd.toFixed(0)}%`;
   $("pRede").className = "pill " + (rede.hz > 30 && perd < 5 ? "on" : rede.hz > 5 ? "demo" : "bad");
 }, 1000);

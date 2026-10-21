@@ -6,7 +6,7 @@
 
 static const char* NS = "ajustes";
 
-static Ajustes fabrica() { return Ajustes{QTD_TOF, AUTO_START != 0, false, false, false}; }
+static Ajustes fabrica() { return Ajustes{QTD_TOF, AUTO_START != 0, false, false, false, WIFI_LEVE != 0}; }
 
 void ajustes_carrega() {
   Ajustes& a = ajustes();
@@ -19,6 +19,7 @@ void ajustes_carrega() {
   if (pr.isKey("blat")) a.borda_lateral = pr.getUShort("blat", 0) != 0;
   if (pr.isKey("alin")) a.alinha_contagem = pr.getUShort("alin", 0) != 0;
   if (pr.isKey("wifi")) a.wifi_luta = pr.getUShort("wifi", 0) != 0;
+  if (pr.isKey("leve")) a.wifi_leve = pr.getUShort("leve", 0) != 0;
   pr.end();
 }
 
@@ -36,6 +37,7 @@ int8_t ajustes_define(const char* nome, int valor) {
     else if (!strcasecmp(nome, "linha"))  { chave = "blat"; a.borda_lateral = valor; }
     else if (!strcasecmp(nome, "alinha")) { chave = "alin"; a.alinha_contagem = valor; }
     else if (!strcasecmp(nome, "wifi"))   { chave = "wifi"; a.wifi_luta = valor; }
+    else if (!strcasecmp(nome, "leve"))   { chave = "leve"; a.wifi_leve = valor; }
     else return AJUSTE_INVALIDO;
   }
   Preferences pr;
@@ -56,7 +58,7 @@ int8_t ajustes_padrao() {
 bool ajustes_gravado() {
   Preferences pr;
   if (!pr.begin(NS, true)) return false;
-  bool g = pr.isKey("tof") || pr.isKey("auto") || pr.isKey("blat") || pr.isKey("alin") || pr.isKey("wifi");
+  bool g = pr.isKey("tof") || pr.isKey("auto") || pr.isKey("blat") || pr.isKey("alin") || pr.isKey("wifi") || pr.isKey("leve");
   pr.end();
   return g;
 }

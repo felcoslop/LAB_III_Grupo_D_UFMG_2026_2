@@ -9,7 +9,9 @@
 // limiar e reenvia o cabeçalho, como o debug.cpp.
 // Demonstração de alinhamento: "alinha on S" manda linhas Z (busca, virando, alinhado, em 0,7 s) e "alinha off" fecha com a
 // fase 0, como o estados.cpp; "servidor.estado" é o estado da máquina que vai nos quadros D (0 é ESPERA).
-// Opções do painel: "ajuste NOME VALOR" (auto, linha, tof, alinha, wifi) muda servidor.aj e reenvia o cabeçalho (linha F com as opções,
+// Wi-Fi leve: com "ajuste leve 1" (servidor.aj.leve) o robô de mentira corta o stream como o telemetria.cpp: D a cada 100 ms,
+// Q e A a cada 250 ms; a Z e a J passam. O robô de mentira sai de fábrica com leve 0, para os testes de taxa do painel.
+// Opções do painel: "ajuste NOME VALOR" (auto, linha, tof, alinha, wifi, leve) muda servidor.aj e reenvia o cabeçalho (linha F com as opções,
 // linhas R com os sensores de linha da frente de lado ou no CAD, linhas G com 5 ou 7 ToF), como o debug.cpp; "ajuste tof" diferente do
 // em uso avisa, derruba o fluxo e volta com a quantidade nova (o robô reiniciou); "ajuste padrao" volta ao valor de fábrica; fora de
 // ESPERA recusa com "! pare o robo antes".
@@ -20,7 +22,8 @@ export function iniciaRoboFalso(porta = 0) {
   const fluxos = new Set();
   let streamLigado = false, t0 = Date.now(), timer = null, pista = false, seqJ = 0, rng = 12345, alinha = null, tZ = 0;
   const nomes = ["BFE", "BFD", "BTE", "BTD"];
-  const aj = {auto: 0, linha: 0, tof: 5, alinha: 0, wifi: 0};
+  const aj = {auto: 0, linha: 0, tof: 5, alinha: 0, wifi: 0, leve: 0};
+  let ultD = 0, ultQA = 0;
   const bordas = nomes.map((n) => ({lim: 600, preto: 3000, branco: 450, grav: 0, pista: 0}));
   const rand = () => { rng = (rng * 1664525 + 1013904223) >>> 0; return rng / 4294967296; };
   const gauss = () => { let s = 0; for (let k = 0; k < 6; k++) s += rand(); return (s - 3) / 0.7071; };
@@ -28,7 +31,7 @@ export function iniciaRoboFalso(porta = 0) {
   const manda = (l) => { for (const r of fluxos) r.write(`data: ${l}\n\n`); };
 
   const cabecalho = (cfg = {}) => {
-    const f = Object.assign({motores: 1, wifi: 1, auto: aj.auto, borda: 1, tof: aj.tof, bancada: 0, radio: 1, linha: aj.linha, alinhaC: aj.alinha, wifiLuta: aj.wifi}, cfg);
+    const f = Object.assign({motores: 1, wifi: 1, auto: aj.auto, borda: 1, tof: aj.tof, bancada: 0, radio: 1, linha: aj.linha, alinhaC: aj.alinha, wifiLuta: aj.wifi, leve: aj.leve}, cfg);
     const sens = [["FE", 60, 40, 17], ["FC", 70, 0, 0], ["FD", 60, -40, -17], ["LE", 10, 60, 90], ["LD", 10, -60, -90], ["TE", -30, 66, 160], ["TD", -30, -66, -160]];
     sens.slice(0, f.tof).forEach(([n, x, y, a], i) => { manda(`G,${i},${n},${x},${y},${a}`); manda(`I,${i},1`); manda(`C,${i},1.0000,0.00,0`); });
     const frente = f.linha ? [77, 81] : [60, 40];
@@ -40,7 +43,7 @@ export function iniciaRoboFalso(porta = 0) {
     manda("E,ESPERA,CONTAGEM,BUSCA,MIRA,ATAQUE,FLANCO,ATAQUE_RE,DESTRAVA,RECUO,GIRO_BORDA,AVANCO_BORDA,SAIDA_LATERAL,LEQUE");
     manda("K,600,0,1,2,3,4,0,0,0,0");
     manda("X,1,152,550,0.25,80,200");
-    manda(`F,${f.motores},${f.wifi},${f.auto},${f.borda},${f.tof},${f.bancada},${f.radio},${f.linha},${f.alinhaC},${f.wifiLuta}`);
+    manda(`F,${f.motores},${f.wifi},${f.auto},${f.borda},${f.tof},${f.bancada},${f.radio},${f.linha},${f.alinhaC},${f.wifiLuta}${f.semLeve ? "" : "," + f.leve}`);   // cfg.semLeve imita o firmware sem o Wi-Fi leve (F com 10 campos)
   };
   // uma janela de 20 ms: 20 leituras por sensor, na cena atual. cena = {faixa: ["BTE", "BTD"]} põe esses sensores
   // sobre a faixa branca e os outros sobre o preto. perfil: níveis em mV, ruído, arranhões (probabilidade e nível),
@@ -70,9 +73,16 @@ export function iniciaRoboFalso(porta = 0) {
   const quadro = () => {
     const ms = Date.now() - t0;
     const mm = [300, -1, -1, -1, -1, -1, -1].slice(0, aj.tof), br = mm.map((x) => (x > 0 ? x + 10 : x));
-    manda(`D,${mm.join(",")},${br.join(",")},1,150,300,2,3,290,80,3,1,${servidor.estado},31,${ms},20,90,100,2,150,0`);
-    manda("Q,0,0,3000,3000,3000,3000");
-    manda("A,0,0,0,1,1,0,0,20,0,0,0,0,0,0");
+    const agora = Date.now();
+    if (!aj.leve || agora - ultD >= 100) {
+      ultD = agora;
+      manda(`D,${mm.join(",")},${br.join(",")},1,150,300,2,3,290,80,3,1,${servidor.estado},31,${ms},20,90,100,2,150,0`);
+    }
+    if (!aj.leve || agora - ultQA >= 250) {
+      ultQA = agora;
+      manda("Q,0,0,3000,3000,3000,3000");
+      manda("A,0,0,0,1,1,0,0,20,0,0,0,0,0,0");
+    }
     if (pista) manda(janela());
     if (alinha) {
       const dt = Date.now() - alinha.t0;
@@ -109,16 +119,16 @@ export function iniciaRoboFalso(porta = 0) {
       if (c === "stop" || c === "go") { if (alinha) { alinha = null; manda("Z,0,0,0,0"); } }
       const ajc = /^ajuste(?: (\w+)(?: (\d+))?)?$/.exec(c);
       if (ajc) {
-        const mostra = () => manda(`# ajustes (gravados no robo): auto ${aj.auto} | linha ${aj.linha} | tof ${aj.tof} | alinha ${aj.alinha} | wifi ${aj.wifi}`);
+        const mostra = () => manda(`# ajustes (gravados no robo): auto ${aj.auto} | linha ${aj.linha} | tof ${aj.tof} | alinha ${aj.alinha} | wifi ${aj.wifi} | leve ${aj.leve}`);
         if (!ajc[1]) mostra();
         else if (servidor.estado !== 0) manda("! pare o robo antes (stop): as opcoes so mudam em ESPERA");
         else if (ajc[1] === "padrao") {
           const reinicia = aj.tof !== 5;
-          Object.assign(aj, {auto: 0, linha: 0, alinha: 0, wifi: 0});
+          Object.assign(aj, {auto: 0, linha: 0, alinha: 0, wifi: 0, leve: 0});
           manda("# ajustes: valores de fabrica");
           if (reinicia) reiniciaRobo(5); else { mostra(); cabecalho(servidor.cfg); }
         } else if (!(ajc[1] in aj) || ajc[2] === undefined || (ajc[1] === "tof" ? ![5, 7].includes(+ajc[2]) : ![0, 1].includes(+ajc[2]))) {
-          manda("! uso: ajuste auto|linha|alinha|wifi 0|1 | ajuste tof 5|7 | ajuste padrao | ajuste (mostra)");
+          manda("! uso: ajuste auto|linha|alinha|wifi|leve 0|1 | ajuste tof 5|7 | ajuste padrao | ajuste (mostra)");
         } else if (ajc[1] === "tof" && +ajc[2] !== aj.tof) reiniciaRobo(+ajc[2]);
         else { aj[ajc[1]] = +ajc[2]; if (ajc[1] === "auto") manda(+ajc[2] ? "# modo autonomo gravado: vale quando o robo for ligado de novo (para largar agora, use go)" : "# modo autonomo desligado: o robo fica em ESPERA ate mandarem"); mostra(); cabecalho(servidor.cfg); }
       }

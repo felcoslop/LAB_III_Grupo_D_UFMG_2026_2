@@ -12,7 +12,12 @@
 //   setNoDelay faz cada linha sair na hora, sem esperar para juntar pacotes;
 //   o envio usa MSG_DONTWAIT, então com a rede cheia a linha de dados é descartada em vez de
 //   segurar o loop (a telemetria perde um quadro, mas o robô nunca espera);
-//   o aceite de conexões e a leitura de requisições rodam no máximo a cada WIFI_PASSO_MS.
+//   o aceite de conexões e a leitura de requisições rodam no máximo a cada WIFI_PASSO_MS (e sem esperar enquanto uma
+//   requisição está chegando, para o comando do controle remoto não perder tempo).
+// Com o "Wi-Fi leve" (ajuste leve, config.h) só o essencial vai para o rádio: a linha D sai a cada WIFI_LEVE_D_MS, a Q e a A
+// a cada WIFI_LEVE_QA_MS e o mapa M não sai. Menos bytes no ar deixam buffers e rádio livres para os comandos do /cmd.
+// A USB não é afetada. O ponto de acesso trabalha com canal de 20 MHz (HT20), mais estável que o de 40 MHz numa sala cheia
+// de redes de 2,4 GHz.
 
 #include "telemetria.h"
 #include "config.h"
@@ -22,7 +27,7 @@ Saida Log;
 
 // Saída por linha inteira.
 // O texto fica acumulado até o '\n' e só então sai inteiro pela USB e pelo WiFi. As linhas de
-// dados (D, Q e M) são descartadas na USB quando o buffer de envio está cheio, já que a
+// dados (D, Q, A, M, J e Z) são descartadas na USB quando o buffer de envio está cheio, já que a
 // 115200 baud cabem só uns 11 KB/s. O buffer de 4 KB da serial é criado no sumo_esp32.ino,
 // antes do Serial.begin.
 static char     lbuf[1024];          // tamanho suficiente para a linha do mapa (até uns 800 caracteres)
@@ -33,7 +38,7 @@ static void enviaPaineis(const char* s, uint16_t n, bool dado);
 // Envio da linha acumulada. Linhas de texto comum sempre saem na USB; linhas de dados só saem
 // quando cabem no buffer da serial. Para o painel pelo WiFi a regra é a da rede (enviaPaineis).
 static void fechaLinha() {
-  bool dado = lN >= 2 && lbuf[1] == ',' && (lbuf[0] == 'D' || lbuf[0] == 'Q' || lbuf[0] == 'M' || lbuf[0] == 'J' || lbuf[0] == 'Z');
+  bool dado = lN >= 2 && lbuf[1] == ',' && (lbuf[0] == 'D' || lbuf[0] == 'Q' || lbuf[0] == 'A' || lbuf[0] == 'M' || lbuf[0] == 'J' || lbuf[0] == 'Z');
   if (!dado || Serial.availableForWrite() > (int)lN + 2) {
     Serial.write((const uint8_t*)lbuf, lN);
     Serial.write('\n');
@@ -70,6 +75,7 @@ int entrada_le() {
 
 #if USAR_WIFI
 #include <WiFi.h>
+#include <esp_wifi.h>
 #include <ESPmDNS.h>
 #include <lwip/sockets.h>
 #include <errno.h>
@@ -116,11 +122,26 @@ static int manda(Painel& p, const char* b, int n) {
 // A linha ganha o formato do SSE ("data: ...\n\n") e vai para cada painel sem esperar. Linha de
 // dados que não cabe agora é descartada; linha de texto (resultado de comando, aviso) que só coube
 // em parte guarda o resto para a próxima volta, porque perder o meio de uma linha embaralharia o painel.
+// Wi-Fi leve: true quando a linha de dados deste tipo não vai para o rádio agora. O mapa (M) nunca sai; a D sai no máximo
+// uma vez por WIFI_LEVE_D_MS, e a Q e a A uma vez por WIFI_LEVE_QA_MS. As outras linhas de dados (Z do alinhamento e J da
+// calibração da pista, que só aparecem quando o painel pede) passam como antes.
+static bool leveCorta(char tipo) {
+  if (!ajustes().wifi_leve) return false;
+  static uint32_t ultD = 0, ultQ = 0, ultA = 0;
+  uint32_t t = millis();
+  if (tipo == 'M') return true;
+  if (tipo == 'D') { if (t - ultD < WIFI_LEVE_D_MS) return true; ultD = t; return false; }
+  if (tipo == 'Q') { if (t - ultQ < WIFI_LEVE_QA_MS) return true; ultQ = t; return false; }
+  if (tipo == 'A') { if (t - ultA < WIFI_LEVE_QA_MS) return true; ultA = t; return false; }
+  return false;
+}
+
 static void enviaPaineis(const char* s, uint16_t n, bool dado) {
   if (!ligado) return;
   bool temPainel = false;
   for (uint8_t k = 0; k < MAX_PAINEIS; k++) if (painel[k].c) temPainel = true;
   if (!temPainel) return;
+  if (dado && leveCorta(s[0])) return;
   static char msg[sizeof(lbuf) + 10];
   if (n > sizeof(lbuf)) n = sizeof(lbuf);
   memcpy(msg, "data: ", 6);
@@ -233,6 +254,7 @@ void telemetria_init() {
     WiFi.mode(WIFI_AP);
     WiFi.softAP(WIFI_AP_SSID, WIFI_AP_SENHA, WIFI_AP_CANAL, 0, MAX_PAINEIS + 1);
   }
+  esp_wifi_set_bandwidth(sta ? WIFI_IF_STA : WIFI_IF_AP, WIFI_BW_HT20);   // canal de 20 MHz: mais estável que o de 40 MHz em 2,4 GHz
   WiFi.setSleep(false);                       // sem economia de energia = menor atraso
   if (MDNS.begin(WIFI_NOME_MDNS)) MDNS.addService("http", "tcp", 80);
   srv.begin();
@@ -259,9 +281,10 @@ void telemetria_wifi_desliga(const char* motivo) {
 void telemetria_wifi_info() {
   if (!ligado) { Log.println(F("# WiFi desligado (USAR_WIFI 1, mas o radio foi desligado; reinicie o ESP32 para ligar de novo)")); return; }
   IPAddress ip = modoSta ? WiFi.localIP() : WiFi.softAPIP();
-  Log.printf("# WiFi: %s | rede \"%s\" | IP %s | %u painel(is) conectado(s) | stream a %d ms | linhas descartadas %lu\n",
+  Log.printf("# WiFi: %s | rede \"%s\" | IP %s | %u painel(is) conectado(s) | %s | linhas descartadas %lu\n",
              modoSta ? "roteador" : "rede propria (AP)", modoSta ? WIFI_STA_SSID : WIFI_AP_SSID, ip.toString().c_str(),
-             telemetria_paineis(), STREAM_MS, (unsigned long)descartes);
+             telemetria_paineis(), ajustes().wifi_leve ? "Wi-Fi leve (D a 100 ms, Q e A a 250 ms, sem mapa)" : "stream completo a 20 ms",
+             (unsigned long)descartes);
 }
 
 // O loop do sumo_esp32.ino chama esta função em toda volta. O servidor aceita no máximo uma
@@ -275,7 +298,7 @@ void telemetria_passo() {
 #endif
   uint32_t agora = millis();
   descarrega();
-  if (agora - tPasso < WIFI_PASSO_MS) return;
+  if (!cli && agora - tPasso < WIFI_PASSO_MS) return;    // com uma requisição chegando, lê sem esperar o intervalo
   tPasso = agora;
   if (!cli) {
     cli = srv.accept();

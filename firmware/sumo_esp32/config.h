@@ -67,13 +67,14 @@ struct CfgToF {
 #endif
 
 // Opções que o painel muda sem recompilar (ajustes.cpp grava na NVS e lê no boot). O valor de fábrica de cada
-// uma vem das chaves deste arquivo (QTD_TOF, AUTO_START); as outras começam desligadas.
+// uma vem das chaves deste arquivo (QTD_TOF, AUTO_START, WIFI_LEVE); as outras começam desligadas.
 struct Ajustes {
   uint8_t tof;               // sensores de oponente em uso: 5 ou 7
   bool    autonomo;          // partida automática depois de ligar (AUTO_START)
   bool    borda_lateral;     // BFE e BFD colados de lado, 90 graus do encaixe do CAD (BORDA_LATERAL_*)
   bool    alinha_contagem;   // durante a contagem de 5 s o robô só gira até ficar de frente para o oponente
   bool    wifi_luta;         // o rádio fica ligado depois do start, mesmo sem painel conectado
+  bool    wifi_leve;         // Wi-Fi leve: pelo rádio só o essencial (D, Q em taxa baixa, sem mapa); a USB não muda
 };
 inline Ajustes& ajustes();
 
@@ -368,15 +369,26 @@ inline int16_t borda_y(uint8_t i) {
 #define AUTO_START_ESPERA_MS 1000   // sensores prontos há esse tempo antes de pedir o start
 // AUTO_START é o valor de fábrica do "modo autônomo" do painel (comando "ajuste auto 0|1", gravado na NVS): o painel liga e
 // desliga sem regravar o firmware, e a escolha vale a partir da próxima vez que o robô ligar (não larga na hora do clique).
-// Os outros três ajustes do painel começam desligados:
+// Os outros ajustes do painel (menos o wifi_leve, acima) começam desligados:
 //   borda_lateral    BFE e BFD colados de lado, no lugar do encaixe do CAD (posição BORDA_LATERAL_* abaixo)
 //   alinha_contagem  na contagem de 5 s o robô só gira em pulsos até ficar de frente para o oponente, e o botão BOOT
 //                    reinicia a contagem (também no meio da luta, com o modo autônomo ligado). ATENÇÃO: o regulamento
 //                    da CoRA manda o robô ficar parado nos 5 s; use na demonstração e desmarque na competição.
 //   wifi_luta        o rádio continua ligado depois do start sem painel conectado, para acompanhar a luta pelo Wi-Fi
 //                    (o regulamento proíbe rádio durante a luta; só para demonstração e testes)
+// WIFI_LEVE é o valor de fábrica do "Wi-Fi leve" (comando "ajuste leve 0|1"). Pelo rádio, a telemetria completa leva uns
+// 10 a 13 KB/s (D, Q e A a 50 Hz, mais o mapa M a 4 Hz) e disputa os buffers do lwIP e o ar com cada comando do /cmd; no robô
+// isso deixou o controle remoto e os ajustes lentos. Com o modo leve, só para o rádio (a USB segue completa): a linha D sai
+// a cada WIFI_LEVE_D_MS, a Q e a A a cada WIFI_LEVE_QA_MS e o mapa M não sai; os textos, a Z do alinhamento, as linhas do cabeçalho
+// (G, I, C, R, B, E, K, X, F) e a J da calibração da pista (que só existe enquanto o assistente roda) passam como antes. O
+// painel não precisa de mais que isso para o controle remoto (WASD), os ajustes e a demonstração de alinhamento.
+#ifndef WIFI_LEVE
+#define WIFI_LEVE 1
+#endif
+#define WIFI_LEVE_D_MS 100
+#define WIFI_LEVE_QA_MS 250
 inline Ajustes& ajustes() {
-  static Ajustes a = { QTD_TOF, AUTO_START != 0, false, false, false };
+  static Ajustes a = { QTD_TOF, AUTO_START != 0, false, false, false, WIFI_LEVE != 0 };
   return a;
 }
 // Demonstração de alinhamento (comando "alinha on", botão "Alinhar com o oponente" do painel). Com o robô parado em
