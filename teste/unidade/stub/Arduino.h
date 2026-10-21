@@ -34,6 +34,7 @@ public:
   virtual size_t write(const uint8_t* b, size_t n) { for (size_t i = 0; i < n; i++) write(b[i]); return n; }
   size_t print(const char* s)   { return write((const uint8_t*)s, strlen(s)); }
   size_t println(const char* s) { size_t n = print(s); return n + write('\n'); }
+  size_t println() { return write('\n'); }
   size_t printf(const char* f, ...) {
     char buf[256]; va_list a; va_start(a, f); int n = vsnprintf(buf, sizeof(buf), f, a); va_end(a);
     return n > 0 ? write((const uint8_t*)buf, strlen(buf)) : 0;
@@ -45,6 +46,9 @@ class SerialFalso : public Print {
 public:
   using Print::write;
   size_t write(uint8_t c) override;
+  int availableForWrite() { return 1 << 20; }   // buffer de saída sempre com espaço (usado pelo telemetria.cpp)
+  int available() { return 0; }                 // nada digitado na USB
+  int read() { return -1; }
 };
 extern SerialFalso Serial;
 

@@ -14,3 +14,6 @@ __pycache__/
 
 # Guia local do Claude Code (cada um mantém o seu, fora do repositório)
 /CLAUDE.md
+/teste_wifi
+/teste_autostart
+node_modules/

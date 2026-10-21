@@ -316,8 +316,8 @@ static const CfgBorda BORDA[] = {
 #define BORDA_FAIXA_MM    25.0f    // largura da faixa branca da borda (regra RoboCore)
 
 // ============================================================================
-// Interface. O robô é autônomo: a telemetria sai só pela USB, para o Monitor Serial e para
-// o painel (painel_sumo.html), e o firmware não liga WiFi nem Bluetooth.
+// Interface. A telemetria sai pela USB, para o Monitor Serial e para o painel (painel_sumo.html),
+// e também pelo WiFi quando USAR_WIFI vale 1 (mais abaixo). O firmware nunca liga Bluetooth.
 // ============================================================================
 // Botão de start no GPIO 0, o mesmo do botão BOOT da placa, que já tem pull-up. O S1 do
 // esquema fica entre o GPIO 0 e o GND, em paralelo com o BOOT. Com o botão apertado na hora de
@@ -352,6 +352,29 @@ static const CfgBorda BORDA[] = {
 #endif
 #define SERIAL_BAUD       115200
 #define STREAM_MS         20     // dados para o painel a 50 Hz, o mesmo ritmo dos sensores
+
+// WiFi opcional, para o painel funcionar sem cabo (demonstração, calibração da linha e controle
+// remoto com o robô solto no dojô). USAR_WIFI 0 (padrão) NÃO compila nenhuma linha do rádio: o
+// firmware fica idêntico ao de antes, com a RAM, a flash e o núcleo 0 inteiros para o robô. Com
+// USAR_WIFI 1 o ESP32 cria a rede WIFI_AP_SSID (ou entra no roteador, se WIFI_STA_SSID estiver
+// preenchido) e atende, na porta 80, /stream (dados em tempo real), /cmd?c=comando e /ping. O
+// painel (painel_sumo.html) escolhe "Wi-Fi" na barra de conexão e usa o endereço 192.168.4.1.
+// O custo do rádio é a pilha do WiFi disputando o núcleo 0 com o rastreador (foi o motivo da
+// remoção em 78d843d): para medir no seu robô, rode o comando "tempo" com USAR_WIFI 0 e com 1 e
+// compare o pior ciclo e o passo do rastreador. WIFI_DESLIGA_SEM_PAINEL 1 desliga o rádio sozinho
+// na hora em que a luta começa (saída da ESPERA) sem nenhum painel conectado, então o robô de
+// competição pode até sair com USAR_WIFI 1 sem pagar o rádio durante a luta. O comando "wifi off"
+// desliga na hora e "wifi" mostra a rede, o endereço e quantos painéis estão conectados.
+#ifndef USAR_WIFI
+#define USAR_WIFI         0
+#endif
+#define WIFI_AP_SSID      "SUMO-ROBO"
+#define WIFI_AP_SENHA     "sumo1234"     // no mínimo 8 caracteres
+#define WIFI_AP_CANAL     6
+#define WIFI_STA_SSID     ""             // nome do roteador (vazio usa só a rede própria)
+#define WIFI_STA_SENHA    ""
+#define WIFI_NOME_MDNS    "sumo"         // endereço http://sumo.local quando o sistema suporta
+#define WIFI_DESLIGA_SEM_PAINEL 1        // 1: a luta sem painel conectado desliga o rádio
 
 // ============================================================================
 // Estratégia: avanço em mm/s, giro em graus/s (positivo é para a esquerda) e tempos em ms.

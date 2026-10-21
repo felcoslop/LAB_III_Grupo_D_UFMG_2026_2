@@ -2,8 +2,10 @@
 # Todo pull request (para a main ou empilhado sobre outro pull request) e todo push na main
 # passam por quatro testes: a compilação do firmware para o ESP32 Dev Module (na linha 2.x e na
 # linha 3.x do core da Espressif, com 5 e com 7 sensores de oponente, com os motores desligados
-# como na bancada e também ligados), os testes da cinemática, da máquina de estados, da partida
-# automática, da localização no dojô e do PWM dos motores rodando no computador, uma bateria de lutas
+# como na bancada e também ligados, e com o WiFi opcional ligado), os testes da cinemática, da
+# máquina de estados, da partida automática, do servidor WiFi, da localização no dojô e do PWM dos
+# motores rodando no computador, o painel num navegador de verdade (Chromium sem tela) contra um
+# robô de mentira pelo WiFi, uma bateria de lutas
 # simuladas com o firmware de verdade (nenhuma queda própria e nenhuma perseguição longa de
 # objeto fora do dojô) e a conferência de que o painel/painel_sumo.html, a página do combate
 # (site/combate.html) e a da montagem (site/montagem.html) foram gerados a partir do código
@@ -29,7 +31,7 @@ env:
 
 jobs:
   firmware:
-    name: Firmware (core ${{ matrix.core }}, ${{ matrix.sensores }} sensores, motores ${{ matrix.motores }})
+    name: Firmware (core ${{ matrix.core }}, ${{ matrix.sensores }} sensores, motores ${{ matrix.motores }}, wifi ${{ matrix.wifi || 0 }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -42,6 +44,9 @@ jobs:
         include:
           - { core: "2.0.17", sensores: 5, motores: 1 }
           - { core: "3.3.0", sensores: 7, motores: 1 }
+          # o servidor WiFi opcional (USAR_WIFI 1) também precisa compilar nas duas linhas do core
+          - { core: "2.0.17", sensores: 5, motores: 1, wifi: 1 }
+          - { core: "3.3.0", sensores: 5, motores: 1, wifi: 1 }
     steps:
       # o sketch fica em firmware/sumo_esp32: a pasta já tem o mesmo nome do .ino, como a Arduino CLI exige
       - uses: actions/checkout@v4
@@ -65,7 +70,7 @@ jobs:
       - name: Compilação
         run: |
           arduino-cli compile --fqbn esp32:esp32:esp32 --warnings default \
-            --build-property "compiler.cpp.extra_flags=-DQTD_TOF=${{ matrix.sensores }} -DUSAR_MOTORES=${{ matrix.motores }}" \
+            --build-property "compiler.cpp.extra_flags=-DQTD_TOF=${{ matrix.sensores }} -DUSAR_MOTORES=${{ matrix.motores }} -DUSAR_WIFI=${{ matrix.wifi || 0 }}" \
             --additional-urls "$URL_ESP32" firmware/sumo_esp32 2>&1 | tee compilacao.log
           exit ${PIPESTATUS[0]}
 
@@ -73,7 +78,7 @@ jobs:
         if: always()
         run: |
           {
-            echo "### Core ESP32 ${{ matrix.core }}, ${{ matrix.sensores }} sensores, motores ${{ matrix.motores }}"
+            echo "### Core ESP32 ${{ matrix.core }}, ${{ matrix.sensores }} sensores, motores ${{ matrix.motores }}, wifi ${{ matrix.wifi || 0 }}"
             echo '```'
             grep -E "Sketch uses|Global variables" compilacao.log || echo "sem resumo de memória"
             echo '```'
@@ -104,6 +109,11 @@ jobs:
           g++ -std=c++11 -Wall -Wextra -Werror $INC -DAUTO_START=1 teste/unidade/teste_autostart.cpp \
             $FW/estados.cpp $FW/cinematica.cpp $FW/arena.cpp $FW/chave.cpp $FW/antitrava.cpp -o teste_autostart
           ./teste_autostart
+      # servidor WiFi opcional (USAR_WIFI 1): o telemetria.cpp de verdade sobre sockets reais, com o WiFi.h de mentira
+      - name: Servidor WiFi (USAR_WIFI 1)
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror -DUSAR_WIFI=1 -I teste/unidade/stub_wifi $INC teste/unidade/teste_wifi.cpp $FW/telemetria.cpp -o teste_wifi
+          ./teste_wifi
       # filtro de partículas do dojô nas duas geometrias dos sensores de borda
       - name: Localização no dojô (bancada e robô montado)
         run: |
@@ -219,6 +229,34 @@ jobs:
         with:
           name: combate-mujoco
           path: combate_mj.csv
+
+  painel-navegador:
+    name: Painel no navegador (WiFi contra o robô de mentira)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # o painel versionado (file://) conecta num servidor que imita o ESP32 com USAR_WIFI 1
+      - name: Playwright e Chrome do runner
+        run: npm install --no-save --no-package-lock --prefix teste/painel playwright-core@1.56.1
+      # a saída do teste vai também para anotações (::error::) e para o resumo do job, para a causa de uma
+      # falha aparecer sem abrir o log
+      - name: Painel pelo WiFi
+        run: |
+          export CHROME_PATH="$(command -v google-chrome)"
+          echo "Chrome: $CHROME_PATH $("$CHROME_PATH" --version 2>&1 | head -1)"
+          set +e
+          node teste/painel/smoke_wifi.mjs > saida_painel.txt 2>&1
+          codigo=$?
+          cat saida_painel.txt
+          { echo "### Painel pelo WiFi"; echo '```'; cat saida_painel.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$codigo" -ne 0 ]; then
+            grep -vE '^ok ' saida_painel.txt | head -20 | while IFS= read -r l; do echo "::error::${l}"; done
+          fi
+          exit "$codigo"
 
   painel:
     name: Painel e página do simulador
