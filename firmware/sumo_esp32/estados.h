@@ -26,9 +26,21 @@ void        estados_init();
 void        estados_passo();          // uma chamada por volta do loop, depois de percepcao_atualiza()
 void        estados_iniciar();        // mesmo efeito do botão de start (comando "go")
 void        estados_parar();          // retorno para ESPERA (comando "stop")
-void        estados_teste_mov(float v_mms, float w_dps, uint16_t ms);   // movimento de teste em ESPERA (comando "mov")
-void        estados_teste_pwm(int8_t esq_pct, int8_t dir_pct, uint16_t ms); // PWM direto em cada roda (comando "pwm")
+// flags dos testes mov e pwm (4º número do comando): TESTE_IGNORA_BORDA 1 não encerra o teste ao ver a linha branca
+// (controle remoto do painel, que vale com a linha marcando ou não); TESTE_QUIETO 2 não escreve as linhas "# mov" e
+// "# pwm" (o controle por teclado manda um teste a cada 120 ms)
+enum : uint8_t { TESTE_IGNORA_BORDA = 1, TESTE_QUIETO = 2 };
+void        estados_teste_mov(float v_mms, float w_dps, uint16_t ms, uint8_t flags = 0);   // movimento de teste em ESPERA (comando "mov")
+void        estados_teste_pwm(int8_t esq_pct, int8_t dir_pct, uint16_t ms, uint8_t flags = 0); // PWM direto em cada roda (comando "pwm")
 bool        estados_teste_ativo();    // true durante um teste mov ou pwm
+// Demonstração de alinhamento (comando "alinha", config.h ALINHA_*): em ESPERA, só gira em pulsos até o oponente ficar
+// centrado; não anda e ignora a linha. Fase: 0 desligado, 1 buscando (oponente fora da vista), 2 virando, 3 alinhado.
+void        estados_alinha(bool liga, uint16_t segundos);
+bool        estados_alinha_ativo();
+uint8_t     estados_alinha_fase();
+float       estados_alinha_erro();    // graus até o oponente na última decisão (positivo é esquerda)
+uint16_t    estados_alinha_restante_s();
+uint16_t    estados_alinha_pulsos();  // pulsos de giro dados desde que ligou
 Estado      estado_atual();
 const char* estado_nome(Estado e);
 Estrategia  estados_estrategia();     // estratégia em uso (travada no start)

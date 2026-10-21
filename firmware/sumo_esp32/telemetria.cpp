@@ -33,7 +33,7 @@ static void enviaPaineis(const char* s, uint16_t n, bool dado);
 // Envio da linha acumulada. Linhas de texto comum sempre saem na USB; linhas de dados só saem
 // quando cabem no buffer da serial. Para o painel pelo WiFi a regra é a da rede (enviaPaineis).
 static void fechaLinha() {
-  bool dado = lN >= 2 && lbuf[1] == ',' && (lbuf[0] == 'D' || lbuf[0] == 'Q' || lbuf[0] == 'M' || lbuf[0] == 'J');
+  bool dado = lN >= 2 && lbuf[1] == ',' && (lbuf[0] == 'D' || lbuf[0] == 'Q' || lbuf[0] == 'M' || lbuf[0] == 'J' || lbuf[0] == 'Z');
   if (!dado || Serial.availableForWrite() > (int)lN + 2) {
     Serial.write((const uint8_t*)lbuf, lN);
     Serial.write('\n');

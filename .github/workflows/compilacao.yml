@@ -3,9 +3,10 @@
 # passam por quatro testes: a compilação do firmware para o ESP32 Dev Module (na linha 2.x e na
 # linha 3.x do core da Espressif, com 5 e com 7 sensores de oponente, com os motores desligados
 # como na bancada e também ligados, e com o WiFi opcional ligado), os testes da cinemática, da
-# máquina de estados, da partida automática, do servidor WiFi, da calibração da borda, da localização
-# no dojô e do PWM dos motores rodando no computador, o painel num navegador de verdade (Chromium sem
-# tela) contra um robô de mentira (conexão pelo WiFi e assistente de calibração da pista), a conta da
+# máquina de estados, da partida automática, do servidor WiFi, da calibração da borda, do alinhamento
+# com o oponente (demonstração), da localização no dojô e do PWM dos motores rodando no computador, o
+# painel num navegador de verdade (Chromium sem tela) contra um robô de mentira (conexão pelo WiFi,
+# assistente de calibração da pista, alinhar, controle WASD e guia da configuração), a conta da
 # calibração da pista, uma bateria de lutas
 # simuladas com o firmware de verdade (nenhuma queda própria e nenhuma perseguição longa de
 # objeto fora do dojô) e a conferência de que o painel/painel_sumo.html, a página do combate
@@ -115,6 +116,12 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror -DUSAR_WIFI=1 -I teste/unidade/stub_wifi $INC teste/unidade/teste_wifi.cpp $FW/telemetria.cpp -o teste_wifi
           ./teste_wifi
+      # demonstração: o robô só gira em pulsos até alinhar com o oponente, sem andar e sem olhar a linha
+      - name: Alinhamento com o oponente (comando alinha)
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror $INC teste/unidade/teste_alinha.cpp \
+            $FW/estados.cpp $FW/cinematica.cpp $FW/arena.cpp $FW/chave.cpp $FW/antitrava.cpp -o teste_alinha
+          ./teste_alinha
       # borda: limiar explícito da calibração de pista, janelas de mínimo e máximo, gravação na NVS de mentira
       - name: Borda (limiar de pista e janelas)
         run: |
@@ -253,12 +260,12 @@ jobs:
         run: npm install --no-save --no-package-lock --prefix teste/painel playwright-core@1.56.1
       # a saída de cada teste vai também para anotações (::error::) e para o resumo do job, para a causa de uma
       # falha aparecer sem abrir o log
-      - name: Painel no navegador (conexão e calibração)
+      - name: Painel no navegador (conexão, calibração e demonstração)
         run: |
           export CHROME_PATH="$(command -v google-chrome)"
           echo "Chrome: $CHROME_PATH $("$CHROME_PATH" --version 2>&1 | head -1)"
           falhou=0
-          for t in smoke_wifi smoke_calibracao; do
+          for t in smoke_wifi smoke_calibracao smoke_demo; do
             set +e
             node "teste/painel/$t.mjs" > "saida_$t.txt" 2>&1
             codigo=$?
