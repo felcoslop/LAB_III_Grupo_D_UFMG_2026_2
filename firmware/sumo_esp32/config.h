@@ -272,12 +272,13 @@ static const CfgBorda BORDA[] = {
 // Sensores de linha da frente (BFE e BFD) colados de lado: provisoriamente o grupo colou os dois com cola quente
 // virados para as laterais, 90 graus anti-horário do encaixe do CAD (o par infravermelho, que no CAD fica na ponta
 // da frente da placa, passa para a ponta de fora). O painel escolhe entre as duas posições (comando "ajuste linha
-// 0|1"). A posição abaixo é uma estimativa: placa de 38 mm girada 90 graus em torno do centro dela, com o par
-// infravermelho a 19 mm do centro, e vale para os dois lados (o y muda de sinal). Só a localização no dojô (arena.cpp)
-// e o desenho do painel usam esses números; a fuga da borda continua decidida por lado e frente. Meça a posição
-// colada e corrija aqui se a diferença passar de uns 5 mm.
-#define BORDA_LATERAL_X_MM  77
-#define BORDA_LATERAL_Y_MM  81
+// 0|1"). A posição abaixo foi medida no chassi provisório (21/10), olhando de cima com o robô para a frente: o centro do
+// par de LEDs fica a 35 mm da ponta da rampa (118 - 35 = 83 mm do centro) e o sensor sai 16,3 mm (esquerdo) e 17,9 mm
+// (direito) para fora do chassi (75,5 + 17 = 93 mm do centro, para os dois lados; o y muda de sinal). Só a localização no
+// dojô (arena.cpp) e o desenho do painel usam esses números; a fuga da borda continua decidida por lado e frente. Se
+// colar de novo, meça e corrija aqui.
+#define BORDA_LATERAL_X_MM  83
+#define BORDA_LATERAL_Y_MM  93
 inline int16_t borda_x(uint8_t i) {
   return (ajustes().borda_lateral && BORDA[i].frente) ? (int16_t)BORDA_LATERAL_X_MM : BORDA[i].x;
 }
