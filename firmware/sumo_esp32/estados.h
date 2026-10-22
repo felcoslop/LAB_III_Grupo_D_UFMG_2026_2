@@ -44,7 +44,8 @@ float       estados_alinha_erro();    // graus até o oponente na última decis�
 uint16_t    estados_alinha_restante_s();
 uint16_t    estados_alinha_pulsos();  // pulsos de giro dados desde que ligou
 float       estados_alinha_giro();    // giro estimado desde que ligou, graus (positivo é esquerda)
-uint16_t    estados_alinha_limite();  // limite do giro de cada lado na demonstração (ALINHA_GIRO_MAX_DEG); 0 na contagem (que busca)
+uint16_t    estados_alinha_limite();
+bool        estados_vigia();          // true com a BUSCA em vigia (dojô vazio: parado, varrendo o setor da frente)  // limite do giro de cada lado na demonstração (ALINHA_GIRO_MAX_DEG); 0 na contagem (que busca)
 Estado      estado_atual();
 const char* estado_nome(Estado e);
 Estrategia  estados_estrategia();     // estratégia em uso (travada no start)

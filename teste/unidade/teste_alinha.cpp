@@ -46,6 +46,7 @@ static float psi = 0;                           // rumo do robô no mundo, graus
 static float beta = 0;                          // rumo do oponente no mundo
 static float ganhoRoda = 1.0f;                  // 1 = as rodas giram o que a cinemática estima; 1,8 = giram demais
 static bool  oponentePresente = true;
+static int8_t soPeloSensor = -1;             // >= 0: o oponente é visto só por esse ToF (lateral ou traseiro), em qualquer ângulo
 static float giroTotal = 0, vMax = 0, somaPwmMax = 0;
 static float ultE = 0; static int8_t ultLado = 0; static uint32_t tUltVisto = 0;
 static float eMedido = 0; static bool veMedido = false, veAnterior = false; static float eAnterior = 0;
@@ -57,8 +58,9 @@ static void passo(int ms = 2) {
     if ((P.t_ms % 30) < 2) {
       veAnterior = veMedido; eAnterior = eMedido;                       // atraso de uma leitura
       float e = envolve(beta - psi);
-      veMedido = oponentePresente && fabsf(e) <= 32.0f; eMedido = e;
-      P.op.visto = veAnterior; P.op.centrado = veAnterior && fabsf(eAnterior) <= CENTRO_DEG;
+      veMedido = oponentePresente && (soPeloSensor >= 0 || fabsf(e) <= 32.0f); eMedido = e;
+      P.op.visto = veAnterior; P.op.centrado = veAnterior && soPeloSensor < 0 && fabsf(eAnterior) <= CENTRO_DEG;
+      P.op.mascara = !veAnterior ? 0 : soPeloSensor >= 0 ? (uint16_t)(1u << soPeloSensor) : (uint16_t)(1u << 2);   // 2 = FC
       if (veAnterior) { P.op.angulo = eAnterior; P.op.dist_mm = 300; P.op.existe = 1; ultLado = eAnterior > 0 ? 1 : -1; tUltVisto = P.t_ms; ultE = eAnterior; }
       else { P.op.angulo = ultE; P.op.dist_mm = -1; P.op.existe = oponentePresente ? 0.4f : 0.0f; }
       P.op.lado_ultimo = ultLado;
@@ -74,7 +76,7 @@ static void passo(int ms = 2) {
 static void reinicia(float rumoRobo, float rumoOponente, float ganho = 1.0f) {
   estados_parar(); texto.clear();
   psi = rumoRobo; beta = rumoOponente; ganhoRoda = ganho; oponentePresente = true;
-  giroTotal = 0; vMax = 0; somaPwmMax = 0; ultE = 0; ultLado = 0; tUltVisto = 0; veMedido = veAnterior = false;
+  giroTotal = 0; vMax = 0; somaPwmMax = 0; ultE = 0; ultLado = 0; tUltVisto = 0; veMedido = veAnterior = false; soPeloSensor = -1;
   P.op = Oponente{}; P.borda = Borda{}; P.saude.pronto = true; P.start = false;
   passo(10);
 }
@@ -121,6 +123,28 @@ int main() {
     snprintf(nome, sizeof(nome), "oponente a %+.0f graus (fora da frente): parado, sem pulsos (graus girados)", fora[i]);
     confere(giroTotal < 0.5f && estados_alinha_pulsos() == 0 && pwmE == 0 && pwmD == 0 && vMax < 1.0f, nome, giroTotal);
     confere(estados_alinha_fase() == 1 && estados_alinha_ativo(), "e fica na fase 1 (sem oponente à frente), ainda ligado", estados_alinha_fase());
+  }
+
+  // 2b. só os ToF da frente contam (ALINHA_SO_FRENTE): visto só pelo lateral (LE, a 80 graus) ou pelo traseiro (TE, atrás), parado
+  {
+    struct { int8_t sensor; float rumo; const char* nome; } casos[2] = {{0, 80.0f, "visto só pelo lateral LE a +80 graus: parado, sem pulsos (graus girados)"},
+                                                                        {5, 170.0f, "visto só pelo traseiro TE a +170 graus: parado, sem pulsos (graus girados)"}};
+    for (auto& c : casos) {
+      reinicia(0, c.rumo); soPeloSensor = c.sensor;
+      estados_alinha(true, 30);
+      passo(5000);
+      confere(ALINHA_SO_FRENTE && giroTotal < 0.5f && estados_alinha_pulsos() == 0 && pwmE == 0 && pwmD == 0 && estados_alinha_fase() == 1, c.nome, giroTotal);
+    }
+    // alinhado pela frente, o oponente vai para o lado e só o lateral o vê: deixa de valer como alinhado e o robô não vai atrás
+    reinicia(0, 10);
+    estados_alinha(true, 60);
+    ateAlinhar(8000);
+    float giroAlinhado = giroTotal;
+    beta = psi + 80; soPeloSensor = 0;
+    passo(2000);
+    confere(estados_alinha_fase() == 1 && giroTotal - giroAlinhado < 0.5f, "alinhado, o oponente vai para o lado (só o LE vê): sai de ALINHADO e fica parado", giroTotal - giroAlinhado);
+    soPeloSensor = -1;
+    estados_alinha(false, 0);
   }
 
   // 3. oponente a -25 graus (direita): alinha para o outro lado

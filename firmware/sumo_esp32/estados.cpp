@@ -35,6 +35,13 @@ static bool     autoEspera = false;    // sensores prontos e contando AUTO_START
 static uint32_t tAutoPronto = 0;       // momento em que os sensores ficaram prontos
 static bool     autoArmado = AUTO_START != 0;   // modo autônomo ligado no boot; ligar pelo painel só vale no boot seguinte
 static bool     buscaAvanca = false;   // na BUSCA, true indica o avanço curto que muda o ponto de vista
+// vigia com o dojô vazio (config.h VIGIA_*)
+static bool     vigiaLigada = false, vigiaPulso = false;
+static uint32_t tVigia = 0, tUltVistoLuta = 0;
+static float    vigiaGiro0 = 0, giroSemVer = 0;   // giroSemVer: graus girados desde a última vez que o oponente foi visto
+static float    vigiaCentro = 0;                   // giro estimado quando a vigia começou: o meio do setor varrido
+static int8_t   vigiaSentido = 1, vigiaPos = 0;    // sentido do próximo pulso e posição em pulsos (0 = meio do setor)
+static uint16_t vigiaPulsos = 0;
 static uint32_t tBusca = 0;            // início do giro ou do avanço atual da BUSCA
 static Estrategia estrategia = RUSH;   // travada no start
 static bool     escuro = false;        // perfil do oponente, travado no start
@@ -74,6 +81,7 @@ static int8_t   alinhaUltSinal = 0;     // sentido do pulso de acerto anterior
 static bool     alinhaBusca = false;    // true na contagem de 5 s (gira às cegas atrás do oponente); false na demonstração (só acompanha o que os ToF veem)
 static float    alinhaGiro0 = 0;        // giro estimado da cinemática quando o alinhamento ligou (a demonstração mede o giro a partir daqui)
 static bool     alinhaLimiteAvisado = false;
+static uint32_t alinhaTVe = 0;          // última vez que a demonstração viu o oponente (com ALINHA_SO_FRENTE, só pelos ToF da frente)
 static uint8_t  alinhaCruzou = 0;       // pulsos de acerto seguidos que passaram do ponto
 
 static const char* NOMES[N_ESTADOS] = {"ESPERA", "CONTAGEM", "BUSCA", "MIRA", "ATAQUE", "FLANCO", "ATAQUE_RE",
@@ -91,6 +99,7 @@ static void entra(Estado novo) {
   Log.printf("# estado: %s -> %s\n", NOMES[est], NOMES[novo]);
   if (est == FLANCO) { tFimFlanco = P.t_ms; aberturaFlanco = false; }
   if (est == LEQUE) tFimLeque = P.t_ms;
+  if (est == BUSCA) { vigiaLigada = false; vigiaPulso = false; }   // fora da BUSCA não há vigia; ao voltar, ela recomeça parada
   est = novo;
   tEntrada = P.t_ms;
   if (novo == BUSCA) { buscaAvanca = false; tBusca = P.t_ms; fanGiro = 0; }
@@ -192,9 +201,9 @@ void estados_alinha(bool liga, uint16_t segundos) {
   alinhaAtivo = true; alinhaOk = false; alinhaPulso = false; alinhaFase = 1;
   alinhaT = millis(); alinhaFim = alinhaT + (uint32_t)segundos * 1000UL;
   alinhaDentro = 0; alinhaPulsos = 0; alinhaUltSinal = 0; alinhaCruzou = 0; alinhaErro = 0;
-  alinhaBusca = false; alinhaGiro0 = cinematica_giro(); alinhaLimiteAvisado = false;
-  Log.printf("# alinha: ligado por %u s (so gira no lugar, nao anda, linha ignorada, so acompanha o oponente da frente, no maximo %d graus de cada lado); alinha off para parar\n",
-             (unsigned)segundos, (int)ALINHA_GIRO_MAX_DEG);
+  alinhaBusca = false; alinhaGiro0 = cinematica_giro(); alinhaLimiteAvisado = false; alinhaTVe = 0;
+  Log.printf("# alinha: ligado por %u s (so gira no lugar, nao anda, linha ignorada, so acompanha o oponente da frente, no maximo %d graus de cada lado%s); alinha off para parar\n",
+             (unsigned)segundos, (int)ALINHA_GIRO_MAX_DEG, ALINHA_SO_FRENTE ? ", so os ToF da frente" : "");
 }
 bool     estados_alinha_ativo() { return alinhaAtivo; }
 uint8_t  estados_alinha_fase()  { return alinhaAtivo ? alinhaFase : 0; }
@@ -217,6 +226,15 @@ static bool alinhaCabe(float graus) {
   float g = cinematica_giro() - alinhaGiro0;
   return fabsf(g + graus) <= ALINHA_GIRO_MAX_DEG || fabsf(g + graus) < fabsf(g);
 }
+// Demonstração com ALINHA_SO_FRENTE: o oponente só conta se algum ToF da frente (FE, FC, FD) o vê agora e o ângulo
+// estimado cai no campo deles. O que só um lateral ou um traseiro vê fica de fora, e o robô não gira para o lado nem
+// para trás. A contagem de 5 s (alinhaBusca) e a luta continuam com todos os sensores.
+static bool alinhaSoFrente() { return ALINHA_SO_FRENTE && !alinhaBusca; }
+static uint16_t mascaraFrente() {
+  uint16_t m = 0;
+  for (uint8_t i = 0; i < N_TOF && i < 16; i++) if (abs(TOF[i].ang) <= ALINHA_SENSOR_FRENTE_DEG) m |= (uint16_t)(1u << i);
+  return m;
+}
 static void alinhaPasso() {
   if ((int32_t)(P.t_ms - alinhaFim) >= 0) {
     alinhaAtivo = false; alinhaOk = false; alinhaFase = 0; alinhaPulso = false;
@@ -224,9 +242,11 @@ static void alinhaPasso() {
     Log.println(F("# alinha: tempo esgotado"));
     return;
   }
-  const bool ve = P.op.visto;
   const float e = P.op.angulo;
-  if (ve) alinhaErro = e;
+  const bool ve = P.op.visto && (!alinhaSoFrente() || ((P.op.mascara & mascaraFrente()) && fabsf(e) <= ALINHA_FRENTE_MAX_DEG));
+  if (ve) { alinhaErro = e; alinhaTVe = P.t_ms | 1; }
+  // tempo sem ver o oponente: na demonstração só pela frente, senão o que o rastreador diz
+  const uint32_t semVer = alinhaSoFrente() ? (alinhaTVe ? P.t_ms - alinhaTVe : 99999u) : P.op.ms_sem_ver;
   if (alinhaPulso) {
     // o pulso acaba no tempo, ou na hora quando o oponente já está no centro ou o giro passou dele
     bool fim = P.t_ms - alinhaT >= alinhaDur;
@@ -238,7 +258,7 @@ static void alinhaPasso() {
   if (P.t_ms - alinhaT < ALINHA_PAUSA_MS) { alinhaFase = alinhaOk ? 3 : (ve ? 2 : 1); return; }
 
   if (alinhaOk) {                                      // alinhado: só sai com folga (histerese) ou oponente sumido
-    bool saiu = ve ? fabsf(e) > ALINHA_TOL_DEG * ALINHA_SAI_FATOR : P.op.ms_sem_ver > ALINHA_PERDE_MS;
+    bool saiu = ve ? fabsf(e) > ALINHA_TOL_DEG * ALINHA_SAI_FATOR : semVer > ALINHA_PERDE_MS;
     if (!saiu) { alinhaFase = 3; return; }
     alinhaOk = false; alinhaDentro = 0; alinhaCruzou = 0; alinhaUltSinal = 0;
     Log.println(F("# alinha: o oponente saiu do alinhamento, voltando a girar"));
@@ -280,7 +300,8 @@ static void alinhaPasso() {
   // o último lado visto). Demonstração: só segue a estimativa por ALINHA_SEGUE_MS depois de perdê-lo e, fora isso, fica parada
   // (a linha está ignorada e o robô não pode varrer a arena nem sair do lugar).
   alinhaFase = 1; alinhaUltSinal = 0; alinhaCruzou = 0;
-  const bool estimaBoa = P.op.existe >= 0.5f && P.op.ms_sem_ver < (alinhaBusca ? 1500u : (uint32_t)ALINHA_SEGUE_MS) && fabsf(e) > 1.0f;
+  const bool estimaBoa = P.op.existe >= 0.5f && semVer < (alinhaBusca ? 1500u : (uint32_t)ALINHA_SEGUE_MS) && fabsf(e) > 1.0f &&
+                         (!alinhaSoFrente() || fabsf(e) <= ALINHA_FRENTE_MAX_DEG);
   if (!alinhaBusca && !estimaBoa) return;
   int8_t sinal = estimaBoa ? (e > 0 ? 1 : -1) : (P.op.lado_ultimo != 0 ? P.op.lado_ultimo : 1);
   if (!alinhaCabe(sinal * ALINHA_BUSCA_W_DPS * ALINHA_BUSCA_PULSO_MS / 1000.0f)) return;
@@ -294,7 +315,7 @@ static void contagemAlinha() {
     alinhaAtivo = true; alinhaOk = false; alinhaPulso = false; alinhaFase = 1;
     alinhaT = P.t_ms; alinhaFim = P.t_ms + (uint32_t)T_CONTAGEM_MS + 2000UL;
     alinhaDentro = 0; alinhaPulsos = 0; alinhaUltSinal = 0; alinhaCruzou = 0; alinhaErro = 0;
-    alinhaBusca = true; alinhaGiro0 = cinematica_giro(); alinhaLimiteAvisado = false;
+    alinhaBusca = true; alinhaGiro0 = cinematica_giro(); alinhaLimiteAvisado = false; alinhaTVe = 0;
     Log.println(F("# contagem: so gira ate ficar de frente para o oponente (ajuste alinha 0 deixa o robo parado)"));
   }
   alinhaPasso();
@@ -456,7 +477,48 @@ static void decideFuga() {
 // procurando no caminho. Perto do centro, cada estratégia procura do seu jeito: Rush e Flank
 // giram no eixo para o lado do rumo (a seta do painel) com avanços curtos para mudar o ponto de
 // vista; Fan out oscila o rumo de um lado para o outro e avança devagar.
+// Dojô vazio: muito tempo sem ver, uma volta inteira sem achar e o rastreador sem pista (com histerese para sair).
+static bool dojoVazio() {
+  if (!VIGIA_DOJO_VAZIO || P.op.visto || P.rumo.modo != RUMO_PROCURAR) return false;
+  if (P.op.existe >= (vigiaLigada ? VIGIA_EXISTE_SAI : VIGIA_EXISTE_ENTRA)) return false;
+  if (vigiaLigada) return true;
+  return P.t_ms - tUltVistoLuta >= VIGIA_SEM_VER_MS && giroSemVer >= VIGIA_VARREDURA_DEG;
+}
+static void saiVigia(const char* motivo) {
+  if (!vigiaLigada) return;
+  vigiaLigada = false; vigiaPulso = false;
+  Log.printf("# vigia: fim (%s)\n", motivo);
+}
+// Parado no lugar; só o cone da frente varre um setor em volta do rumo em que a vigia começou: pulsos curtos de
+// VIGIA_PULSO_DEG, VIGIA_LADO_PULSOS para a esquerda, depois o dobro para a direita, o dobro para a esquerda...
+static void vigia() {
+  if (!vigiaLigada) {
+    vigiaLigada = true; vigiaPulso = false; tVigia = P.t_ms; vigiaPulsos = 0;
+    vigiaCentro = cinematica_giro(); vigiaPos = 0; vigiaSentido = 1;     // começa para a esquerda
+    Log.printf("# vigia: %u s sem ver o oponente e uma volta inteira sem achar; parado no lugar, varrendo +-%d graus com a frente\n",
+               (unsigned)((P.t_ms - tUltVistoLuta) / 1000), (int)(VIGIA_LADO_PULSOS * VIGIA_PULSO_DEG));
+  }
+  if (!vigiaPulso) {
+    cinematica_comanda(0, 0);                    // parado (rampa normal; abaixo de 2 mm/s as rodas ficam sem tensão)
+    if (P.t_ms - tVigia < VIGIA_PAUSA_MS) return;
+    // ponta do setor: pela contagem de pulsos ou pelo giro estimado (o que chegar primeiro), troca o sentido
+    const float lado = (float)(VIGIA_LADO_PULSOS * VIGIA_PULSO_DEG);
+    const float rel = cinematica_giro() - vigiaCentro;
+    if (vigiaSentido > 0 && (vigiaPos >= VIGIA_LADO_PULSOS || rel >= lado - VIGIA_PULSO_DEG / 2)) vigiaSentido = -1;
+    else if (vigiaSentido < 0 && (vigiaPos <= -VIGIA_LADO_PULSOS || rel <= -lado + VIGIA_PULSO_DEG / 2)) vigiaSentido = 1;
+    vigiaPulso = true; tVigia = P.t_ms; vigiaGiro0 = cinematica_giro(); vigiaPulsos++; vigiaPos += vigiaSentido;
+  }
+  cinematica_comanda(0, vigiaSentido * (float)VIGIA_GIRO_DPS);
+  if (fabsf(cinematica_giro() - vigiaGiro0) >= VIGIA_PULSO_DEG || P.t_ms - tVigia >= VIGIA_PULSO_MAX_MS) {
+    vigiaPulso = false; tVigia = P.t_ms;
+  }
+}
+
+bool estados_vigia() { return est == BUSCA && vigiaLigada; }
+
 static void busca(float dt) {
+  if (dojoVazio()) { vigia(); return; }
+  if (vigiaLigada) { saiVigia("o rastreador voltou a achar o oponente"); buscaAvanca = false; tBusca = P.t_ms; }
   int8_t s = P.rumo.angulo >= 0 ? 1 : -1;     // +1 gira para a esquerda, -1 para a direita
 #if MODO_DEFENSIVO
   cinematica_comanda(0, s * GIRO_BUSCA_DPS);
@@ -518,6 +580,7 @@ static void comecaLuta() {
 #endif
   arena_inicia(P.op.visto, P.op.x, P.op.y);
   arena_le(P.arena);
+  tUltVistoLuta = P.t_ms; giroSemVer = 0; vigiaLigada = false; vigiaPulso = false;
   Log.printf("# luta: estrategia %s, oponente %s%s\n", estrategia_nome(estrategia), escuro ? "ESCURO" : "CLARO",
              P.op.visto ? ", oponente visto na largada" : "");
 }
@@ -527,6 +590,12 @@ void estados_passo() {
   float dt = (P.t_ms - tAntPasso) * 0.001f;
   tAntPasso = P.t_ms;
   if (dt > 0.05f) dt = 0.05f;
+
+  // dojô vazio: tempo e giro desde a última vez que o oponente foi visto (a vigia da BUSCA usa os dois)
+  if (emLuta()) {
+    if (P.op.visto) { tUltVistoLuta = P.t_ms; giroSemVer = 0; saiVigia("oponente visto"); }
+    else giroSemVer += fabsf(cinematica_w_dps()) * dt;
+  }
 
   // Modo autônomo: o botão BOOT (ou o comando go) no meio da luta para o robô e recomeça a contagem de 5 s.
   if (emLuta() && ajustes().autonomo && (P.start || pedidoStart)) {

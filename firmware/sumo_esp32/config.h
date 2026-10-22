@@ -418,6 +418,12 @@ inline Ajustes& ajustes() {
 #define ALINHA_PULSO_MAX_MS   220
 #define ALINHA_PAUSA_MS       160    // parado entre pulsos, para os ToF medirem
 #define ALINHA_GIRO_MAX_DEG   90.0f  // demonstração: giro total máximo para cada lado desde o rumo inicial (0 = sem limite)
+// Demonstração: só os ToF da frente contam (|ângulo do sensor| até ALINHA_SENSOR_FRENTE_DEG: FE, FC e FD). Com o oponente visto
+// só por um lateral (LE, LD) ou por um traseiro (TE, TD), ou estimado a mais de ALINHA_FRENTE_MAX_DEG do centro, o robô fica
+// parado. ALINHA_SO_FRENTE 0 volta a usar todos os sensores. A luta e a contagem de 5 s usam sempre todos.
+#define ALINHA_SO_FRENTE      1
+#define ALINHA_SENSOR_FRENTE_DEG 30   // sensor da frente: ângulo de montagem até isso (FE e FD a 17 graus, FC a 0)
+#define ALINHA_FRENTE_MAX_DEG 35.0f  // campo dos três ToF da frente (17 graus + meio cone de 12,5) com folga
 #define ALINHA_SEGUE_MS       500    // demonstração: depois de perder o oponente de vista, ainda segue a estimativa por esse tempo
 #define ALINHA_BUSCA_W_DPS    130    // giro do pulso de busca (contagem de 5 s: oponente fora da vista)
 #define ALINHA_BUSCA_PULSO_MS 230    // 30 graus por pulso, menos que o campo dos três ToF da frente
@@ -487,6 +493,26 @@ inline Ajustes& ajustes() {
 #define T_RECUO_BLOQ_MS   300    // recuo que não sai do branco nesse tempo vira curva de ré
 #define T_BUSCA_GIRO_MS   1500   // BUSCA: tempo girando nos pontos cegos sem achar nada
 #define T_BUSCA_AVANCO_MS 250    // BUSCA: tempo do avanço curto que muda o ponto de vista
+// Vigia com o dojô vazio (oponente caiu ou não existe). Na BUSCA, depois de VIGIA_SEM_VER_MS sem ver o oponente, de
+// uma volta inteira de giro desde a última vez que ele foi visto (VIGIA_VARREDURA_DEG) e com o rastreador achando que
+// não há oponente no alcance (existe abaixo de VIGIA_EXISTE_ENTRA, sem rumo provável), o robô para no lugar: nada de
+// avanço curto nem de volta ao centro. Só o cone da frente se mexe: o robô varre um setor em volta do rumo em que a
+// vigia começou, em pulsos curtos de VIGIA_PULSO_DEG no eixo separados por VIGIA_PAUSA_MS parado (os ToF medem sem
+// o robô girando): VIGIA_LADO_PULSOS pulsos para a esquerda, depois o dobro para a direita, depois o dobro para a
+// esquerda, e assim por diante (3, 6, 6, 6... com os valores abaixo, ou seja, de +45 a -45 graus). O fim de cada lado é
+// conferido também pelo giro estimado, para o setor não escorregar. Sai da vigia na hora em que algum sensor vê o
+// oponente ou o rastreador volta a achar que ele existe (VIGIA_EXISTE_SAI, histerese). A borda continua com
+// prioridade. Com oponente no dojô a vigia quase nunca entra (ver a bateria no README). VIGIA_DOJO_VAZIO 0 desliga.
+#define VIGIA_DOJO_VAZIO     1
+#define VIGIA_SEM_VER_MS     4000   // sem ver o oponente por esse tempo (contado desde a largada ou desde a última vez visto)
+#define VIGIA_VARREDURA_DEG  360    // e girando pelo menos isso nesse tempo
+#define VIGIA_EXISTE_ENTRA   0.15f  // chance de existir oponente abaixo disso para entrar
+#define VIGIA_EXISTE_SAI     0.30f  // e acima disso para sair
+#define VIGIA_PAUSA_MS       600    // parado entre os pulsos
+#define VIGIA_PULSO_DEG      15     // tamanho de cada pulso
+#define VIGIA_LADO_PULSOS    3      // pulsos do centro até cada ponta do setor (3 x 15 = 45 graus para cada lado)
+#define VIGIA_GIRO_DPS       120    // velocidade do pulso (devagar: a roda não patina e o robô não sai do lugar)
+#define VIGIA_PULSO_MAX_MS   500    // segurança: o pulso acaba nesse tempo mesmo se a estimativa não chegar ao ângulo
 #define MODO_DEFENSIVO    0      // 1 faz o robô só mirar e nunca avançar
 
 // ============================================================================

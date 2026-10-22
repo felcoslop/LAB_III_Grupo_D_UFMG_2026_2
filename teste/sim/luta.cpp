@@ -17,6 +17,8 @@
 //   -r ARQ      grava o rastro da luta em JSON (para o visualizador da página)
 //   -v          mostra o Log do firmware
 //   -a          diagnóstico a cada 100 ms: arena e oponente estimados contra os de verdade
+//   -x          dojô vazio: o oponente some (como depois de cair) e o round vai até o fim; no fim, uma linha
+//               "vazio:" com o início da vigia, o quanto o robô andou e girou nela e se ele caiu
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -153,7 +155,7 @@ int main(int argc, char** argv) {
   uint32_t semente = 1;
   std::string tipo = "espelho", cor = "escuro", arqRastro;
   int dip = 0;
-  bool pessoas = false, diag = false;
+  bool pessoas = false, diag = false, vazio = false;
   double tRound = 90, vBat = -1;
   for (int i = 1; i < argc; i++) {
     std::string a = argv[i];
@@ -168,6 +170,7 @@ int main(int argc, char** argv) {
     else if (a == "-r") arqRastro = prox();
     else if (a == "-v") H.verboso = true;
     else if (a == "-a") diag = true;
+    else if (a == "-x") vazio = true;
   }
   Mundo M(semente * 2654435761u + 17);
   H.mundo = &M;
@@ -182,6 +185,7 @@ int main(int argc, char** argv) {
   int jeitoNosso = (int)M.uniforme(0, 5), jeitoOp = (int)M.uniforme(0, 5);
   posiciona(M, M.nosso, +1, jeitoNosso);
   posiciona(M, M.op, -1, jeitoOp);
+  if (vazio) { M.op.x = 50; M.op.y = 50; }      // longe de tudo: nenhum sensor alcança
   if (pessoas) {
     // pessoas e juiz em volta do dojô: pernas de 12 a 80 cm da borda, refletância de roupa comum
     int n = 4 + (int)M.uniforme(0, 3);
@@ -210,6 +214,9 @@ int main(int argc, char** argv) {
   int bordas = 0;
   Estado estAnt = estado_atual();
   double tFantasma = 0;                 // tempo mirando ou atacando algo fora do dojô
+  // dojô vazio (-x): início da vigia, caminho e giro dentro dela, maior distância do ponto onde ela começou
+  double tVigia = -1, xVig = 0, yVig = 0, thVig = 0, xAntVig = 0, yAntVig = 0, andouVig = 0, desvioVig = 0;
+  double giroMinVig = 0, giroMaxVig = 0; int saidasVig = 0; bool vgAnt = false;
   // detecção antes do primeiro contato: tempo até a primeira estimativa certa e parte do tempo
   // em que o oponente estava dentro de algum cone e a estimativa estava certa (estabilidade)
   double tDet = -1;
@@ -265,7 +272,18 @@ int main(int argc, char** argv) {
     M.nosso.rodaD.v = tensaoMotorDir(vDisp);
     // IA do oponente a cada 5 ms
     bool liberado = tLiberado > 0 && M.t >= tLiberado;
-    if (H.us >= proxIa) { iaPasso(M, ia, 0.005, liberado); proxIa = H.us + 5000; }
+    if (H.us >= proxIa) { if (!vazio) iaPasso(M, ia, 0.005, liberado); proxIa = H.us + 5000; }
+    if (vazio && liberado) {                // dojô vazio: o que o robô faz na vigia
+      bool vg = estados_vigia();
+      if (vg && tVigia < 0) { tVigia = M.t - tLiberado; xVig = M.nosso.x; yVig = M.nosso.y; thVig = M.nosso.th; }
+      if (tVigia >= 0) {
+        double dth = std::remainder(M.nosso.th - thVig, 2 * M_PI) * 180 / M_PI;
+        if (vg) { andouVig += std::hypot(M.nosso.x - xAntVig, M.nosso.y - yAntVig); giroMinVig = std::min(giroMinVig, dth); giroMaxVig = std::max(giroMaxVig, dth); }
+        if (!vg && vgAnt) saidasVig++;
+        desvioVig = std::max(desvioVig, std::hypot(M.nosso.x - xVig, M.nosso.y - yVig));
+      }
+      xAntVig = M.nosso.x; yAntVig = M.nosso.y; vgAnt = vg;
+    }
     // física até o próximo loop
     uint64_t alvo = H.us + passoLoop;
     while (H.us < alvo) { M.passo(dtFis); H.us += (uint64_t)(dtFis * 1e6); }
@@ -285,7 +303,7 @@ int main(int argc, char** argv) {
     }
 #endif
     // fim do round
-    if (M.nosso.fora || M.op.fora) {
+    if (M.nosso.fora || (M.op.fora && !vazio)) {
       if (M.nosso.fora && M.op.fora) resultado = 0;
       else if (M.op.fora) resultado = 1;
       else resultado = (M.t - M.tUltContato < 0.3) ? -1 : -2;
@@ -313,5 +331,8 @@ int main(int argc, char** argv) {
   printf("%u,%s,%s,%d,%s,%.2f,%.2f,%d,%.2f,%.2f,%d,%d,%.3f,%.3f\n", semente, tipo.c_str(), cor.c_str(), dip,
          NOME[resultado + 2], tFim, M.tContatoTotal, bordas, tFantasma, vBat, jeitoNosso, jeitoOp,
          tDet, nVisivel ? (double)nCerto / nVisivel : -1.0);
+  if (vazio)
+    printf("vazio: vigia aos %.1f s | andou %.0f mm na vigia, no máximo %.0f mm do ponto onde ela começou | giro de %+.0f a %+.0f graus | saídas %d | %s\n",
+           tVigia, andouVig * 1000, desvioVig * 1000, giroMinVig, giroMaxVig, saidasVig, M.nosso.fora ? "CAIU" : "no dojô");
   return 0;
 }
