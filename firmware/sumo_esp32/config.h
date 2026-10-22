@@ -417,6 +417,12 @@ inline Ajustes& ajustes() {
 #define ALINHA_PULSO_MAX_MS   220
 #define ALINHA_PAUSA_MS       160    // parado entre pulsos, para os ToF medirem
 #define ALINHA_GIRO_MAX_DEG   90.0f  // demonstração: giro total máximo para cada lado desde o rumo inicial (0 = sem limite)
+// Demonstração: só os ToF da frente contam (|ângulo do sensor| até ALINHA_SENSOR_FRENTE_DEG: FE, FC e FD). Com o oponente visto
+// só por um lateral (LE, LD) ou por um traseiro (TE, TD), ou estimado a mais de ALINHA_FRENTE_MAX_DEG do centro, o robô fica
+// parado. ALINHA_SO_FRENTE 0 volta a usar todos os sensores. A luta e a contagem de 5 s usam sempre todos.
+#define ALINHA_SO_FRENTE      1
+#define ALINHA_SENSOR_FRENTE_DEG 30   // sensor da frente: ângulo de montagem até isso (FE e FD a 17 graus, FC a 0)
+#define ALINHA_FRENTE_MAX_DEG 35.0f  // campo dos três ToF da frente (17 graus + meio cone de 12,5) com folga
 #define ALINHA_SEGUE_MS       500    // demonstração: depois de perder o oponente de vista, ainda segue a estimativa por esse tempo
 #define ALINHA_BUSCA_W_DPS    130    // giro do pulso de busca (contagem de 5 s: oponente fora da vista)
 #define ALINHA_BUSCA_PULSO_MS 230    // 30 graus por pulso, menos que o campo dos três ToF da frente
