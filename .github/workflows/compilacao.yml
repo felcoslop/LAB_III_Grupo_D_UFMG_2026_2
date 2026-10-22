@@ -136,6 +136,12 @@ jobs:
           g++ -std=c++11 -Wall -Wextra -Werror $INC teste/unidade/teste_contagem.cpp \
             $FW/estados.cpp $FW/cinematica.cpp $FW/arena.cpp $FW/chave.cpp $FW/antitrava.cpp -o teste_contagem
           ./teste_contagem
+      # luta com o dojô vazio: depois de uma volta sem achar ninguém, parado no lugar com um giro curto a cada 2,5 s
+      - name: Vigia com o dojô vazio
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror $INC teste/unidade/teste_vigia.cpp \
+            $FW/estados.cpp $FW/cinematica.cpp $FW/arena.cpp $FW/chave.cpp $FW/antitrava.cpp -o teste_vigia
+          ./teste_vigia
       # borda: limiar explícito da calibração de pista, janelas de mínimo e máximo, gravação na NVS de mentira
       - name: Borda (limiar de pista e janelas)
         run: |
@@ -173,6 +179,15 @@ jobs:
         run: |
           python teste/sim/roda_lutas.py teste/sim/luta --sementes 8 --dips 1,2,4 --fora --perfil-pela-cor \
             --exige --fantasma-max 3 --csv lutas.csv | tee lutas.txt
+      # dojô vazio (oponente sumido), com pessoas em volta: a vigia precisa começar e o robô não pode cair
+      - name: Dojô vazio (vigia)
+        run: |
+          falhou=0
+          for d in 1 2 4; do for s in 1 2 3 4 5 6 7 8; do
+            l=$(teste/sim/luta -s $s -d $d -x -f | tail -1); echo "dip $d semente $s | $l" | tee -a vazio.txt
+            case "$l" in *CAIU*|*"vigia aos -1.0"*) echo "::error::dojô vazio, dip $d semente $s: $l"; falhou=1;; esac
+          done; done
+          exit $falhou
       - name: Resumo da bateria
         if: always()
         run: |
